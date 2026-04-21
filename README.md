@@ -1,93 +1,152 @@
-# contract cli
+# contract-cli
 
+`contract-cli` 是合同开放平台的命令行工具，支持：
 
+- profile 配置与 OAuth / bot 双身份登录
+- 开放平台 `/open-apis/...` 原始调用
+- 合同与 MDM 结构化命令
+- Agent skills 通用安装与 CLI 内置兜底安装
+- 版本检查与升级提示
+- 源码构建、预编译二进制发布、npm/npx 薄包装分发
 
-## Getting started
+命令清单请看：[docs/cli-command-reference.md](/Users/lyy/contract-cli/docs/cli-command-reference.md)
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+## 环境要求
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- Go `1.24.3+`
+- Node.js `16+`
+- `tar` 或 PowerShell `Expand-Archive`
 
-## Add your files
+## 快速开始
 
-* [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+### 源码构建
 
+```bash
+make test
+make build
+./contract-cli --version
 ```
-cd existing_repo
-git remote add origin https://git.qtech.cn/contract/contract-cli.git
-git branch -M master
-git push -uf origin master
+
+也可以直接使用：
+
+```bash
+./build.sh
+go build ./cmd/contract-cli
 ```
 
-## Integrate with your tools
+### 安装到本机 PATH
 
-* [Set up project integrations](https://git.qtech.cn/contract/contract-cli/-/settings/integrations)
+```bash
+make install
+contract-cli --version
+```
 
-## Collaborate with your team
+### npm / npx 薄包装
 
-* [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+仓库已经提供 `package.json + scripts/install.js + scripts/run.js`：
 
-## Test and Deploy
+- 本地源码仓库内执行 `npm install` 时，如果检测到 Go 源码，会回退到本地 `go build`
+- 以后发布到 npm 后，安装脚本会优先下载预编译二进制
+- npm 发布配置固定为 `https://registry.npmjs.org/` 和 public access
+- 预编译二进制默认从 GitHub Releases 下载：`https://github.com/qfeius/contract-cli/releases/download/v{version}`
 
-Use the built-in continuous integration in GitLab.
+示例：
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+```bash
+NPM_CONFIG_REGISTRY=https://registry.npmjs.org npm install -g @qfeius/contract-cli@beta
+npx skills add qfeius/contract-cli -y -g
+npx @qfeius/contract-cli --version
+```
 
-***
+`npx skills add qfeius/contract-cli -y -g` 是推荐的 Agent skills 安装方式，会从 GitHub 仓库安装 `skills/` 目录，适配 Codex、Cursor、Trae、Claude Code 等多类 Agent 环境。若该通用安装器不可用，可使用 CLI 内置兜底：
 
-# Editing this README
+```bash
+contract-cli skills install
+contract-cli skills install --target ~/.codex/skills
+```
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+## 构建与发布
 
-## Suggestions for a good README
+### 本地构建
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+```bash
+make build
+```
 
-## Name
-Choose a self-explaining name for your project.
+默认会把版本、commit、构建时间注入到二进制里。
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+### 本地快照发版
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+```bash
+make release-snapshot
+```
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+该命令依赖 `goreleaser`，会在 `dist/` 下产出多平台压缩包和 `checksums.txt`。
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+### 生成 GitHub Release 附件
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+```bash
+make release-assets
+```
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+默认会读取 `package.json` 的版本号，生成 `dist/release-assets/contract-cli-<version>-<os>-<arch>` 系列文件和 `checksums.txt`。这些文件需要上传到同名 GitHub Release，例如 `v0.1.0-beta.1`。
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+### 正式发版
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+- 打 tag，例如 `v0.1.0`
+- 运行 `make release-assets`
+- 将 `dist/release-assets/` 下的压缩包上传到 GitHub Release
+- 发布 npm 薄包装
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+仓库里额外提供了一个可选的 GitHub Actions workflow：`/.github/workflows/release.yml`。如果后续继续使用 GitLab CI，可以直接复用相同的 `goreleaser release --clean` 命令。
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+## 常用命令
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+```bash
+contract-cli --help
+contract-cli help contract upload-file
+contract-cli config add --env dev --name contract-group
+contract-cli auth login --profile contract-group --as user
+contract-cli auth login --profile contract-group --as bot --app-id <id> --app-secret <secret>
+contract-cli update check --channel beta
+npx skills add qfeius/contract-cli -y -g
+contract-cli skills list
+contract-cli skills install --target ~/.codex/skills
+contract-cli api call GET /open-apis/contract/v1/mcp/config/config_list --as user
+contract-cli contract get <contract-id> --profile contract-group --as user
+contract-cli contract upload-file --file ./合同正文.docx --file-type text --profile contract-group --as bot
+contract-cli mdm vendor list --profile contract-group --as user
+contract-cli mdm legal get <legal-entity-id> --profile contract-group --as user
+contract-cli mdm fields list --biz-line vendor --profile contract-group --as user
+```
+
+所有已支持命令都可以通过 `--help` 查看本地帮助，例如 `contract-cli contract search --help`。帮助只渲染本地命令说明，不读取 profile、不发 HTTP，也不会触发自动版本检查。
+
+## 测试
+
+完整手工测试流程请看：[docs/cli-test-plan.md](/Users/lyy/contract-cli/docs/cli-test-plan.md)
+
+```bash
+make test
+tests/cli_e2e/smoke.sh
+make release-check
+```
+
+`make release-check` 会额外验证 npm 包 dry-run、本地 tgz 安装、安装后 `contract-cli --version`、`skills list` 和 `skills install`。
+
+CLI 会在交互终端下最多每 30 分钟自动检查一次 npm 远端版本，并在发现新版本时提示升级命令。也可以手动执行 `contract-cli update check --channel beta`；如需关闭自动检查，可设置 `CONTRACT_CLI_NO_UPDATE_CHECK=1`。
+
+## 目录说明
+
+- `cmd/contract-cli`：CLI 入口
+- `internal/cli`：命令解析与交互
+- `internal/openplatform`：开放平台统一 client 和领域 service
+- `internal/oauth`：user / bot 鉴权逻辑
+- `internal/build`：版本与构建元信息
+- `skills`：随 CLI 分发并可由通用 installer 安装的 Agent skills
+- `scripts`：npm 安装与运行脚本
+- `tests/cli_e2e`：CLI 端到端冒烟脚本
 
 ## License
-For open source projects, say how it is licensed.
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+当前仓库以 `UNLICENSED` 方式提供，后续若需要对外发布，请在首发前补齐正式许可证与发布源配置。
