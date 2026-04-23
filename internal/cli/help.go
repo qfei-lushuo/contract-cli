@@ -440,6 +440,14 @@ func addContractHelp(registry map[string]helpTopic) {
 			{"contract-cli contract text <contract-id> [flags]", "获取合同文本"},
 			{"contract-cli contract create [flags]", "创建合同"},
 			{"contract-cli contract upload-file [flags]", "bot 身份上传合同文件"},
+			{"contract-cli contract submit <contract-id> [flags]", "bot 身份提交合同"},
+			{"contract-cli contract resubmit <contract-id> [flags]", "bot 身份重新提交合同"},
+			{"contract-cli contract patch <contract-id> [flags]", "bot 身份更新合同"},
+			{"contract-cli contract download-file <file-id> [flags]", "bot 身份下载合同相关文件"},
+			{"contract-cli contract delete <contract-id> [flags]", "bot 身份删除草稿合同"},
+			{"contract-cli contract print-file [flags]", "bot 身份生成合同打印文件"},
+			{"contract-cli contract share <subcommand> [flags]", "bot 身份查询合同分享记录"},
+			{"contract-cli contract cooperation <resource> <subcommand> [flags]", "bot 身份查询合同协商信息"},
 			{"contract-cli contract category list [flags]", "列出合同分类"},
 			{"contract-cli contract template <subcommand> [flags]", "模板相关命令"},
 			{"contract-cli contract enum list [flags]", "查询枚举值"},
@@ -542,6 +550,155 @@ func addContractHelp(registry map[string]helpTopic) {
 			"请求使用 multipart/form-data，字段为 file_name、file_type、file。",
 			"本地文件必须存在、是普通文件，大小 <= 200MB。",
 			"不接受 --input-file / --data；这两个参数只用于 JSON 请求体。",
+		},
+	}
+	registry["contract submit"] = helpTopic{
+		Name:    "contract submit",
+		Summary: "bot 身份提交合同。",
+		Usage:   []string{"contract-cli contract submit <contract-id> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli contract submit <contract-id> --profile contract-group --as bot",
+			"contract-cli contract submit <contract-id> --profile contract-group --as bot --data '{\"comment\":\"ok\"}'",
+		},
+		Notes: []string{
+			"bot-only: 当前仅支持 --as bot。",
+			"走 POST /open-apis/contract/v1/contracts/{contract_id}/submit。",
+			"--input-file / --data 可选；不传时不发送请求体。",
+		},
+	}
+	registry["contract resubmit"] = helpTopic{
+		Name:    "contract resubmit",
+		Summary: "bot 身份重新提交合同。",
+		Usage:   []string{"contract-cli contract resubmit <contract-id> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli contract resubmit <contract-id> --profile contract-group --as bot",
+			"contract-cli contract resubmit <contract-id> --profile contract-group --as bot --input-file resubmit.json",
+		},
+		Notes: []string{
+			"bot-only: 当前仅支持 --as bot。",
+			"走 POST /open-apis/contract/v1/contracts/{contract_id}/resubmit。",
+			"--input-file / --data 可选；不传时不发送请求体。",
+		},
+	}
+	registry["contract patch"] = helpTopic{
+		Name:    "contract patch",
+		Summary: "bot 身份更新合同，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli contract patch <contract-id> --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli contract patch <contract-id> --profile contract-group --as bot --input-file patch.json",
+			"contract-cli contract patch <contract-id> --profile contract-group --as bot --data '{\"title\":\"demo\"}'",
+		},
+		Notes: []string{
+			"bot-only: 当前仅支持 --as bot。",
+			"走 PATCH /open-apis/contract/v1/contracts/{contract_id}。",
+			"--input-file / --data 必填且互斥。",
+		},
+	}
+	registry["contract download-file"] = helpTopic{
+		Name:    "contract download-file",
+		Summary: "bot 身份下载合同相关文件。",
+		Usage:   []string{"contract-cli contract download-file <file-id> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
+			{"--output-file <path>", "保存到指定文件；不传时默认拉起保存文件弹窗"},
+			{"--force", "覆盖已存在的 --output-file"},
+		}),
+		Examples: []string{
+			"contract-cli contract download-file <file-id> --profile contract-group --as bot",
+			"contract-cli contract download-file <file-id> --profile contract-group --as bot --output-file ./contract.pdf",
+			"contract-cli contract download-file <file-id> --profile contract-group --as bot --raw > contract.pdf",
+		},
+		Notes: []string{
+			"bot-only: 当前仅支持 --as bot。",
+			"走 GET /open-apis/contract/v1/files/{file_id}。",
+			"默认拉起保存文件弹窗；无 GUI/远程/CI 环境推荐显式传 --output-file。",
+			"--raw 会把文件内容写到 stdout，不打印额外提示。",
+			"不实现 dowload-file 拼写别名。",
+		},
+	}
+	registry["contract delete"] = helpTopic{
+		Name:    "contract delete",
+		Summary: "bot 身份删除草稿合同。",
+		Usage:   []string{"contract-cli contract delete <contract-id> [flags]"},
+		Flags:   openPlatformCommonFlags(),
+		Examples: []string{
+			"contract-cli contract delete <contract-id> --profile contract-group --as bot",
+		},
+		Notes: []string{
+			"bot-only: 当前仅支持 --as bot。",
+			"走 DELETE /open-apis/contract/v1/contracts/{contract_id}。",
+			"命令直接删除，不额外要求 --yes。",
+		},
+	}
+	registry["contract print-file"] = helpTopic{
+		Name:    "contract print-file",
+		Summary: "bot 身份生成合同打印文件，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli contract print-file --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli contract print-file --profile contract-group --as bot --input-file print-file.json",
+			"contract-cli contract print-file --profile contract-group --as bot --data '{\"contract_id\":\"<contract-id>\"}'",
+		},
+		Notes: []string{
+			"bot-only: 当前仅支持 --as bot。",
+			"走 POST /open-apis/contract/v1/files。",
+			"--input-file / --data 必填且互斥。",
+		},
+	}
+	registry["contract share"] = helpTopic{
+		Name:  "contract share",
+		Usage: []string{"contract-cli contract share <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli contract share get <contract-id> [flags]", "bot 身份查询合同分享记录"},
+		},
+	}
+	registry["contract share get"] = helpTopic{
+		Name:    "contract share get",
+		Summary: "bot 身份查询合同分享记录。",
+		Usage:   []string{"contract-cli contract share get <contract-id> [flags]"},
+		Flags:   openPlatformCommonFlags(),
+		Examples: []string{
+			"contract-cli contract share get <contract-id> --profile contract-group --as bot",
+		},
+		Notes: []string{
+			"bot-only: 当前仅支持 --as bot。",
+			"走 GET /open-apis/contract/v1/contracts/{contract_id}/share_records。",
+		},
+	}
+	registry["contract cooperation"] = helpTopic{
+		Name:  "contract cooperation",
+		Usage: []string{"contract-cli contract cooperation <resource> <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli contract cooperation link get <contract-id> [flags]", "bot 身份查询合同协商邀请链接"},
+			{"contract-cli contract cooperation record get <contract-id> [flags]", "bot 身份查询合同协商操作记录"},
+		},
+	}
+	registry["contract cooperation link get"] = helpTopic{
+		Name:    "contract cooperation link get",
+		Summary: "bot 身份查询合同协商邀请链接。",
+		Usage:   []string{"contract-cli contract cooperation link get <contract-id> [flags]"},
+		Flags:   openPlatformCommonFlags(),
+		Examples: []string{
+			"contract-cli contract cooperation link get <contract-id> --profile contract-group --as bot",
+		},
+		Notes: []string{
+			"bot-only: 当前仅支持 --as bot。",
+			"走 GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_link。",
+		},
+	}
+	registry["contract cooperation record get"] = helpTopic{
+		Name:    "contract cooperation record get",
+		Summary: "bot 身份查询合同协商操作记录信息。",
+		Usage:   []string{"contract-cli contract cooperation record get <contract-id> [flags]"},
+		Flags:   openPlatformCommonFlags(),
+		Examples: []string{
+			"contract-cli contract cooperation record get <contract-id> --profile contract-group --as bot",
+		},
+		Notes: []string{
+			"bot-only: 当前仅支持 --as bot。",
+			"走 GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_record_info。",
 		},
 	}
 	addContractNestedHelp(registry)

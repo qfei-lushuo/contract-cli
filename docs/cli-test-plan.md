@@ -641,6 +641,107 @@ POST /open-apis/contract/v1/files/upload
 - profile 默认身份是 user 或显式 `--as user` 时，CLI 应在发 HTTP 前报错。
 - 超过 `200MB`、目录路径、文件不存在、缺少 `--file`、缺少 `--file-type` 都应报明确错误。
 
+### 5.10.1 bot-only 合同提交、重提、更新与删除
+
+```bash
+contract-cli contract submit "$CONTRACT_ID" --profile "$PROFILE" --as bot --output json
+contract-cli contract submit "$CONTRACT_ID" --profile "$PROFILE" --as bot --data '{"comment":"contract-cli smoke submit"}' --output json
+contract-cli contract resubmit "$CONTRACT_ID" --profile "$PROFILE" --as bot --output json
+contract-cli contract resubmit "$CONTRACT_ID" --profile "$PROFILE" --as bot --data '{"comment":"contract-cli smoke resubmit"}' --output json
+```
+
+更新合同需要准备 JSON 请求体：
+
+```bash
+cat > /tmp/contract-patch-bot.json <<'JSON'
+{
+  "contract_name": "contract-cli bot patch smoke"
+}
+JSON
+
+contract-cli contract patch "$CONTRACT_ID" --profile "$PROFILE" --as bot --input-file /tmp/contract-patch-bot.json --output json
+```
+
+删除草稿合同是破坏性操作，只能对明确可回收的 dev 草稿合同执行：
+
+```bash
+contract-cli contract delete "$DRAFT_CONTRACT_ID" --profile "$PROFILE" --as bot --output json
+```
+
+预期底层接口：
+
+```text
+POST /open-apis/contract/v1/contracts/{contract_id}/submit
+POST /open-apis/contract/v1/contracts/{contract_id}/resubmit
+PATCH /open-apis/contract/v1/contracts/{contract_id}
+DELETE /open-apis/contract/v1/contracts/{contract_id}
+```
+
+检查点：
+
+- 四个命令当前都仅支持 bot 身份，显式 `--as user` 应在发 HTTP 前失败。
+- `submit` / `resubmit` 的 `--input-file` / `--data` 可选，不传时不发送请求体。
+- `patch` 的 `--input-file` / `--data` 必须传一个且互斥。
+- `delete` 不要求 `--yes`，执行前由测试者自行确认目标是草稿合同。
+
+### 5.10.2 bot-only 下载与生成打印文件
+
+下载文件建议显式指定保存路径，避免默认保存弹窗在 Agent、SSH 或 CI 环境不可用：
+
+```bash
+contract-cli contract download-file "$FILE_ID" --profile "$PROFILE" --as bot --output-file /tmp/contract-download.pdf
+contract-cli contract download-file "$FILE_ID" --profile "$PROFILE" --as bot --output-file /tmp/contract-download.pdf --force
+contract-cli contract download-file "$FILE_ID" --profile "$PROFILE" --as bot --raw > /tmp/contract-download.raw
+```
+
+生成打印文件需要准备 JSON 请求体：
+
+```bash
+cat > /tmp/contract-print-file-bot.json <<'JSON'
+{
+  "contract_id": "REPLACE_WITH_CONTRACT_ID"
+}
+JSON
+
+contract-cli contract print-file --profile "$PROFILE" --as bot --input-file /tmp/contract-print-file-bot.json --output json
+```
+
+预期底层接口：
+
+```text
+GET /open-apis/contract/v1/files/{file_id}
+POST /open-apis/contract/v1/files
+```
+
+检查点：
+
+- `download-file` 当前仅支持 bot 身份，不支持 `dowload-file` 拼写。
+- 不传 `--output-file` 且不传 `--raw` 时，CLI 默认拉起保存文件弹窗。
+- 无 GUI、远程、CI、Agent 环境下，保存弹窗失败时不应发 HTTP，并提示改用 `--output-file`。
+- `--output-file` 文件已存在时默认失败，加 `--force` 才覆盖。
+- `print-file` 的 `--input-file` / `--data` 必须传一个且互斥。
+
+### 5.10.3 bot-only 分享记录与协商信息
+
+```bash
+contract-cli contract share get "$CONTRACT_ID" --profile "$PROFILE" --as bot --output json
+contract-cli contract cooperation link get "$CONTRACT_ID" --profile "$PROFILE" --as bot --output json
+contract-cli contract cooperation record get "$CONTRACT_ID" --profile "$PROFILE" --as bot --output json
+```
+
+预期底层接口：
+
+```text
+GET /open-apis/contract/v1/contracts/{contract_id}/share_records
+GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_link
+GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_record_info
+```
+
+检查点：
+
+- 三个命令当前都仅支持 bot 身份。
+- 响应保持后端 JSON envelope，不做 CLI 侧结构归一化。
+
 ### 5.11 交易方列表
 
 ```bash

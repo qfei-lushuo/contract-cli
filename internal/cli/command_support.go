@@ -263,6 +263,17 @@ func resolveRawBody(options commandOptions) ([]byte, error) {
 	}
 }
 
+func resolveRequiredRawBody(options commandOptions) ([]byte, error) {
+	body, err := resolveRawBody(options)
+	if err != nil {
+		return nil, err
+	}
+	if len(body) == 0 {
+		return nil, fmt.Errorf("--input-file or --data is required")
+	}
+	return body, nil
+}
+
 func commandCommonQuery(options commandOptions) url.Values {
 	query := url.Values{"user_id_type": {"user_id"}}
 	if value := strings.TrimSpace(options.userIDType); value != "" {

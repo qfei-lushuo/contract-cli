@@ -1,6 +1,7 @@
 package openplatform_test
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
@@ -267,6 +268,126 @@ func TestClientDoPreservesMultipartContentType(t *testing.T) {
 		},
 	}); err != nil {
 		t.Fatalf("Do() error = %v", err)
+	}
+}
+
+func TestClientDoStreamWritesSuccessBody(t *testing.T) {
+	t.Parallel()
+
+	client := openplatform.New(openplatform.Options{
+		HTTPClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet {
+					t.Fatalf("method = %s", req.Method)
+				}
+				if req.URL.String() != "https://dev-open.qtech.cn/open-apis/contract/v1/files/file-123?user_id=ou_123&user_id_type=user_id" {
+					t.Fatalf("url = %q", req.URL.String())
+				}
+				if req.Header.Get("Authorization") != "Bearer bot-token" {
+					t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header: http.Header{
+						"Content-Type": {"application/pdf"},
+					},
+					Body: io.NopCloser(strings.NewReader("download bytes")),
+				}, nil
+			}),
+		},
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+
+	requestContext, err := client.RequestContext(config.Profile{
+		Name:                "contract-group",
+		Environment:         "dev",
+		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
+		DefaultIdentity:     config.IdentityBot,
+		Identities: config.Identities{
+			Bot: config.BotIdentity{
+				Token: &config.Token{
+					AccessToken: "bot-token",
+					TokenType:   "Bearer",
+					Expiry:      time.Now().Add(time.Hour),
+				},
+			},
+		},
+	}, config.IdentityBot)
+	if err != nil {
+		t.Fatalf("RequestContext() error = %v", err)
+	}
+	requestContext.CommonQuery = map[string][]string{
+		"user_id_type": {"user_id"},
+		"user_id":      {"ou_123"},
+	}
+
+	out := &bytes.Buffer{}
+	response, err := client.DoStream(context.Background(), requestContext, openplatform.Request{
+		Method:         http.MethodGet,
+		Path:           "/open-apis/contract/v1/files/file-123",
+		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+	}, out)
+	if err != nil {
+		t.Fatalf("DoStream() error = %v", err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", response.StatusCode)
+	}
+	if response.Headers.Get("Content-Type") != "application/pdf" {
+		t.Fatalf("content-type = %q", response.Headers.Get("Content-Type"))
+	}
+	if out.String() != "download bytes" {
+		t.Fatalf("streamed body = %q", out.String())
+	}
+	if len(response.Body) != 0 {
+		t.Fatalf("stream response should not buffer body, got %q", string(response.Body))
+	}
+}
+
+func TestClientDoStreamWrapsNon2xxWithoutWritingBody(t *testing.T) {
+	t.Parallel()
+
+	client := openplatform.New(openplatform.Options{
+		HTTPClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				return responseWithStatus(http.StatusBadRequest, `{"code":400,"msg":"bad file"}`), nil
+			}),
+		},
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	requestContext, err := client.RequestContext(config.Profile{
+		Name:                "contract-group",
+		Environment:         "dev",
+		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
+		DefaultIdentity:     config.IdentityBot,
+		Identities: config.Identities{
+			Bot: config.BotIdentity{
+				Token: &config.Token{
+					AccessToken: "bot-token",
+					TokenType:   "Bearer",
+					Expiry:      time.Now().Add(time.Hour),
+				},
+			},
+		},
+	}, config.IdentityBot)
+	if err != nil {
+		t.Fatalf("RequestContext() error = %v", err)
+	}
+
+	out := &bytes.Buffer{}
+	response, err := client.DoStream(context.Background(), requestContext, openplatform.Request{
+		Method:         http.MethodGet,
+		Path:           "/open-apis/contract/v1/files/file-123",
+		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+	}, out)
+	if err == nil || !strings.Contains(err.Error(), "open platform request failed with status 400") || !strings.Contains(err.Error(), "bad file") {
+		t.Fatalf("unexpected DoStream() error: %v", err)
+	}
+	if response.StatusCode != http.StatusBadRequest {
+		t.Fatalf("status = %d", response.StatusCode)
+	}
+	if out.Len() != 0 {
+		t.Fatalf("error response should not be streamed to output, got %q", out.String())
 	}
 }
 

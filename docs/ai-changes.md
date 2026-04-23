@@ -1,5 +1,15 @@
 # AI 变更记录
 
+- 2026-04-23
+  变更摘要：新增 9 个 bot-only 合同命令，覆盖提交、重提、更新、下载、删除、打印、分享记录和协商信息查询。
+  涉及文件/模块：`internal/openplatform`、`internal/openplatform/contract`、`internal/cli/contract_command.go`、`internal/cli/help.go`、`docs/cli-command-reference.md`、`docs/cli-test-plan.md`、`skills/contract-cli-contract`、`skills/contract-cli-shared`
+  关键逻辑/决策：所有新增结构化命令统一 `IdentityPolicyBotOnly`，通用 query 仍由 `CommonQuery` 注入；`download-file` 使用流式下载，默认保存弹窗，脚本环境推荐 `--output-file`，`--raw` 直接写 stdout；`delete` 直接执行不加 `--yes`。
+
+- 2026-04-23
+  变更摘要：新增 bot 命令开发指南，沉淀后续 bot 功能和 skill 文档开发约定。
+  涉及文件/模块：`docs/bot-command-development-guide.md`、`docs/ai-changes.md`
+  关键逻辑/决策：按功能开发、身份路由、通用 query、测试要求、skill 编写和 Definition of Done 组织；补充 skill 版本、业务错误、`user_id` 必填、输出归一化等后续需要团队确认的问题。
+
 - 2026-04-22
   变更摘要：将 user OAuth 的 `resource` 调整为可选，dev 预设不再写入旧 Higress 内网 resource。
   涉及文件/模块：`internal/cli/app.go`、`internal/cli/app_test.go`、`internal/oauth/login.go`、`internal/oauth/login_test.go`、`docs/ai-changes.md`
