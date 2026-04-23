@@ -552,7 +552,7 @@ func resolveEnvironment(name string) (environmentPreset, error) {
 			ProtectedResourceMetadataURL:   "",
 			AuthorizationServerMetadataURL: "https://dev-myaccount.qtech.cn/.well-known/oauth-authorization-server/contract",
 			RedirectURL:                    "http://127.0.0.1:8000/callback",
-			Scopes:                         []string{"mcp:tools", "mcp:resources"},
+			Scopes:                         []string{"cli:tools", "cli:resources"},
 			BusinessType:                   "contract",
 			ClientName:                     "contract-cli",
 		}, nil
