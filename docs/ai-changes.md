@@ -1,6 +1,11 @@
 # AI 变更记录
 
 - 2026-04-24
+  变更摘要：新增本地 `contract-cli-beta-release` skill，沉淀 beta 发版流程。
+  涉及文件/模块：`~/.codex/skills/contract-cli-beta-release/SKILL.md`、`~/.codex/skills/contract-cli-beta-release/agents/openai.yaml`、`docs/ai-changes.md`
+  关键逻辑/决策：skill 固化 `REMOTE=github BRANCH=main scripts/release-beta.sh --version <version> --publish --yes` 流程、npm token 临时注入、半发布恢复和 GitHub/npm 最终校验要求，后续只需提供版本号与 npm key 即可执行。
+
+- 2026-04-24
   变更摘要：暂时封住预留的 `api call` 入口，保留实现代码但不对外暴露。
   涉及文件/模块：`internal/cli/app.go`、`internal/cli/help.go`、`internal/cli/api_command_test.go`、`internal/cli/skills_command.go`、`docs/cli-command-reference.md`、`docs/cli-test-plan.md`、`skills/contract-cli-*`、`docs/ai-changes.md`
   关键逻辑/决策：`contract-cli api ...` 在 profile、HTTP、update check 前直接返回暂未开放错误；help registry 不再注册 `api` 主题；内置 skills 跳过 `contract-cli-api-call`，并移除该目录的 `SKILL.md`，仅保留禁用说明和历史参考。
