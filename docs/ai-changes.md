@@ -1,5 +1,15 @@
 # AI 变更记录
 
+- 2026-04-27
+  变更摘要：修复 `contract text` 标准开放平台路由与文本参数默认值。
+  涉及文件/模块：`internal/openplatform/contract/service.go`、`internal/cli/contract_command.go`、`internal/cli/command_support.go`、`internal/openplatform/contract/service_test.go`、`internal/cli/mcp_command_test.go`、`docs/ai-changes.md`
+  关键逻辑/决策：bot 身份下 `contract text` 改为 `GET /open-apis/contract/v1/contracts/{contract_id}/text`；命令可区分参数是否显式传入，默认请求完整文本 `full_text=true`，传 `--offset/--limit` 时自动使用分页模式 `full_text=false` 并保留 `offset=0`。
+
+- 2026-04-24
+  变更摘要：新增本地 `contract-cli-beta-release` skill，沉淀 beta 发版流程。
+  涉及文件/模块：`~/.codex/skills/contract-cli-beta-release/SKILL.md`、`~/.codex/skills/contract-cli-beta-release/agents/openai.yaml`、`docs/ai-changes.md`
+  关键逻辑/决策：skill 固化 `REMOTE=github BRANCH=main scripts/release-beta.sh --version <version> --publish --yes` 流程、npm token 临时注入、半发布恢复和 GitHub/npm 最终校验要求，后续只需提供版本号与 npm key 即可执行。
+
 - 2026-04-24
   变更摘要：修复 beta 发布前 npm 打包检查仍要求禁用 `api call` skill 的问题。
   涉及文件/模块：`package.json`、`tests/release/package-dry-run.sh`、`docs/cli-command-reference.md`、`docs/cli-test-plan.md`、`docs/ai-changes.md`
