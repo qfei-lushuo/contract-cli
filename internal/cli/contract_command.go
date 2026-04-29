@@ -173,9 +173,12 @@ func (a *App) runContractText(ctx context.Context, args []string) error {
 		return err
 	}
 	response, err := contractsvc.NewService(client).GetText(ctx, requestContext, contractID, contractsvc.TextInput{
-		FullText: parsed.Bool("--full-text"),
-		Offset:   offset,
-		Limit:    limit,
+		FullText:    parsed.Bool("--full-text"),
+		FullTextSet: parsed.HasBool("--full-text"),
+		Offset:      offset,
+		OffsetSet:   parsed.HasValue("--offset"),
+		Limit:       limit,
+		LimitSet:    parsed.HasValue("--limit"),
 	})
 	if err != nil {
 		return err

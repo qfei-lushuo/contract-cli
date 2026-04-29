@@ -118,7 +118,8 @@ func TestServiceGetTextUsesContractTextEndpoint(t *testing.T) {
 
 	service := contract.NewService(client)
 	response, err := service.GetText(context.Background(), requestContext, "contract-1", contract.TextInput{
-		FullText: true,
+		FullText:    true,
+		FullTextSet: true,
 	})
 	if err != nil {
 		t.Fatalf("GetText() error = %v", err)
@@ -134,7 +135,44 @@ func TestServiceGetTextUsesBotTextEndpointWithoutUserQuery(t *testing.T) {
 	client := openplatform.New(openplatform.Options{
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodPost {
+				if req.Method != http.MethodGet {
+					t.Fatalf("method = %s", req.Method)
+				}
+				if req.URL.String() != "https://dev-open.qtech.cn/open-apis/contract/v1/contracts/contract-1/text?full_text=false&limit=2&offset=0" {
+					t.Fatalf("url = %q", req.URL.String())
+				}
+				return jsonResponse(`{"code":0,"data":"demo"}`), nil
+			}),
+		},
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	if err != nil {
+		t.Fatalf("RequestContext() error = %v", err)
+	}
+
+	service := contract.NewService(client)
+	response, err := service.GetText(context.Background(), requestContext, "contract-1", contract.TextInput{
+		Offset:    0,
+		OffsetSet: true,
+		Limit:     2,
+		LimitSet:  true,
+	})
+	if err != nil {
+		t.Fatalf("GetText() error = %v", err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", response.StatusCode)
+	}
+}
+
+func TestServiceGetTextDefaultsToFullTextWhenNoPagingIsProvided(t *testing.T) {
+	t.Parallel()
+
+	client := openplatform.New(openplatform.Options{
+		HTTPClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet {
 					t.Fatalf("method = %s", req.Method)
 				}
 				if req.URL.String() != "https://dev-open.qtech.cn/open-apis/contract/v1/contracts/contract-1/text?full_text=true" {
@@ -151,9 +189,7 @@ func TestServiceGetTextUsesBotTextEndpointWithoutUserQuery(t *testing.T) {
 	}
 
 	service := contract.NewService(client)
-	response, err := service.GetText(context.Background(), requestContext, "contract-1", contract.TextInput{
-		FullText: true,
-	})
+	response, err := service.GetText(context.Background(), requestContext, "contract-1", contract.TextInput{})
 	if err != nil {
 		t.Fatalf("GetText() error = %v", err)
 	}

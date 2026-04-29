@@ -10,6 +10,36 @@
   涉及文件/模块：`docs/bot-command-development-guide.md`、`docs/ai-changes.md`
   关键逻辑/决策：按功能开发、身份路由、通用 query、测试要求、skill 编写和 Definition of Done 组织；补充 skill 版本、业务错误、`user_id` 必填、输出归一化等后续需要团队确认的问题。
 
+- 2026-04-27
+  变更摘要：修复 `contract text` 标准开放平台路由与文本参数默认值。
+  涉及文件/模块：`internal/openplatform/contract/service.go`、`internal/cli/contract_command.go`、`internal/cli/command_support.go`、`internal/openplatform/contract/service_test.go`、`internal/cli/mcp_command_test.go`、`docs/ai-changes.md`
+  关键逻辑/决策：bot 身份下 `contract text` 改为 `GET /open-apis/contract/v1/contracts/{contract_id}/text`；命令可区分参数是否显式传入，默认请求完整文本 `full_text=true`，传 `--offset/--limit` 时自动使用分页模式 `full_text=false` 并保留 `offset=0`。
+
+- 2026-04-24
+  变更摘要：新增本地 `contract-cli-beta-release` skill，沉淀 beta 发版流程。
+  涉及文件/模块：`~/.codex/skills/contract-cli-beta-release/SKILL.md`、`~/.codex/skills/contract-cli-beta-release/agents/openai.yaml`、`docs/ai-changes.md`
+  关键逻辑/决策：skill 固化 `REMOTE=github BRANCH=main scripts/release-beta.sh --version <version> --publish --yes` 流程、npm token 临时注入、半发布恢复和 GitHub/npm 最终校验要求，后续只需提供版本号与 npm key 即可执行。
+
+- 2026-04-24
+  变更摘要：修复 beta 发布前 npm 打包检查仍要求禁用 `api call` skill 的问题。
+  涉及文件/模块：`package.json`、`tests/release/package-dry-run.sh`、`docs/cli-command-reference.md`、`docs/cli-test-plan.md`、`docs/ai-changes.md`
+  关键逻辑/决策：npm 包显式排除 `skills/contract-cli-api-call/**`，release dry-run 测试改为禁止禁用 skill 相关文件进入包内；文档同步移除内置安装会安装 `contract-cli-api-call` 的过期描述。
+
+- 2026-04-24
+  变更摘要：暂时封住预留的 `api call` 入口，保留实现代码但不对外暴露。
+  涉及文件/模块：`internal/cli/app.go`、`internal/cli/help.go`、`internal/cli/api_command_test.go`、`internal/cli/skills_command.go`、`docs/cli-command-reference.md`、`docs/cli-test-plan.md`、`skills/contract-cli-*`、`docs/ai-changes.md`
+  关键逻辑/决策：`contract-cli api ...` 在 profile、HTTP、update check 前直接返回暂未开放错误；help registry 不再注册 `api` 主题；内置 skills 跳过 `contract-cli-api-call`，并移除该目录的 `SKILL.md`，仅保留禁用说明和历史参考。
+
+- 2026-04-24
+  变更摘要：修复 bot 身份下 `mdm fields list` 的 `biz_line` 取值与 help/文档不一致问题。
+  涉及文件/模块：`internal/openplatform/schema`、`internal/cli/mcp_command_test.go`、`internal/cli/help.go`、`docs/cli-command-reference.md`、`docs/cli-test-plan.md`、`skills/contract-cli-mdm-fields/*`、`docs/ai-changes.md`
+  关键逻辑/决策：bot 路由下允许继续传 `legal_entity` 并映射为后端实际值 `legalEntity`；`vendor_risk` 当前仅 user/MCP 支持，bot 下改为本地明确报错且不发 HTTP；同步更新 help、测试计划和 skill 示例。
+
+- 2026-04-24
+  变更摘要：修复 `auth login --as user --no-open-browser` 超时前不输出授权 URL 的问题。
+  涉及文件/模块：`internal/cli/auth_provider.go`、`internal/cli/app.go`、`internal/cli/auth_provider_test.go`、`docs/ai-changes.md`
+  关键逻辑/决策：user OAuth 登录在构造授权 URL 后、等待本地 callback 前立即将 URL 写入 stdout；正常自动打开浏览器的路径保持原有成功输出；新增可注入 callback 等待接口，测试无需真实监听端口即可覆盖超时场景。
+
 - 2026-04-22
   变更摘要：将 user OAuth 的 `resource` 调整为可选，dev 预设不再写入旧 Higress 内网 resource。
   涉及文件/模块：`internal/cli/app.go`、`internal/cli/app_test.go`、`internal/oauth/login.go`、`internal/oauth/login_test.go`、`docs/ai-changes.md`

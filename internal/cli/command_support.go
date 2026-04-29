@@ -105,6 +105,16 @@ func (p parsedArgs) Bool(name string) bool {
 	return p.bools[name]
 }
 
+func (p parsedArgs) HasBool(name string) bool {
+	_, ok := p.bools[name]
+	return ok
+}
+
+func (p parsedArgs) HasValue(name string) bool {
+	_, ok := p.values[name]
+	return ok
+}
+
 func (p parsedArgs) Int(name string) (int, error) {
 	value := p.String(name)
 	if strings.TrimSpace(value) == "" {

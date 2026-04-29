@@ -1,7 +1,7 @@
 ---
 name: contract-cli-shared
 version: 1.0.0
-description: "contract-cli 开放平台共享约定技能：在 `contract`、`mdm` 和 `api call` 模块间做选择，并遵守 `contract/v1/mcp` user-only 限制、`--input-file` 请求体输入、输出格式和 profile 选择规则。当用户要操作开放平台 CLI 但尚未明确命令模块，或需要判断该走结构化命令还是 `api call` 时触发。"
+description: "contract-cli 开放平台共享约定技能：在 `contract` 和 `mdm` 模块间做选择，并遵守 `contract/v1/mcp` user-only 限制、`--input-file` 请求体输入、输出格式和 profile 选择规则。当用户要操作开放平台 CLI 但尚未明确命令模块时触发。"
 ---
 
 # contract-cli Shared
@@ -18,8 +18,7 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
   这里现在采用“主 guide + 参数附录 + 命令示例”的结构
 - 字段配置查询：读 [../contract-cli-mdm-fields/SKILL.md](../contract-cli-mdm-fields/SKILL.md)
   这里现在采用“主 guide + biz-line 附录 + 命令示例”的结构
-- 用户给了精确的开放平台路径，或结构化命令还没覆盖：读 [../contract-cli-api-call/SKILL.md](../contract-cli-api-call/SKILL.md)
-  这里现在采用“主 guide + 调用规则附录 + 命令示例”的结构
+- 用户给了精确的开放平台路径，或结构化命令还没覆盖：不要推荐 `api call`；它是预留能力，当前暂未开放使用
 
 ## 当前已实现模块
 
@@ -35,16 +34,16 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 - `mdm vendor list/get`
 - `mdm legal list/get`
 - `mdm fields list`
-- `api call`
 
 ## 共享约束
 
+- `api call` 当前不对外开放；执行 `contract-cli api ...` 会直接返回 `api call 暂未开放使用，请使用已开放的结构化命令`
 - `contract/v1/mcp` 这批路径大部分只支持 `--as user`
 - 当前结构化命令里只有 `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 支持 bot；其中合同命令的 bot 路由走 `/open-apis/contract/v1/...`，`contract upload-file` 走 `/open-apis/contract/v1/files/upload` 且仅支持 bot，新增 `contract submit/resubmit/patch/download-file/delete/print-file/share/cooperation` 也仅支持 bot，`mdm vendor list/get` 的 bot 路由走 `/open-apis/mdm/v1/vendors...`，`mdm legal list` 的 bot 路由走 `/open-apis/mdm/v1/legal_entities/list_all`，`mdm legal get` 的 bot 路由走 `/open-apis/mdm/v1/legal_entities/{legal_entity_id}`，`mdm fields list` 的 bot 路由走 `/open-apis/mdm/v1/config/config_list`
 - 若命中 `/open-apis/contract/v1/mcp/` 且未传 `--as`，CLI 会默认按 `user` 解析，不看 `default_identity`
 - 这批命令不暴露 `--operator`
 - 请求体文件输入统一使用 `--input-file`
-- `--user-id-type` / `--user-id` 是开放平台通用 query 参数：结构化命令和 `api call` 都支持；`--user-id-type` 不传时默认拼接 `user_id_type=user_id`，显式传值会覆盖默认值；`--user-id` 传了就透传，不传就不带；不做命令级校验
+- `--user-id-type` / `--user-id` 是开放平台通用 query 参数：结构化命令支持；`--user-id-type` 不传时默认拼接 `user_id_type=user_id`，显式传值会覆盖默认值；`--user-id` 传了就透传，不传就不带；不做命令级校验
 - `--file` 现在只用于真实二进制文件上传，例如 `contract upload-file`
 - `contract download-file` 下载二进制响应，默认弹窗保存；Agent/CI/远程环境优先传 `--output-file`，管道场景用 `--raw`
 - JSON 请求体文件输入始终使用 `--input-file`，不要把 `--file` 当 JSON 请求体参数
@@ -53,7 +52,6 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 ## 实现来源
 
 - [internal/cli/command_support.go](../../internal/cli/command_support.go)
-- [internal/cli/api_command.go](../../internal/cli/api_command.go)
 - [internal/openplatform/client.go](../../internal/openplatform/client.go)
 - [internal/openplatform/mcp_specs.go](../../internal/openplatform/mcp_specs.go)
 

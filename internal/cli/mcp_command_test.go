@@ -140,10 +140,10 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract text bot by default identity",
-			args:         []string{"contract", "text", "contract-1", "--profile", "contract-group", "--full-text", "--user-id-type", "employee_id"},
-			wantMethod:   http.MethodPost,
+			args:         []string{"contract", "text", "contract-1", "--profile", "contract-group", "--offset", "0", "--limit", "2", "--user-id-type", "employee_id"},
+			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/contracts/contract-1/text",
-			wantQuery:    map[string]string{"full_text": "true", "user_id_type": "employee_id"},
+			wantQuery:    map[string]string{"full_text": "false", "offset": "0", "limit": "2", "user_id_type": "employee_id"},
 			wantAuth:     "Bearer bot-token",
 			responseBody: `{"code":0,"data":"demo"}`,
 			wantContains: []string{`"data": "demo"`},
@@ -359,6 +359,16 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 			wantAuth:     "Bearer bot-token",
 			responseBody: `{"code":0,"data":{"config":[{"fieldCode":"V00000001"}]}}`,
 			wantContains: []string{`"fieldCode": "V00000001"`},
+		},
+		{
+			name:         "mdm fields list bot maps legal entity alias",
+			args:         []string{"mdm", "fields", "list", "--profile", "contract-group", "--biz-line", "legal_entity"},
+			wantMethod:   http.MethodGet,
+			wantPath:     "/open-apis/mdm/v1/config/config_list",
+			wantQuery:    map[string]string{"biz_line": "legalEntity", "user_id_type": "user_id"},
+			wantAuth:     "Bearer bot-token",
+			responseBody: `{"code":0,"data":{"config":[{"fieldCode":"L00000001"}]}}`,
+			wantContains: []string{`"fieldCode": "L00000001"`},
 		},
 	}
 

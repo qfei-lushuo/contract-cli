@@ -20,9 +20,12 @@ type Service struct {
 }
 
 type TextInput struct {
-	FullText bool
-	Offset   int
-	Limit    int
+	FullText    bool
+	FullTextSet bool
+	Offset      int
+	OffsetSet   bool
+	Limit       int
+	LimitSet    bool
 }
 
 type SearchInput struct {
@@ -101,12 +104,12 @@ func (s *Service) GetText(ctx context.Context, requestContext openplatform.Reque
 		return openplatform.Response{}, fmt.Errorf("contract id is required")
 	}
 	query := url.Values{
-		"full_text": {strconv.FormatBool(input.FullText)},
+		"full_text": {strconv.FormatBool(resolveTextFullText(input))},
 	}
-	if input.Offset > 0 {
+	if input.OffsetSet {
 		query.Set("offset", strconv.Itoa(input.Offset))
 	}
-	if input.Limit > 0 {
+	if input.LimitSet {
 		query.Set("limit", strconv.Itoa(input.Limit))
 	}
 	switch requestContext.Identity {
@@ -114,7 +117,7 @@ func (s *Service) GetText(ctx context.Context, requestContext openplatform.Reque
 		return s.do(ctx, requestContext, "get-contract-text", map[string]string{"{contractId}": url.PathEscape(contractID)}, query, nil)
 	case config.IdentityBot:
 		return s.client.Do(ctx, requestContext, openplatform.Request{
-			Method:         http.MethodPost,
+			Method:         http.MethodGet,
 			Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID) + "/text",
 			Query:          query,
 			IdentityPolicy: openplatform.IdentityPolicyAny,
@@ -122,6 +125,13 @@ func (s *Service) GetText(ctx context.Context, requestContext openplatform.Reque
 	default:
 		return openplatform.Response{}, fmt.Errorf("unsupported identity %q for contract text", requestContext.Identity)
 	}
+}
+
+func resolveTextFullText(input TextInput) bool {
+	if input.FullTextSet {
+		return input.FullText
+	}
+	return !input.OffsetSet && !input.LimitSet
 }
 
 func (s *Service) ListCategories(ctx context.Context, requestContext openplatform.RequestContext, lang string) (openplatform.Response, error) {
