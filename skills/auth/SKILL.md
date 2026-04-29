@@ -1,7 +1,7 @@
 ---
 name: auth
 version: 1.1.0
-description: "contract-cli 登录与身份切换技能：初始化 dev profile、执行 user OAuth 登录、录入 bot 的 app_id/app_secret 并立即兑换 tenant_access_token、查看状态、切换默认身份、排查本地 config/secrets 持久化问题。当用户需要 `contract-cli config add`、`contract-cli auth login --as user|bot`、`contract-cli auth status/logout/use` 或排查登录异常时触发。"
+description: "contract-cli 登录与身份切换技能：初始化 prod/dev profile、执行 user OAuth 登录、录入 bot 的 app_id/app_secret 并立即兑换 tenant_access_token、查看状态、切换默认身份、排查本地 config/secrets 持久化问题。当用户需要 `contract-cli config add`、`contract-cli auth login --as user|bot`、`contract-cli auth status/logout/use` 或排查登录异常时触发。"
 ---
 
 # contract-cli Auth
@@ -29,10 +29,10 @@ description: "contract-cli 登录与身份切换技能：初始化 dev profile�
 首次使用前，必须先执行：
 
 ```bash
-contract-cli config add --env dev
+contract-cli config add --env prod --name contract
 ```
 
-当前实现只内置 `dev` 环境，默认 profile 名为 `contract-group`。该命令会：
+当前实现内置 `prod` 和 `dev` 环境，默认环境为 `prod`，默认 profile 名为 `contract`。该命令会：
 
 - 发现 well-known 元数据
 - 保存 MCP server / resource / OAuth server 配置
@@ -58,7 +58,7 @@ contract-cli config add --env dev
 ### `user` 登录
 
 ```bash
-contract-cli config add --env dev
+contract-cli config add --env prod --name contract
 contract-cli auth login --as user
 contract-cli auth status --as user
 ```
@@ -169,9 +169,9 @@ contract-cli auth use --as bot
 
 ## 故障排查
 
-- `user identity is not configured`：先执行 `contract-cli config add --env dev`
+- `user identity is not configured`：先执行 `contract-cli config add --env prod --name contract`
 - 浏览器未自动打开：改用 `--no-open-browser`，手动访问输出的授权链接
 - 回调超时：检查 `redirect_url` 对应端口是否可监听，必要时调大 `--timeout`
 - bot 凭据不完整：补齐 `--app-id/--app-secret` 或设置 `CONTRACT_CLI_BOT_APP_ID/CONTRACT_CLI_BOT_APP_SECRET`
-- bot 登录提示缺少 `bot_token_endpoint`：说明 profile 过旧，重跑 `contract-cli config add --env dev --name <profile>`
+- bot 登录提示缺少 `bot_token_endpoint`：说明 profile 过旧，重跑 `contract-cli config add --env prod --name <profile>`
 - bot 状态显示 `expired`：重新执行 `contract-cli auth login --as bot`

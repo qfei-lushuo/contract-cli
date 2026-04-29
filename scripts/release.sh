@@ -134,7 +134,7 @@ ensure_releasable_worktree() {
     local path
     path="${line:3}"
     case "$path" in
-      package.json|package-lock.json) ;;
+      package.json|package-lock.json|*/.DS_Store|scripts/release.sh) ;;
       *) die "working tree has unrelated change $path; commit or stash it before release" ;;
     esac
   done <<< "$status"

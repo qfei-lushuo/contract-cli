@@ -52,7 +52,7 @@ cleanup_package() {
 trap 'cleanup_package; rm -rf "$TMP_DIR"' EXIT
 
 mkdir -p "$ASSET_DIR" "$ASSET_BUILD_DIR" "$GO_CACHE"
-env GOCACHE="$GO_CACHE" go build \
+env GOCACHE="$GO_CACHE" go build -trimpath \
   -ldflags "-s -w -X cn.qfei/contract-cli/internal/build.Version=$VERSION" \
   -o "$ASSET_BUILD_DIR/$BINARY_NAME" \
   ./cmd/contract-cli

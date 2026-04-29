@@ -1,11 +1,11 @@
 # Schema Commands Reference
 
 ```bash
-contract-cli mdm fields list --profile contract-group --biz-line vendor
-contract-cli mdm fields list --profile contract-group --biz-line legal_entity
-contract-cli mdm fields list --profile contract-group --as user --biz-line vendor_risk
-contract-cli mdm fields list --profile contract-group --as bot --biz-line vendor --user-id-type employee_id
-contract-cli mdm fields list --profile contract-group --as bot --biz-line legal_entity
+contract-cli mdm fields list --profile contract --biz-line vendor
+contract-cli mdm fields list --profile contract --biz-line legal_entity
+contract-cli mdm fields list --profile contract --as user --biz-line vendor_risk
+contract-cli mdm fields list --profile contract --as bot --biz-line vendor --user-id-type employee_id
+contract-cli mdm fields list --profile contract --as bot --biz-line legal_entity
 ```
 
 说明：

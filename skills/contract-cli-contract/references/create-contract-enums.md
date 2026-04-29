@@ -81,5 +81,5 @@
 如果你需要确认当前环境是否还有额外章型，可以再跑：
 
 ```bash
-contract-cli contract enum list --profile contract-group --type seal_type_codes
+contract-cli contract enum list --profile contract --type seal_type_codes
 ```

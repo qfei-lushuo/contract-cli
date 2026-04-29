@@ -22,6 +22,7 @@ func TestCommandReferenceDocumentCoversCurrentSupportedCommands(t *testing.T) {
 		"contract-cli --help",
 		"contract-cli help contract upload-file",
 		"contract-cli contract search --help",
+		"contract-cli config add --env prod --name contract",
 		"contract-cli config add",
 		"contract-cli auth login",
 		"contract-cli auth status",
@@ -64,5 +65,16 @@ func TestCommandReferenceDocumentCoversCurrentSupportedCommands(t *testing.T) {
 	if strings.Contains(text, "contract-cli api call GET") ||
 		strings.Contains(text, "contract-cli api call POST") {
 		t.Fatalf("command reference should not expose runnable api call examples")
+	}
+	for _, forbidden := range []string{
+		"contract-group",
+		"/Users/lyy/",
+		"当前只预置 `dev`",
+		"`--env`：当前仅支持 `dev`",
+		"contract-cli config add --env dev",
+	} {
+		if strings.Contains(text, forbidden) {
+			t.Fatalf("command reference should not contain production-stale fragment %q", forbidden)
+		}
 	}
 }

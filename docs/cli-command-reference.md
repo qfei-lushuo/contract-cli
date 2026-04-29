@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-- 当前只预置 `dev` 环境：`contract-cli config add --env dev`
+- 当前内置 `prod` 和 `dev` 两套环境预设；正式包默认使用 `prod`：`contract-cli config add --env prod --name contract`
 - `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 是当前仅有的十四个同时支持 `user` 与 `bot` 的结构化业务命令
 - `contract upload-file` 当前仅支持 `--as bot`
 - 除上述 bot 能力外，当前其他结构化业务命令仍只支持 `--as user`
@@ -129,13 +129,13 @@ contract-cli contract get <contract-id> --help
 命令：
 
 ```bash
-contract-cli config add --env dev --name contract-group
+contract-cli config add --env prod --name contract
 ```
 
 支持参数：
 
-- `--env`：当前仅支持 `dev`
-- `--name`：profile 名称，默认 `contract-group`
+- `--env`：环境预设，支持 `prod` 和 `dev`，默认 `prod`
+- `--name`：profile 名称，默认 `contract`
 - `--resource-metadata-url`：覆盖 protected resource metadata 地址
 - `--redirect-url`：覆盖 OAuth callback 地址
 - `--scope`：覆盖默认 scope 列表
@@ -166,7 +166,6 @@ contract-cli --version
 
 ```bash
 contract-cli update check
-contract-cli update check --channel beta
 contract-cli update check --channel latest
 ```
 
@@ -259,7 +258,7 @@ contract-cli skills install --force
 命令：
 
 ```bash
-contract-cli auth login --profile contract-group --as user
+contract-cli auth login --profile contract --as user
 ```
 
 支持参数：
@@ -276,7 +275,7 @@ contract-cli auth login --profile contract-group --as user
 命令：
 
 ```bash
-contract-cli auth login --profile contract-group --as bot --app-id <id> --app-secret <secret>
+contract-cli auth login --profile contract --as bot --app-id <id> --app-secret <secret>
 ```
 
 支持参数：
@@ -299,8 +298,8 @@ contract-cli auth login --profile contract-group --as bot --app-id <id> --app-se
 命令：
 
 ```bash
-contract-cli auth status --profile contract-group --as user
-contract-cli auth status --profile contract-group --as bot
+contract-cli auth status --profile contract --as user
+contract-cli auth status --profile contract --as bot
 ```
 
 支持参数：
@@ -320,8 +319,8 @@ contract-cli auth status --profile contract-group --as bot
 命令：
 
 ```bash
-contract-cli auth logout --profile contract-group --as user
-contract-cli auth logout --profile contract-group --as bot
+contract-cli auth logout --profile contract --as user
+contract-cli auth logout --profile contract --as bot
 ```
 
 支持参数：
@@ -341,8 +340,8 @@ contract-cli auth logout --profile contract-group --as bot
 命令：
 
 ```bash
-contract-cli auth use --profile contract-group --as user
-contract-cli auth use --profile contract-group --as bot
+contract-cli auth use --profile contract --as user
+contract-cli auth use --profile contract --as bot
 ```
 
 支持参数：
@@ -380,9 +379,9 @@ contract-cli auth use --profile contract-group --as bot
 命令：
 
 ```bash
-contract-cli contract search --profile contract-group --as user --input-file search.json
-contract-cli contract search --profile contract-group --as bot --input-file search.json
-contract-cli contract search --profile contract-group --as bot --input-file search.json --user-id ou_xxx --user-id-type employee_id
+contract-cli contract search --profile contract --as user --input-file search.json
+contract-cli contract search --profile contract --as bot --input-file search.json
+contract-cli contract search --profile contract --as bot --input-file search.json --user-id ou_xxx --user-id-type employee_id
 ```
 
 支持参数：
@@ -413,9 +412,9 @@ contract-cli contract search --profile contract-group --as bot --input-file sear
 命令：
 
 ```bash
-contract-cli contract get <contract-id> --profile contract-group --as user
-contract-cli contract get <contract-id> --profile contract-group --as bot
-contract-cli contract get <contract-id> --profile contract-group --as bot --user-id ou_xxx --user-id-type employee_id
+contract-cli contract get <contract-id> --profile contract --as user
+contract-cli contract get <contract-id> --profile contract --as bot
+contract-cli contract get <contract-id> --profile contract --as bot --user-id ou_xxx --user-id-type employee_id
 ```
 
 支持参数：
@@ -442,9 +441,9 @@ contract-cli contract get <contract-id> --profile contract-group --as bot --user
 命令：
 
 ```bash
-contract-cli contract sync-user-groups --profile contract-group --as user
-contract-cli contract sync-user-groups --profile contract-group --as bot
-contract-cli contract sync-user-groups --profile contract-group --as bot --user-id ou_xxx
+contract-cli contract sync-user-groups --profile contract --as user
+contract-cli contract sync-user-groups --profile contract --as bot
+contract-cli contract sync-user-groups --profile contract --as bot --user-id ou_xxx
 ```
 
 支持参数：
@@ -469,9 +468,9 @@ contract-cli contract sync-user-groups --profile contract-group --as bot --user-
 命令：
 
 ```bash
-contract-cli contract text <contract-id> --profile contract-group --as user
-contract-cli contract text <contract-id> --profile contract-group --as bot
-contract-cli contract text <contract-id> --profile contract-group --as bot --user-id-type employee_id
+contract-cli contract text <contract-id> --profile contract --as user
+contract-cli contract text <contract-id> --profile contract --as bot
+contract-cli contract text <contract-id> --profile contract --as bot --user-id-type employee_id
 ```
 
 支持参数：
@@ -499,9 +498,9 @@ contract-cli contract text <contract-id> --profile contract-group --as bot --use
 命令：
 
 ```bash
-contract-cli contract create --profile contract-group --input-file create.json
-contract-cli contract create --profile contract-group --data '{"title":"demo"}'
-contract-cli contract create --profile contract-group --as bot --data '{"contract_name":"demo","create_user_id":"ou_xxx"}'
+contract-cli contract create --profile contract --input-file create.json
+contract-cli contract create --profile contract --data '{"title":"demo"}'
+contract-cli contract create --profile contract --as bot --data '{"contract_name":"demo","create_user_id":"ou_xxx"}'
 ```
 
 支持参数：
@@ -520,9 +519,9 @@ contract-cli contract create --profile contract-group --as bot --data '{"contrac
 
 字段参考：
 
-- [create-contract-fields.md](/Users/lyy/contract-cli/skills/contract-cli-contract/references/create-contract-fields.md)
-- [create-contract-field-tree.md](/Users/lyy/contract-cli/skills/contract-cli-contract/references/create-contract-field-tree.md)
-- [create-contract-enums.md](/Users/lyy/contract-cli/skills/contract-cli-contract/references/create-contract-enums.md)
+- [create-contract-fields.md](../skills/contract-cli-contract/references/create-contract-fields.md)
+- [create-contract-field-tree.md](../skills/contract-cli-contract/references/create-contract-field-tree.md)
+- [create-contract-enums.md](../skills/contract-cli-contract/references/create-contract-enums.md)
 
 #### `contract-cli contract upload-file`
 
@@ -531,8 +530,8 @@ contract-cli contract create --profile contract-group --as bot --data '{"contrac
 命令：
 
 ```bash
-contract-cli contract upload-file --profile contract-group --as bot --file ./合同正文.docx --file-type text
-contract-cli contract upload-file --profile contract-group --as bot --file ./附件.pdf --file-type attachment --file-name 附件.pdf
+contract-cli contract upload-file --profile contract --as bot --file ./合同正文.docx --file-type text
+contract-cli contract upload-file --profile contract --as bot --file ./附件.pdf --file-type attachment --file-name 附件.pdf
 ```
 
 支持参数：
@@ -573,8 +572,8 @@ contract-cli contract upload-file --profile contract-group --as bot --file ./附
 命令：
 
 ```bash
-contract-cli contract category list --profile contract-group
-contract-cli contract category list --profile contract-group --as bot --lang zh-CN
+contract-cli contract category list --profile contract
+contract-cli contract category list --profile contract --as bot --lang zh-CN
 ```
 
 支持参数：
@@ -595,8 +594,8 @@ contract-cli contract category list --profile contract-group --as bot --lang zh-
 命令：
 
 ```bash
-contract-cli contract template list --profile contract-group
-contract-cli contract template list --profile contract-group --as bot --category-number CAT-1 --page-size 20 --user-id ou_xxx --user-id-type employee_id
+contract-cli contract template list --profile contract
+contract-cli contract template list --profile contract --as bot --category-number CAT-1 --page-size 20 --user-id ou_xxx --user-id-type employee_id
 ```
 
 支持参数：
@@ -621,8 +620,8 @@ contract-cli contract template list --profile contract-group --as bot --category
 命令：
 
 ```bash
-contract-cli contract template get <template-id> --profile contract-group
-contract-cli contract template get <template-id> --profile contract-group --as bot --user-id ou_xxx --user-id-type employee_id
+contract-cli contract template get <template-id> --profile contract
+contract-cli contract template get <template-id> --profile contract --as bot --user-id ou_xxx --user-id-type employee_id
 ```
 
 身份规则：
@@ -641,8 +640,8 @@ contract-cli contract template get <template-id> --profile contract-group --as b
 命令：
 
 ```bash
-contract-cli contract template instantiate --profile contract-group --input-file template-instance.json
-contract-cli contract template instantiate --profile contract-group --as bot --data '{"template_number":"TMP001","create_user_id":"ou_xxx"}' --user-id-type employee_id
+contract-cli contract template instantiate --profile contract --input-file template-instance.json
+contract-cli contract template instantiate --profile contract --as bot --data '{"template_number":"TMP001","create_user_id":"ou_xxx"}' --user-id-type employee_id
 ```
 
 支持参数：
@@ -666,7 +665,7 @@ contract-cli contract template instantiate --profile contract-group --as bot --d
 命令：
 
 ```bash
-contract-cli contract enum list --profile contract-group --type contract_status
+contract-cli contract enum list --profile contract --type contract_status
 ```
 
 支持参数：
@@ -691,7 +690,7 @@ contract-cli contract enum list --profile contract-group --type contract_status
 命令：
 
 ```bash
-contract-cli mdm vendor list --profile contract-group --name 供应商 --page-size 10
+contract-cli mdm vendor list --profile contract --name 供应商 --page-size 10
 ```
 
 支持参数：
@@ -717,7 +716,7 @@ contract-cli mdm vendor list --profile contract-group --name 供应商 --page-si
 命令：
 
 ```bash
-contract-cli mdm vendor get <vendor-id> --profile contract-group
+contract-cli mdm vendor get <vendor-id> --profile contract
 ```
 
 身份规则：
@@ -736,7 +735,7 @@ contract-cli mdm vendor get <vendor-id> --profile contract-group
 命令：
 
 ```bash
-contract-cli mdm legal list --profile contract-group --name 主体A --page-size 10
+contract-cli mdm legal list --profile contract --name 主体A --page-size 10
 ```
 
 支持参数：
@@ -761,7 +760,7 @@ contract-cli mdm legal list --profile contract-group --name 主体A --page-size 
 命令：
 
 ```bash
-contract-cli mdm legal get <legal-entity-id> --profile contract-group
+contract-cli mdm legal get <legal-entity-id> --profile contract
 ```
 
 身份规则：
@@ -780,7 +779,7 @@ contract-cli mdm legal get <legal-entity-id> --profile contract-group
 命令：
 
 ```bash
-contract-cli mdm fields list --profile contract-group --biz-line vendor
+contract-cli mdm fields list --profile contract --biz-line vendor
 ```
 
 支持参数：

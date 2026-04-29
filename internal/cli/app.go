@@ -571,7 +571,7 @@ func resolveEnvironment(name string) (environmentPreset, error) {
 			ClientName:                     "contract-cli",
 		}, nil
 	default:
-		return environmentPreset{}, fmt.Errorf("unsupported environment %q; only dev is preconfigured right now", name)
+		return environmentPreset{}, fmt.Errorf("unsupported environment %q; supported environments: prod, dev", name)
 	}
 }
 

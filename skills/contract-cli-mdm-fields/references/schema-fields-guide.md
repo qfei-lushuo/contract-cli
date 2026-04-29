@@ -16,7 +16,7 @@
 当前结构化命令只有一条：
 
 ```bash
-contract-cli mdm fields list --profile contract-group --biz-line vendor
+contract-cli mdm fields list --profile contract --biz-line vendor
 ```
 
 硬约束：
@@ -39,13 +39,13 @@ contract-cli mdm fields list --profile contract-group --biz-line vendor
 最小命令：
 
 ```bash
-contract-cli mdm fields list --profile contract-group --biz-line vendor
+contract-cli mdm fields list --profile contract --biz-line vendor
 ```
 
 bot 示例：
 
 ```bash
-contract-cli mdm fields list --profile contract-group --as bot --biz-line vendor --user-id-type employee_id
+contract-cli mdm fields list --profile contract --as bot --biz-line vendor --user-id-type employee_id
 ```
 
 ### 2.2 查法人实体字段定义
@@ -57,13 +57,13 @@ contract-cli mdm fields list --profile contract-group --as bot --biz-line vendor
 最小命令：
 
 ```bash
-contract-cli mdm fields list --profile contract-group --biz-line legal_entity
+contract-cli mdm fields list --profile contract --biz-line legal_entity
 ```
 
 bot 示例：
 
 ```bash
-contract-cli mdm fields list --profile contract-group --as bot --biz-line legal_entity
+contract-cli mdm fields list --profile contract --as bot --biz-line legal_entity
 ```
 
 ### 2.3 查交易方风险字段定义
@@ -75,7 +75,7 @@ contract-cli mdm fields list --profile contract-group --as bot --biz-line legal_
 最小命令：
 
 ```bash
-contract-cli mdm fields list --profile contract-group --as user --biz-line vendor_risk
+contract-cli mdm fields list --profile contract --as user --biz-line vendor_risk
 ```
 
 注意：`vendor_risk` 当前不支持 bot 身份。

@@ -8,7 +8,7 @@
 - 版本检查与升级提示
 - 源码构建、预编译二进制发布、npm/npx 薄包装分发
 
-命令清单请看：[docs/cli-command-reference.md](/Users/lyy/contract-cli/docs/cli-command-reference.md)
+命令清单请看：[docs/cli-command-reference.md](docs/cli-command-reference.md)
 
 ## 环境要求
 
@@ -52,9 +52,9 @@ contract-cli --version
 示例：
 
 ```bash
-NPM_CONFIG_REGISTRY=https://registry.npmjs.org npm install -g @qfeius/contract-cli@beta
+NPM_CONFIG_REGISTRY=https://registry.npmjs.org npm install -g @qfeius/contract-cli@latest
+contract-cli --version
 npx skills add qfeius/contract-cli -y -g
-npx @qfeius/contract-cli --version
 ```
 
 `npx skills add qfeius/contract-cli -y -g` 是推荐的 Agent skills 安装方式，会从 GitHub 仓库安装 `skills/` 目录，适配 Codex、Cursor、Trae、Claude Code 等多类 Agent 环境。若该通用安装器不可用，可使用 CLI 内置兜底：
@@ -88,31 +88,19 @@ make release-snapshot
 make release-assets
 ```
 
-默认会读取 `package.json` 的版本号，生成 `dist/release-assets/contract-cli-<version>-<os>-<arch>` 系列文件和 `checksums.txt`。这些文件需要上传到同名 GitHub Release，例如 `v0.1.0-beta.1`。
+默认会读取 `package.json` 的版本号，生成 `dist/release-assets/contract-cli-<version>-<os>-<arch>` 系列文件和 `checksums.txt`。这些文件需要上传到同名 GitHub Release，例如 `v1.0.0`。
 
 ### 正式发版
 
 仓库提供正式版一键发布脚本：
 
 ```bash
-scripts/release.sh --version 0.1.3 --dry-run
-scripts/release.sh --version 0.1.3
-scripts/release.sh --version 0.1.3 --publish --yes
+scripts/release.sh --version 1.0.0 --dry-run
+scripts/release.sh --version 1.0.0
+scripts/release.sh --version 1.0.0 --publish --yes
 ```
 
 默认模式只更新本地 `package.json`、执行 `make release-check`、生成 `dist/release-assets/`，不会推送 GitHub 或发布 npm。真正发布需要显式传入 `--publish --yes`，脚本会按顺序提交版本、打 `v<version>` tag、推送代码和 tag、创建 GitHub 正式 Release 并上传附件，最后执行 `npm publish --tag latest`。
-
-### Beta 一键发布脚本
-
-仓库提供安全模式发布脚本：
-
-```bash
-scripts/release-beta.sh --version 0.1.1-beta.1 --dry-run
-scripts/release-beta.sh --version 0.1.1-beta.1
-scripts/release-beta.sh --version 0.1.1-beta.1 --publish --yes
-```
-
-默认模式只更新本地 `package.json`、执行 `make release-check`、生成 `dist/release-assets/`，不会推送 GitHub 或发布 npm。真正发布需要显式传入 `--publish --yes`，脚本会按顺序提交版本、打 `v<version>` tag、推送代码和 tag、创建 GitHub pre-release 并上传附件，最后执行 `npm publish --tag beta`。
 
 远端发布需要满足其中一种授权方式：
 
@@ -126,25 +114,25 @@ scripts/release-beta.sh --version 0.1.1-beta.1 --publish --yes
 ```bash
 contract-cli --help
 contract-cli help contract upload-file
-contract-cli config add --env dev --name contract-group
-contract-cli auth login --profile contract-group --as user
-contract-cli auth login --profile contract-group --as bot --app-id <id> --app-secret <secret>
-contract-cli update check --channel beta
+contract-cli config add --env prod --name contract
+contract-cli auth login --profile contract --as user
+contract-cli auth login --profile contract --as bot --app-id <id> --app-secret <secret>
+contract-cli update check --channel latest
 npx skills add qfeius/contract-cli -y -g
 contract-cli skills list
 contract-cli skills install --target ~/.codex/skills
-contract-cli contract get <contract-id> --profile contract-group --as user
-contract-cli contract upload-file --file ./合同正文.docx --file-type text --profile contract-group --as bot
-contract-cli mdm vendor list --profile contract-group --as user
-contract-cli mdm legal get <legal-entity-id> --profile contract-group --as user
-contract-cli mdm fields list --biz-line vendor --profile contract-group --as user
+contract-cli contract get <contract-id> --profile contract --as user
+contract-cli contract upload-file --file ./合同正文.docx --file-type text --profile contract --as bot
+contract-cli mdm vendor list --profile contract --as user
+contract-cli mdm legal get <legal-entity-id> --profile contract --as user
+contract-cli mdm fields list --biz-line vendor --profile contract --as user
 ```
 
 所有已支持命令都可以通过 `--help` 查看本地帮助，例如 `contract-cli contract search --help`。帮助只渲染本地命令说明，不读取 profile、不发 HTTP，也不会触发自动版本检查。
 
 ## 测试
 
-完整手工测试流程请看：[docs/cli-test-plan.md](/Users/lyy/contract-cli/docs/cli-test-plan.md)
+完整手工测试流程请看：[docs/cli-test-plan.md](docs/cli-test-plan.md)
 
 ```bash
 make test
@@ -154,7 +142,7 @@ make release-check
 
 `make release-check` 会额外验证 npm 包 dry-run、本地 tgz 安装、安装后 `contract-cli --version`、`skills list` 和 `skills install`。
 
-CLI 会在交互终端下最多每 30 分钟自动检查一次 npm 远端版本，并在发现新版本时提示升级命令。也可以手动执行 `contract-cli update check --channel beta`；如需关闭自动检查，可设置 `CONTRACT_CLI_NO_UPDATE_CHECK=1`。
+CLI 会在交互终端下最多每 30 分钟自动检查一次 npm 远端版本，并在发现新版本时提示升级命令。也可以手动执行 `contract-cli update check --channel latest`；如需关闭自动检查，可设置 `CONTRACT_CLI_NO_UPDATE_CHECK=1`。
 
 ## 目录说明
 

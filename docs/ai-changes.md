@@ -1,6 +1,16 @@
 # AI 变更记录
 
 - 2026-04-29
+  变更摘要：收敛正式版更新检查示例，并为构建链路开启 `-trimpath`。
+  涉及文件/模块：`build.sh`、`Makefile`、`scripts/build-release-assets.sh`、`tests/cli_e2e/smoke.sh`、`tests/release/local-install.sh`、`tests/release/build-flags.sh`、`internal/cli/help.go`、`docs/cli-command-reference.md`
+  关键逻辑/决策：正式帮助与命令参考只展示 `update check --channel latest` 示例，避免正式包把 beta 作为默认引导；本地构建、安装和 release assets 构建统一加 `go build/install -trimpath`，降低二进制中泄漏本机源码绝对路径的风险。
+
+- 2026-04-29
+  变更摘要：收敛正式包可见的默认环境、profile 与安装文档口径。
+  涉及文件/模块：`internal/cli/help.go`、`internal/cli/app.go`、`internal/cli/help_command_test.go`、`internal/cli/command_reference_doc_test.go`、`README.md`、`docs/cli-command-reference.md`、`skills/*`
+  关键逻辑/决策：`config add --help` 和命令参考统一改为默认 `prod`、默认 profile `contract`；README 移除 beta 安装入口和本机绝对路径；skills 示例从旧 `contract-group` 收敛到 `contract`，并补测试防止正式包文案回退。
+
+- 2026-04-29
   变更摘要：新增正式版一键发版脚本，并把发布说明补齐到 README。
   涉及文件/模块：`scripts/release.sh`、`tests/release/release-script.sh`、`Makefile`、`README.md`、`docs/ai-changes.md`
   关键逻辑/决策：正式脚本要求稳定语义版本 `x.y.z`，默认执行 `make release-check` 和 `make release-assets`，远端发布时创建 GitHub latest release 并执行 `npm publish --tag latest`；release 脚本检查现在同时覆盖 beta 与正式包 dry-run。

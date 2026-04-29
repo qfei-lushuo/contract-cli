@@ -16,8 +16,8 @@
 当前结构化命令只有两类：
 
 ```bash
-contract-cli mdm vendor list --profile contract-group --name "供应商A"
-contract-cli mdm vendor get 1063197165850985296 --profile contract-group
+contract-cli mdm vendor list --profile contract --name "供应商A"
+contract-cli mdm vendor get 1063197165850985296 --profile contract
 ```
 
 硬约束：
@@ -41,7 +41,7 @@ contract-cli mdm vendor get 1063197165850985296 --profile contract-group
 最小命令：
 
 ```bash
-contract-cli mdm vendor list --profile contract-group --name "供应商A"
+contract-cli mdm vendor list --profile contract --name "供应商A"
 ```
 
 常见追加参数：
@@ -66,19 +66,19 @@ contract-cli mdm vendor list --profile contract-group --name "供应商A"
 最小命令：
 
 ```bash
-contract-cli mdm vendor list --profile contract-group --page-size 20
+contract-cli mdm vendor list --profile contract --page-size 20
 ```
 
 翻页示例：
 
 ```bash
-contract-cli mdm vendor list --profile contract-group --page-size 20 --page-token next
+contract-cli mdm vendor list --profile contract --page-size 20 --page-token next
 ```
 
 bot 示例：
 
 ```bash
-contract-cli mdm vendor list --profile contract-group --as bot --name "V00000001" --page-size 20 --user-id-type employee_id
+contract-cli mdm vendor list --profile contract --as bot --name "V00000001" --page-size 20 --user-id-type employee_id
 ```
 
 ### 2.3 已知 id 直接查详情
@@ -90,13 +90,13 @@ contract-cli mdm vendor list --profile contract-group --as bot --name "V00000001
 最小命令：
 
 ```bash
-contract-cli mdm vendor get 1063197165850985296 --profile contract-group
+contract-cli mdm vendor get 1063197165850985296 --profile contract
 ```
 
 bot 示例：
 
 ```bash
-contract-cli mdm vendor get 7003410079584092448 --profile contract-group --as bot --user-id-type employee_id
+contract-cli mdm vendor get 7003410079584092448 --profile contract --as bot --user-id-type employee_id
 ```
 
 补充说明：

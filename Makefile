@@ -14,7 +14,7 @@ build:
 	./build.sh
 
 install:
-	go install -ldflags "$(LDFLAGS)" $(MAIN_PACKAGE)
+	go install -trimpath -ldflags "$(LDFLAGS)" $(MAIN_PACKAGE)
 
 release-assets:
 	scripts/build-release-assets.sh
@@ -28,12 +28,14 @@ local-install-check:
 release-script-check:
 	tests/release/release-beta-script.sh
 	tests/release/release-script.sh
+	tests/release/build-flags.sh
 
 release-check: test
 	tests/cli_e2e/smoke.sh
 	tests/release/package-dry-run.sh
 	tests/release/local-install.sh
 	tests/release/release-beta-script.sh
+	tests/release/build-flags.sh
 
 release-snapshot:
 	goreleaser release --snapshot --clean
