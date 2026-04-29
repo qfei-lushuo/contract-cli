@@ -1,6 +1,11 @@
 # AI 变更记录
 
 - 2026-04-29
+  变更摘要：发布前忽略所有层级的 macOS `.DS_Store` 本机文件。
+  涉及文件/模块：`.gitignore`、`docs/ai-changes.md`
+  关键逻辑/决策：将仅忽略仓库根目录 `/.DS_Store` 调整为全局 `.DS_Store`，避免子目录 Finder 元数据让正式发版脚本误判工作区不干净。
+
+- 2026-04-29
   变更摘要：收敛正式版更新检查示例，并为构建链路开启 `-trimpath`。
   涉及文件/模块：`build.sh`、`Makefile`、`scripts/build-release-assets.sh`、`tests/cli_e2e/smoke.sh`、`tests/release/local-install.sh`、`tests/release/build-flags.sh`、`internal/cli/help.go`、`docs/cli-command-reference.md`
   关键逻辑/决策：正式帮助与命令参考只展示 `update check --channel latest` 示例，避免正式包把 beta 作为默认引导；本地构建、安装和 release assets 构建统一加 `go build/install -trimpath`，降低二进制中泄漏本机源码绝对路径的风险。
