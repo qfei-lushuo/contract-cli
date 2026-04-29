@@ -1,5 +1,10 @@
 # AI 变更记录
 
+- 2026-04-29
+  变更摘要：新增正式版一键发版脚本，并把发布说明补齐到 README。
+  涉及文件/模块：`scripts/release.sh`、`tests/release/release-script.sh`、`Makefile`、`README.md`、`docs/ai-changes.md`
+  关键逻辑/决策：正式脚本要求稳定语义版本 `x.y.z`，默认执行 `make release-check` 和 `make release-assets`，远端发布时创建 GitHub latest release 并执行 `npm publish --tag latest`；release 脚本检查现在同时覆盖 beta 与正式包 dry-run。
+
 - 2026-04-27
   变更摘要：修复 `contract text` 标准开放平台路由与文本参数默认值。
   涉及文件/模块：`internal/openplatform/contract/service.go`、`internal/cli/contract_command.go`、`internal/cli/command_support.go`、`internal/openplatform/contract/service_test.go`、`internal/cli/mcp_command_test.go`、`docs/ai-changes.md`

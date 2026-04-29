@@ -27,6 +27,7 @@ local-install-check:
 
 release-script-check:
 	tests/release/release-beta-script.sh
+	tests/release/release-script.sh
 
 release-check: test
 	tests/cli_e2e/smoke.sh

@@ -92,10 +92,15 @@ make release-assets
 
 ### 正式发版
 
-- 打 tag，例如 `v0.1.0`
-- 运行 `make release-assets`
-- 将 `dist/release-assets/` 下的压缩包上传到 GitHub Release
-- 发布 npm 薄包装
+仓库提供正式版一键发布脚本：
+
+```bash
+scripts/release.sh --version 0.1.3 --dry-run
+scripts/release.sh --version 0.1.3
+scripts/release.sh --version 0.1.3 --publish --yes
+```
+
+默认模式只更新本地 `package.json`、执行 `make release-check`、生成 `dist/release-assets/`，不会推送 GitHub 或发布 npm。真正发布需要显式传入 `--publish --yes`，脚本会按顺序提交版本、打 `v<version>` tag、推送代码和 tag、创建 GitHub 正式 Release 并上传附件，最后执行 `npm publish --tag latest`。
 
 ### Beta 一键发布脚本
 
