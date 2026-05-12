@@ -5,7 +5,7 @@ variables:
   GIT_DEPTH: "0"
   CONTRACT_CLI_BUILD_IMAGE: "docker.cnb.cool/znb/images/debian:latest"
   GITHUB_RELEASE_REPO: "yuwenGueen/contract-cli"
-  GITHUB_SYNC_BRANCH: "main"
+  GITHUB_SYNC_BRANCH: ""
   GITHUB_FORCE_PUSH: "false"
   NPM_REGISTRY_URL: "https://registry.npmjs.org/"
   NPM_ACCESS: "public"
@@ -130,16 +130,21 @@ release:
       git remote remove github-release 2>/dev/null || true
       git remote add github-release "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_RELEASE_REPO}.git"
       if [ -n "${GITHUB_SYNC_BRANCH:-}" ]; then
+        echo "syncing source to GitHub branch ${GITHUB_SYNC_BRANCH}..."
         if [ "${GITHUB_FORCE_PUSH:-false}" = "true" ]; then
           git push --force-with-lease github-release "HEAD:refs/heads/${GITHUB_SYNC_BRANCH}"
         else
           git push github-release "HEAD:refs/heads/${GITHUB_SYNC_BRANCH}"
         fi
+      else
+        echo "GITHUB_SYNC_BRANCH is empty; skipping source branch sync."
       fi
+      echo "pushing GitHub release tag ${RELEASE_TAG}..."
       if ! git ls-remote --exit-code --tags github-release "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
         git push github-release "HEAD:refs/tags/$RELEASE_TAG"
       fi
 
+      echo "creating/updating GitHub release and uploading assets..."
       export RELEASE_TAG NPM_DIST_TAG CI_PIPELINE_URL GITHUB_RELEASE_REPO GITHUB_TOKEN
       node <<'NODE'
       const fs = require("fs");
@@ -253,6 +258,7 @@ release:
       });
       NODE
 
+      echo "publishing npm package..."
       printf "//registry.npmjs.org/:_authToken=%s\n" "$NPM_TOKEN" > ~/.npmrc
       publish_args=(--registry "$NPM_REGISTRY_URL" --tag "$NPM_DIST_TAG")
       if [ -n "${NPM_ACCESS:-}" ]; then
@@ -260,6 +266,7 @@ release:
       fi
       npm publish "${publish_args[@]}"
 
+      echo "verifying npm dist-tag..."
       for attempt in 1 2 3 4 5 6; do
         published_version="$(npm view "$PACKAGE_NAME@$NPM_DIST_TAG" version --registry "$NPM_REGISTRY_URL" 2>/dev/null || true)"
         if [ "$published_version" = "$VERSION" ]; then
@@ -270,6 +277,7 @@ release:
       done
       test "$(npm view "$PACKAGE_NAME@$NPM_DIST_TAG" version --registry "$NPM_REGISTRY_URL")" = "$VERSION"
 
+      echo "verifying npm install..."
       tmpdir="$(mktemp -d)"
       npm install -g "$PACKAGE_NAME@$VERSION" --registry "$NPM_REGISTRY_URL" --prefix "$tmpdir/prefix" --cache "$tmpdir/cache" --prefer-online
       "$tmpdir/prefix/bin/contract-cli" --version
