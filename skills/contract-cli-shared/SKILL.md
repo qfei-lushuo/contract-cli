@@ -1,7 +1,7 @@
 ---
 name: contract-cli-shared
 version: 1.0.0
-description: "contract-cli 开放平台共享约定技能：在 `contract` 和 `mdm` 模块间做选择，并遵守 `contract/v1/mcp` user-only 限制、`--input-file` 请求体输入、输出格式和 profile 选择规则。当用户要操作开放平台 CLI 但尚未明确命令模块时触发。"
+description: "contract-cli 开放平台共享约定技能：在 `contract`、`payment` 和 `mdm` 模块间做选择，并遵守 `contract/v1/mcp` user-only 限制、`--input-file` 请求体输入、输出格式和 profile 选择规则。当用户要操作开放平台 CLI 但尚未明确命令模块时触发。"
 ---
 
 # contract-cli Shared
@@ -10,8 +10,10 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 
 ## 快速决策
 
-- 合同搜索、详情、创建、合同文本、模板、分类、枚举：读 [../contract-cli-contract/SKILL.md](../contract-cli-contract/SKILL.md)
+- 合同搜索、详情、创建、合同文本、模板、分类、枚举、审批：读 [../contract-cli-contract/SKILL.md](../contract-cli-contract/SKILL.md)
   这里现在采用“主文档 + 字段树附录 + 枚举附录”的结构
+- 付款申请、付款计划、付款记录：读 [../contract-cli-payment/SKILL.md](../contract-cli-payment/SKILL.md)
+  这里采用“主规则 + 命令示例附录”的结构
 - 交易方查询：读 [../contract-cli-mdm-vendor/SKILL.md](../contract-cli-mdm-vendor/SKILL.md)
   这里现在采用“主 guide + 参数附录 + 命令示例”的结构
 - 法人实体查询：读 [../contract-cli-mdm-legal/SKILL.md](../contract-cli-mdm-legal/SKILL.md)
@@ -28,9 +30,13 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 - `contract share get`
 - `contract cooperation link get`
 - `contract cooperation record get`
+- `contract approval start/get`
 - `contract category list`
 - `contract template list/get/instantiate`
 - `contract enum list`
+- `payment create/update/get/list`
+- `payment plan notify/search`
+- `payment record create/update/get/list`
 - `mdm vendor list/get`
 - `mdm legal list/get`
 - `mdm fields list`
@@ -39,7 +45,7 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 
 - `api call` 当前不对外开放；执行 `contract-cli api ...` 会直接返回 `api call 暂未开放使用，请使用已开放的结构化命令`
 - `contract/v1/mcp` 这批路径大部分只支持 `--as user`
-- 当前结构化命令里只有 `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 支持 bot；其中合同命令的 bot 路由走 `/open-apis/contract/v1/...`，`contract upload-file` 走 `/open-apis/contract/v1/files/upload` 且同时支持 user/bot，新增 `contract submit/resubmit/patch/download-file/delete/print-file/share/cooperation` 仅支持 bot，`mdm vendor list/get` 的 bot 路由走 `/open-apis/mdm/v1/vendors...`，`mdm legal list` 的 bot 路由走 `/open-apis/mdm/v1/legal_entities/list_all`，`mdm legal get` 的 bot 路由走 `/open-apis/mdm/v1/legal_entities/{legal_entity_id}`，`mdm fields list` 的 bot 路由走 `/open-apis/mdm/v1/config/config_list`
+- 当前结构化命令里只有 `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`、`contract approval start/get`、`payment *`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 支持 bot；其中合同命令的 bot 路由走 `/open-apis/contract/v1/...`，`contract upload-file` 走 `/open-apis/contract/v1/files/upload` 且同时支持 user/bot，`contract submit/resubmit/patch/download-file/delete/print-file/share/cooperation/approval` 和 `payment *` 仅支持 bot，`mdm vendor list/get` 的 bot 路由走 `/open-apis/mdm/v1/vendors...`，`mdm legal list` 的 bot 路由走 `/open-apis/mdm/v1/legal_entities/list_all`，`mdm legal get` 的 bot 路由走 `/open-apis/mdm/v1/legal_entities/{legal_entity_id}`，`mdm fields list` 的 bot 路由走 `/open-apis/mdm/v1/config/config_list`
 - 若命中 `/open-apis/contract/v1/mcp/` 且未传 `--as`，CLI 会默认按 `user` 解析，不看 `default_identity`
 - 这批命令不暴露 `--operator`
 - 请求体文件输入统一使用 `--input-file`
@@ -52,7 +58,9 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 ## 实现来源
 
 - [internal/cli/command_support.go](../../internal/cli/command_support.go)
+- [internal/cli/payment_command.go](../../internal/cli/payment_command.go)
 - [internal/openplatform/client.go](../../internal/openplatform/client.go)
+- [internal/openplatform/payment/service.go](../../internal/openplatform/payment/service.go)
 - [internal/openplatform/mcp_specs.go](../../internal/openplatform/mcp_specs.go)
 
 ## 排障要点
@@ -62,3 +70,4 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 - 命令报 `user identity is not authorized`：先执行 `contract-cli auth login --profile <profile> --as user`
 - 用户想做文件上传：使用 `contract upload-file --as user|bot --file <path> --file-type <type>`
 - 用户想下载文件：使用 `contract download-file --as bot --output-file <path>`；不要写成 `dowload-file`
+- 用户想做付款申请、付款计划或付款记录：使用 `payment ... --as bot`，不要放到 `contract` 子命令下面

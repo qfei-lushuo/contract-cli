@@ -1,6 +1,21 @@
 # AI 变更记录
 
 - 2026-05-12
+  变更摘要：实现 P2 付款、付款计划、付款记录和审批管理 CLI 命令。
+  涉及文件/模块：`internal/cli`、`internal/openplatform/payment`、`internal/openplatform/contract`、`docs/*`、`skills/contract-cli-*`
+  关键逻辑/决策：新增顶层 `payment` bot-only 命令和 `contract approval start/get`，按“主 ID 位置参数、父资源 ID 用 flag”解析；POST/PATCH 强制 JSON body，GET/list 拒绝 body，并同步 help、命令文档、测试计划和 payment skill。
+
+- 2026-05-12
+  变更摘要：新增 P2 CLI 开发提示词文档，固化付款、付款计划、付款记录和审批命令规划。
+  涉及文件/模块：`docs/cli-p2-提示词.md`、`docs/ai-changes.md`
+  关键逻辑/决策：按“主操作对象 ID 用位置参数、父资源 ID 用 flag”的命令参数约定记录 P2 开发范围，并明确接口疑问停下询问、skill 同步、TDD 和测试验收要求。
+
+- 2026-05-12
+  变更摘要：新增正式发版现状整理文档，汇总生产发版流程、所需信息和当前达成结果。
+  涉及文件/模块：`docs/current-production-release-process.md`、`docs/ai-changes.md`
+  关键逻辑/决策：以 `scripts/release.sh`、README 和现有 release 测试为基线，明确正式版当前走 GitHub 正式 Release + npm latest、需准备的授权与环境、默认 remote/branch 行为以及后续值得讨论的边界问题。
+
+- 2026-05-12
   变更摘要：全仓收敛旧 profile 示例名，统一使用 `--profile contract`。
   涉及文件/模块：`internal/cli/help.go`、CLI 测试、`docs/*`、`skills/contract-cli-contract`、`skills/contract-cli-shared`
   关键逻辑/决策：用户可见示例、测试命令参数和 profile fixture 从旧 `contract-group` 迁移到 `contract`；命令参考测试保留防回退断言，避免后续文档重新出现旧 profile 名。

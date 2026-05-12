@@ -30,6 +30,7 @@ const required = [
   "skills/auth/SKILL.md",
   "skills/contract-cli-shared/SKILL.md",
   "skills/contract-cli-contract/SKILL.md",
+  "skills/contract-cli-payment/SKILL.md",
   "skills/contract-cli-contract/references/create-contract-fields.md",
   "skills/contract-cli-mdm-vendor/SKILL.md",
   "skills/contract-cli-mdm-legal/SKILL.md",

@@ -215,6 +215,8 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return a.runAPI(ctx, args[1:])
 	case "contract":
 		return a.runContract(ctx, args[1:])
+	case "payment":
+		return a.runPayment(ctx, args[1:])
 	case "mdm":
 		return a.runMDM(ctx, args[1:])
 	default:

@@ -24,6 +24,8 @@ contract-cli contract print-file --profile contract --as bot --input-file print-
 contract-cli contract share get 7023646046559404327 --profile contract --as bot
 contract-cli contract cooperation link get 7023646046559404327 --profile contract --as bot
 contract-cli contract cooperation record get 7023646046559404327 --profile contract --as bot
+contract-cli contract approval start process_123 --profile contract --as bot --input-file approval.json
+contract-cli contract approval get process_123 --profile contract --as bot
 contract-cli contract category list --profile contract --as bot --lang zh-CN
 contract-cli contract template list --profile contract --as bot --category-number CAT-1 --page-size 20 --user-id ou_xxx --user-id-type employee_id
 contract-cli contract template get tpl_123 --profile contract --as bot --user-id ou_xxx --user-id-type employee_id
@@ -49,7 +51,7 @@ contract-cli contract enum list --profile contract --type contract_status
 ## 已知限制
 
 - `contract upload-file` 当前同时支持 user/bot 身份，均走 `/open-apis/contract/v1/files/upload`
-- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get` 当前仅支持 bot 身份
+- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`、`contract approval start`、`contract approval get` 当前仅支持 bot 身份
 - `contract template fields` 尚未实现
 - `contract create` 不自动帮你补模板信息；当前就是透传请求体
 - `contract create --as bot` 时，`create_user_id` 需要你自己写进 JSON body
@@ -107,6 +109,8 @@ contract-cli contract print-file --profile contract --as bot --input-file print-
 contract-cli contract share get 7023646046559404327 --profile contract --as bot
 contract-cli contract cooperation link get 7023646046559404327 --profile contract --as bot
 contract-cli contract cooperation record get 7023646046559404327 --profile contract --as bot
+contract-cli contract approval start process_123 --profile contract --as bot --data '{"task_instance_id":"task-1","command_type":"general"}'
+contract-cli contract approval get process_123 --profile contract --as bot --notice-filter notice_filter --task-instance-filter task_instance_filter
 ```
 
 接口路径：
@@ -114,3 +118,5 @@ contract-cli contract cooperation record get 7023646046559404327 --profile contr
 - `share get`：`GET /open-apis/contract/v1/contracts/{contract_id}/share_records`
 - `cooperation link get`：`GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_link`
 - `cooperation record get`：`GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_record_info`
+- `approval start`：`POST /open-apis/contract/v1/process_instances/{process_instance_id}/task_approval`
+- `approval get`：`GET /open-apis/contract/v1/process_instances/{process_instance_id}`

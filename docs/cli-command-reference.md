@@ -6,7 +6,7 @@
 
 - 当前内置 `prod` 和 `dev` 两套环境预设；正式包默认使用 `prod`：`contract-cli config add --env prod --name contract`
 - `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 是当前仅有的十五个同时支持 `user` 与 `bot` 的结构化业务命令
-- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get` 当前仅支持 `--as bot`
+- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`、`contract approval start/get` 和 `payment *` 当前仅支持 `--as bot`
 - 除上述 bot 能力外，当前其他结构化业务命令仍只支持 `--as user`
 - `bot` 目前已经支持登录、状态查看、登出、默认身份切换
 - 推荐使用 `npx skills add qfeius/contract-cli -y -g` 安装跨 Agent 平台 skills；`contract-cli skills install` 保留为 CLI 内置兜底
@@ -47,7 +47,7 @@ contract-cli contract get <contract-id> --help
 - `auth login --as bot` 走 `appId + appSecret -> tenant_access_token/internal`
 - `contract ...`、`mdm ...` 结构化命令大多默认只支持 `--as user`
 - `/open-apis/contract/v1/mcp/...` 路径大多仍只支持 `--as user`
-- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get` 当前仅支持 `--as bot`
+- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`、`contract approval start/get` 和 `payment *` 当前仅支持 `--as bot`
 - `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 是例外：
   - `contract get --as user` 走 MCP 路径 `/open-apis/contract/v1/mcp/contracts/{contract_id}`
   - `contract get --as bot` 走开放平台路径 `/open-apis/contract/v1/contracts/{contract_id}`
@@ -246,7 +246,7 @@ contract-cli skills install --force
 
 执行结果：
 
-- 复制内置 `auth`、`contract-cli-shared`、`contract-cli-contract`、`contract-cli-mdm-vendor`、`contract-cli-mdm-legal`、`contract-cli-mdm-fields` 等 skill
+- 复制内置 `auth`、`contract-cli-shared`、`contract-cli-contract`、`contract-cli-payment`、`contract-cli-mdm-vendor`、`contract-cli-mdm-legal`、`contract-cli-mdm-fields` 等 skill
 - 保留 `SKILL.md`、`agents/openai.yaml` 和 `references/*.md`
 
 ### 2. 鉴权
@@ -756,6 +756,53 @@ contract-cli contract cooperation record get <contract-id> --profile contract --
 - 当前仅支持 `--as bot`。
 - 走 `GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_record_info`。
 
+#### `contract-cli contract approval start`
+
+用途：bot 身份发起流程审批。
+
+命令：
+
+```bash
+contract-cli contract approval start <process-instance-id> --profile contract --as bot --input-file approval.json
+```
+
+支持参数：
+
+- `--input-file`
+- `--data`
+- `--user-id-type`
+- `--user-id`
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `POST /open-apis/contract/v1/process_instances/{process_instance_id}/task_approval`。
+- `--input-file` / `--data` 必须传一个且互斥。
+
+#### `contract-cli contract approval get`
+
+用途：bot 身份查询审批实例详情。
+
+命令：
+
+```bash
+contract-cli contract approval get <process-instance-id> --profile contract --as bot
+contract-cli contract approval get <process-instance-id> --profile contract --as bot --notice-filter notice_filter --task-instance-filter task_instance_filter
+```
+
+支持参数：
+
+- `--notice-filter`
+- `--task-instance-filter`
+- `--user-id-type`
+- `--user-id`
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `GET /open-apis/contract/v1/process_instances/{process_instance_id}`。
+- 不接受 `--input-file` / `--data`。
+
 #### `contract-cli contract category list`
 
 用途：列出合同分类。
@@ -863,7 +910,181 @@ contract-cli contract enum list --profile contract --type contract_status
 
 - `--type`
 
-### 5. MDM 命令
+### 5. 付款命令
+
+`payment` 这一组命令当前全部仅支持 `--as bot`。命令参数采用“主操作对象 ID 用位置参数，父资源 ID 用 flag”的方式。
+
+#### `contract-cli payment create`
+
+用途：创建付款申请。
+
+命令：
+
+```bash
+contract-cli payment create --contract <contract-id> --profile contract --as bot --input-file payment.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `POST /open-apis/contract/v1/contracts/{contract_id}/payments`。
+- `--contract` 必填。
+- `--input-file` / `--data` 必填且互斥。
+
+#### `contract-cli payment update`
+
+用途：更新付款信息。
+
+命令：
+
+```bash
+contract-cli payment update <payment-id> --contract <contract-id> --profile contract --as bot --input-file payment-update.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `PATCH /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}`。
+- `--contract` 必填。
+- `--input-file` / `--data` 必填且互斥。
+
+#### `contract-cli payment get`
+
+用途：查看付款信息。
+
+命令：
+
+```bash
+contract-cli payment get <payment-id> --contract <contract-id> --profile contract --as bot
+```
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `GET /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}`。
+- `--contract` 必填。
+- 不接受 `--input-file` / `--data`。
+
+#### `contract-cli payment list`
+
+用途：查询付款申请列表。
+
+命令：
+
+```bash
+contract-cli payment list --contract <contract-id> --profile contract --as bot
+contract-cli payment list --contract <contract-id> --profile contract --as bot --page-size 10 --page-token next
+```
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `GET /open-apis/contract/v1/contracts/{contract_id}/payments`。
+- `--contract` 必填。
+- `--page-size` / `--page-token` 可选。
+- 不接受 `--input-file` / `--data`。
+
+#### `contract-cli payment plan notify`
+
+用途：同步付款记录。
+
+命令：
+
+```bash
+contract-cli payment plan notify --profile contract --as bot --input-file notify.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `POST /open-apis/contract/v1/payment/notify`。
+- `--input-file` / `--data` 必填且互斥。
+
+#### `contract-cli payment plan search`
+
+用途：搜索付款计划。
+
+命令：
+
+```bash
+contract-cli payment plan search --profile contract --as bot --input-file payment-plan-search.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `POST /open-apis/contract/v1/payments/search`。
+- `--input-file` / `--data` 必填且互斥。
+
+#### `contract-cli payment record create`
+
+用途：创建付款记录。
+
+命令：
+
+```bash
+contract-cli payment record create --contract <contract-id> --payment <payment-id> --profile contract --as bot --input-file payment-record.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `POST /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}/payment_records`。
+- `--contract` / `--payment` 必填。
+- `--input-file` / `--data` 必填且互斥。
+
+#### `contract-cli payment record update`
+
+用途：更新付款记录。
+
+命令：
+
+```bash
+contract-cli payment record update <payment-record-id> --contract <contract-id> --payment <payment-id> --profile contract --as bot --input-file payment-record-update.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `PATCH /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}/payment_records/{payment_record_id}`。
+- `--contract` / `--payment` 必填。
+- `--input-file` / `--data` 必填且互斥。
+
+#### `contract-cli payment record get`
+
+用途：查询付款记录详情。
+
+命令：
+
+```bash
+contract-cli payment record get <payment-record-id> --contract <contract-id> --payment <payment-id> --profile contract --as bot
+```
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `GET /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}/payment_records/{payment_record_id}`。
+- `--contract` / `--payment` 必填。
+- 不接受 `--input-file` / `--data`。
+
+#### `contract-cli payment record list`
+
+用途：根据付款计划 ID 查询付款记录。
+
+命令：
+
+```bash
+contract-cli payment record list --plan <payment-plan-uuid> --profile contract --as bot
+```
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `GET /open-apis/contract/v1/contracts/payments/{payment_plan_uuid}/payment_records`。
+- `--plan` 必填。
+- 不接受 `--input-file` / `--data`。
+
+### 6. MDM 命令
 
 这一组命令里，当前 `mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get` 和 `mdm fields list` 同时支持 `user` 与 `bot`。
 

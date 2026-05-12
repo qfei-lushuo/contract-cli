@@ -1,7 +1,7 @@
 ---
 name: contract-cli-contract
-version: 1.0.1
-description: "contract-cli 合同命令技能：支持 user/bot 双身份下的合同详情、合同搜索、合同创建、同步用户组、读取合同文本、查询合同分类、列出模板、查看模板详情、创建模板实例、文件上传，bot 身份下的提交/重提/更新/删除合同、下载/生成文件、分享记录和协商信息查询，以及 user 身份下的枚举查询。当用户要使用 `contract-cli contract ...` 操作合同能力时触发。"
+version: 1.0.2
+description: "contract-cli 合同命令技能：支持 user/bot 双身份下的合同详情、合同搜索、合同创建、同步用户组、读取合同文本、查询合同分类、列出模板、查看模板详情、创建模板实例、文件上传，bot 身份下的提交/重提/更新/删除合同、下载/生成文件、分享记录、协商信息查询和审批管理，以及 user 身份下的枚举查询。当用户要使用 `contract-cli contract ...` 操作合同能力时触发。"
 ---
 
 # contract-cli Contract
@@ -29,6 +29,8 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - `contract-cli contract share get <contract-id>`
 - `contract-cli contract cooperation link get <contract-id>`
 - `contract-cli contract cooperation record get <contract-id>`
+- `contract-cli contract approval start <process-instance-id>`
+- `contract-cli contract approval get <process-instance-id>`
 - `contract-cli contract enum list --type <enum_type>`
 
 ## 快速决策
@@ -43,13 +45,15 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - 想提交、重新提交、更新或删除草稿合同：用 `contract submit|resubmit|patch|delete --as bot`
 - 想下载或生成合同相关文件：用 `contract download-file|print-file --as bot`
 - 想查分享记录或协商链接/记录：用 `contract share get` 或 `contract cooperation ... get --as bot`
+- 想发起流程审批或查询审批实例：用 `contract approval start|get --as bot`
 - 想查创建合同相关枚举：用 `contract enum list`
-- 若需求是审批、授权、付款：当前 skill 不覆盖，别伪造命令
+- 若需求是付款：读 [../contract-cli-payment/SKILL.md](../contract-cli-payment/SKILL.md)
+- 若需求是授权：当前 skill 不覆盖，别伪造命令
 
 ## 关键规则
 
 - `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file` 同时支持 `--as user` 和 `--as bot`
-- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get` 当前仅支持 `--as bot`
+- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`、`contract approval start`、`contract approval get` 当前仅支持 `--as bot`
 - 除上述双身份命令和新增 bot-only 命令外，其余命令仍然只支持 `--as user`
 - `contract create` 当前直接接收原始创建请求体，不额外暴露 `--template`
 - `contract create --as bot` 走 `POST /open-apis/contract/v1/contracts`
@@ -92,6 +96,8 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - `contract share get --as bot` 走 `GET /open-apis/contract/v1/contracts/{contract_id}/share_records`
 - `contract cooperation link get --as bot` 走 `GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_link`
 - `contract cooperation record get --as bot` 走 `GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_record_info`
+- `contract approval start --as bot` 走 `POST /open-apis/contract/v1/process_instances/{process_instance_id}/task_approval`，`--input-file` / `--data` 必填且互斥
+- `contract approval get --as bot` 走 `GET /open-apis/contract/v1/process_instances/{process_instance_id}`，可选 `--notice-filter` / `--task-instance-filter`
 - 不要使用 `dowload-file` 拼写；正式命令是 `download-file`
 - 常用 `file_type`：`text` 合同文本、`attachment` 其他附件、`scan` 归档扫描件、`cause` 合同附件、`archiveAttachment` 归档附件、`customPictureAttachment` 图片附件、`customTableAttachment` 表格附件、`customFileAttachment` 文件附件
 - `contract text` 支持 `--full-text`、`--offset`、`--limit`
@@ -110,7 +116,7 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 
 - 先确认 profile 已完成目标身份的登录：
   - user 详情、user 搜索、user 创建、user 同步用户组、user 合同文本、user 分类查询、user 模板列表、user 模板详情、user 模板实例、user 文件上传和其他 user-only 命令：`auth login --as user`
-  - bot 详情、bot 搜索、bot 创建、bot 同步用户组、bot 合同文本、bot 分类查询、bot 模板列表、bot 模板详情、bot 模板实例、bot 文件上传、bot 提交/重提/更新/删除/下载/打印/分享/协商查询：`auth login --as bot`
+  - bot 详情、bot 搜索、bot 创建、bot 同步用户组、bot 合同文本、bot 分类查询、bot 模板列表、bot 模板详情、bot 模板实例、bot 文件上传、bot 提交/重提/更新/删除/下载/打印/分享/协商查询/审批管理：`auth login --as bot`
 - 复杂请求体优先用 `--input-file`
 - 需要脚本消费时加 `--output json`
 - 需要对照后端原始 envelope 时加 `--raw`
@@ -124,5 +130,6 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - 不要对 `contract enum` 传 `--as bot`
 - 不要继续写 `--file contract.json`；JSON 请求体用 `--input-file`
 - 不要对新增 bot-only 命令传 `--as user`
+- 不要把付款命令写成 `contract payment ...`；付款申请、付款计划、付款记录走顶层 `payment`
 - 不要把 `contract download-file` 的二进制响应交给 JSON 输出；保存文件用默认弹窗或 `--output-file`，管道场景用 `--raw`
 - 不要把 `contract template fields` 当成已实现能力
