@@ -17,7 +17,7 @@
 
 ```bash
 contract-cli contract create \
-  --profile contract-group \
+  --profile contract \
   --input-file contract-create.json
 ```
 
@@ -25,7 +25,7 @@ contract-cli contract create \
 
 ```bash
 contract-cli contract create \
-  --profile contract-group \
+  --profile contract \
   --data '{"contract_name":"示例合同", ... }'
 ```
 
@@ -33,7 +33,7 @@ bot 示例：
 
 ```bash
 contract-cli contract create \
-  --profile contract-group \
+  --profile contract \
   --as bot \
   --data '{"contract_name":"示例合同","create_user_id":"ou_xxx", ... }'
 ```
@@ -331,7 +331,7 @@ contract-cli contract create \
 如果你想用 CLI 实时核对平台返回的枚举，也可以直接跑：
 
 ```bash
-contract-cli contract enum list --profile contract-group --type contract_status_code
+contract-cli contract enum list --profile contract --type contract_status_code
 ```
 
 把 `contract_status_code` 换成目标枚举类型即可；当前接口支持的枚举类型列表见命令帮助。

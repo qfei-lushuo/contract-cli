@@ -58,7 +58,7 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 ## 排障要点
 
 - 命令报 `only supports --as user`：当前命中的是 user-only `contract/v1/mcp` 路径，切到 `--as user`
-- 命令报 `profile "<name>" not found`：先执行 `contract-cli config add --env dev --name <profile>`
+- 命令报 `profile "<name>" not found`：先执行 `contract-cli config add --env prod --name <profile>`
 - 命令报 `user identity is not authorized`：先执行 `contract-cli auth login --profile <profile> --as user`
 - 用户想做文件上传：当前只支持 `contract upload-file --as bot --file <path> --file-type <type>`
 - 用户想下载文件：使用 `contract download-file --as bot --output-file <path>`；不要写成 `dowload-file`

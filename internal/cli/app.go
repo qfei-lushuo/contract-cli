@@ -21,7 +21,7 @@ import (
 	contractskills "cn.qfei/contract-cli/skills"
 )
 
-const defaultProfileName = "contract-group"
+const defaultProfileName = "contract"
 
 var errAPICommandUnavailable = errors.New("api call 暂未开放使用，请使用已开放的结构化命令")
 
@@ -268,7 +268,7 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	var redirectURL string
 	var scopes string
 
-	flags.StringVar(&env, "env", "dev", "environment preset")
+	flags.StringVar(&env, "env", "prod", "environment preset")
 	flags.StringVar(&profileName, "name", defaultProfileName, "profile name")
 	flags.StringVar(&protectedResourceURL, "resource-metadata-url", "", "override protected resource metadata URL")
 	flags.StringVar(&redirectURL, "redirect-url", "", "OAuth redirect URL")
@@ -566,8 +566,19 @@ func resolveEnvironment(name string) (environmentPreset, error) {
 			BusinessType:                   "contract",
 			ClientName:                     "contract-cli",
 		}, nil
+	case "prod":
+		return environmentPreset{
+			OpenPlatformBaseURL:            "https://open.qfei.cn",
+			BotTokenEndpoint:               "https://open.qfei.cn/open-apis/auth/v3/tenant_access_token/internal",
+			ProtectedResourceMetadataURL:   "",
+			AuthorizationServerMetadataURL: "https://myaccount.qfei.cn/.well-known/oauth-authorization-server/contract",
+			RedirectURL:                    "http://127.0.0.1:8000/callback",
+			Scopes:                         []string{"cli:tools", "cli:resources"},
+			BusinessType:                   "contract",
+			ClientName:                     "contract-cli",
+		}, nil
 	default:
-		return environmentPreset{}, fmt.Errorf("unsupported environment %q; only dev is preconfigured right now", name)
+		return environmentPreset{}, fmt.Errorf("unsupported environment %q; supported environments: prod, dev", name)
 	}
 }
 

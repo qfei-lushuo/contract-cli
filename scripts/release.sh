@@ -12,7 +12,7 @@ YES=0
 REMOTE="${REMOTE:-origin}"
 DEFAULT_BRANCH="$(git -C "$ROOT_DIR" branch --show-current 2>/dev/null || true)"
 BRANCH="${BRANCH:-${DEFAULT_BRANCH:-main}}"
-NPM_TAG="${NPM_TAG:-beta}"
+NPM_TAG="${NPM_TAG:-latest}"
 NPM_REGISTRY="${NPM_REGISTRY:-https://registry.npmjs.org}"
 GITHUB_REPOSITORY="${GITHUB_REPOSITORY:-qfeius/contract-cli}"
 ASSET_DIR="${ASSET_DIR:-$ROOT_DIR/dist/release-assets}"
@@ -20,10 +20,10 @@ ASSET_DIR="${ASSET_DIR:-$ROOT_DIR/dist/release-assets}"
 usage() {
   cat <<'EOF'
 Usage:
-  scripts/release-beta.sh --version <x.y.z-beta.n> [flags]
+  scripts/release.sh --version <x.y.z> [flags]
 
 Flags:
-  --version <version>   Required beta version, for example 0.1.1-beta.1.
+  --version <version>   Required stable version, for example 0.1.3.
   --publish             Push commit/tag, create GitHub Release, and publish npm.
   --yes                 Skip interactive confirmation when --publish is used.
   --dry-run             Print the release plan without changing files or publishing.
@@ -35,7 +35,7 @@ Environment:
   NPM_TOKEN             Optional npm automation/granular token. npm login also works.
   GITHUB_REPOSITORY     GitHub repo, default qfeius/contract-cli.
   NPM_REGISTRY          npm registry, default https://registry.npmjs.org.
-  NPM_TAG               npm dist-tag, default beta.
+  NPM_TAG               npm dist-tag, default latest.
   REMOTE                Git remote, default origin.
   BRANCH                Branch to push, default current branch.
 
@@ -45,7 +45,7 @@ EOF
 }
 
 die() {
-  echo "release-beta: $*" >&2
+  echo "release: $*" >&2
   exit 1
 }
 
@@ -83,8 +83,8 @@ while [ "$#" -gt 0 ]; do
 done
 
 [ -n "$VERSION" ] || die "--version is required"
-if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta\.[0-9]+$ ]]; then
-  die "--version must look like 0.1.1-beta.1"
+if [[ ! "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  die "--version must look like 0.1.3"
 fi
 
 TAG="v$VERSION"
@@ -124,7 +124,7 @@ ensure_releasable_worktree() {
   fi
 
   if [ "$(current_package_version)" != "$VERSION" ]; then
-    echo "release-beta: dirty files:" >&2
+    echo "release: dirty files:" >&2
     echo "$status" >&2
     die "working tree is not clean; commit or stash local changes before release"
   fi
@@ -134,7 +134,7 @@ ensure_releasable_worktree() {
     local path
     path="${line:3}"
     case "$path" in
-      package.json|package-lock.json|*/.DS_Store|scripts/release-beta.sh) ;;
+      package.json|package-lock.json|*/.DS_Store|scripts/release.sh) ;;
       *) die "working tree has unrelated change $path; commit or stash it before release" ;;
     esac
   done <<< "$status"
@@ -220,8 +220,7 @@ print_plan() {
   run git tag "$TAG"
   run git push "$REMOTE" "HEAD:$BRANCH"
   run git push "$REMOTE" "$TAG"
-  run gh release create "$TAG" "dist/release-assets/*" --repo "$GITHUB_REPOSITORY" --title "$TAG" --notes "beta release $VERSION" --prerelease --latest=false
-  run gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease --latest=false
+  run gh release create "$TAG" "dist/release-assets/*" --repo "$GITHUB_REPOSITORY" --title "$TAG" --notes "Production release $VERSION" --latest
   run npm publish --tag "$NPM_TAG" --registry "$NPM_REGISTRY"
 }
 
@@ -268,7 +267,7 @@ if [ "$PUBLISH" -ne 1 ]; then
 Prepared $VERSION locally.
 Next:
   git diff -- package.json
-  scripts/release-beta.sh --version $VERSION --publish --yes
+  scripts/release.sh --version $VERSION --publish --yes
 EOF
   exit 0
 fi
@@ -311,11 +310,9 @@ else
   run gh release create "$TAG" "${release_assets[@]}" \
     --repo "$GITHUB_REPOSITORY" \
     --title "$TAG" \
-    --notes "beta release $VERSION" \
-    --prerelease \
-    --latest=false
+    --notes "Production release $VERSION" \
+    --latest
 fi
-run gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --prerelease --latest=false
 
 setup_npm_token
 run npm whoami --registry "$NPM_REGISTRY"

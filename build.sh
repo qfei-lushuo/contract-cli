@@ -13,6 +13,6 @@ LDFLAGS="-s -w \
   -X cn.qfei/contract-cli/internal/build.Commit=${COMMIT} \
   -X cn.qfei/contract-cli/internal/build.Date=${DATE}"
 
-go build -ldflags "${LDFLAGS}" -o contract-cli ./cmd/contract-cli
+go build -trimpath -ldflags "${LDFLAGS}" -o contract-cli ./cmd/contract-cli
 
 echo "OK: ./contract-cli (${VERSION}, ${COMMIT}, ${DATE})"

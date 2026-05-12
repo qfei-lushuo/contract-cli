@@ -19,9 +19,10 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
-		name     string
-		args     []string
-		contains []string
+		name        string
+		args        []string
+		contains    []string
+		notContains []string
 	}{
 		{
 			name: "top level help flag",
@@ -132,6 +133,30 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 			},
 		},
 		{
+			name: "config add production defaults",
+			args: []string{"config", "add", "--help"},
+			contains: []string{
+				"config add",
+				"--env <prod|dev>",
+				"默认 prod",
+				"--name <profile>",
+				"默认 contract",
+				"contract-cli config add --env prod --name contract",
+			},
+		},
+		{
+			name: "update check production example",
+			args: []string{"update", "check", "--help"},
+			contains: []string{
+				"update check",
+				"--channel <latest|beta>",
+				"contract-cli update check --channel latest",
+			},
+			notContains: []string{
+				"contract-cli update check --channel beta",
+			},
+		},
+		{
 			name: "skills install flags",
 			args: []string{"skills", "install", "--help"},
 			contains: []string{
@@ -160,6 +185,11 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 			for _, want := range tc.contains {
 				if !strings.Contains(stdout.String(), want) {
 					t.Fatalf("help output missing %q:\n%s", want, stdout.String())
+				}
+			}
+			for _, forbidden := range tc.notContains {
+				if strings.Contains(stdout.String(), forbidden) {
+					t.Fatalf("help output should not contain %q:\n%s", forbidden, stdout.String())
 				}
 			}
 		})

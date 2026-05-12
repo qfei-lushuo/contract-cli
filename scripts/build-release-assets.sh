@@ -62,7 +62,7 @@ for target in "${TARGETS[@]}"; do
     GOOS="$goos" \
     GOARCH="$goarch" \
     GOCACHE="$GO_CACHE" \
-    go build -ldflags "$LDFLAGS" -o "$build_dir/$binary_file" ./cmd/contract-cli
+    go build -trimpath -ldflags "$LDFLAGS" -o "$build_dir/$binary_file" ./cmd/contract-cli
 
   if [ "$goos" = "windows" ]; then
     (cd "$build_dir" && zip -q "$archive_path" "$binary_file")

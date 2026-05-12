@@ -10,6 +10,26 @@
   涉及文件/模块：`docs/bot-command-development-guide.md`、`docs/ai-changes.md`
   关键逻辑/决策：按功能开发、身份路由、通用 query、测试要求、skill 编写和 Definition of Done 组织；补充 skill 版本、业务错误、`user_id` 必填、输出归一化等后续需要团队确认的问题。
 
+- 2026-04-29
+  变更摘要：发布前忽略所有层级的 macOS `.DS_Store` 本机文件。
+  涉及文件/模块：`.gitignore`、`docs/ai-changes.md`
+  关键逻辑/决策：将仅忽略仓库根目录 `/.DS_Store` 调整为全局 `.DS_Store`，避免子目录 Finder 元数据让正式发版脚本误判工作区不干净。
+
+- 2026-04-29
+  变更摘要：收敛正式版更新检查示例，并为构建链路开启 `-trimpath`。
+  涉及文件/模块：`build.sh`、`Makefile`、`scripts/build-release-assets.sh`、`tests/cli_e2e/smoke.sh`、`tests/release/local-install.sh`、`tests/release/build-flags.sh`、`internal/cli/help.go`、`docs/cli-command-reference.md`
+  关键逻辑/决策：正式帮助与命令参考只展示 `update check --channel latest` 示例，避免正式包把 beta 作为默认引导；本地构建、安装和 release assets 构建统一加 `go build/install -trimpath`，降低二进制中泄漏本机源码绝对路径的风险。
+
+- 2026-04-29
+  变更摘要：收敛正式包可见的默认环境、profile 与安装文档口径。
+  涉及文件/模块：`internal/cli/help.go`、`internal/cli/app.go`、`internal/cli/help_command_test.go`、`internal/cli/command_reference_doc_test.go`、`README.md`、`docs/cli-command-reference.md`、`skills/*`
+  关键逻辑/决策：`config add --help` 和命令参考统一改为默认 `prod`、默认 profile `contract`；README 移除 beta 安装入口和本机绝对路径；skills 示例从旧 `contract-group` 收敛到 `contract`，并补测试防止正式包文案回退。
+
+- 2026-04-29
+  变更摘要：新增正式版一键发版脚本，并把发布说明补齐到 README。
+  涉及文件/模块：`scripts/release.sh`、`tests/release/release-script.sh`、`Makefile`、`README.md`、`docs/ai-changes.md`
+  关键逻辑/决策：正式脚本要求稳定语义版本 `x.y.z`，默认执行 `make release-check` 和 `make release-assets`，远端发布时创建 GitHub latest release 并执行 `npm publish --tag latest`；release 脚本检查现在同时覆盖 beta 与正式包 dry-run。
+
 - 2026-04-27
   变更摘要：修复 `contract text` 标准开放平台路由与文本参数默认值。
   涉及文件/模块：`internal/openplatform/contract/service.go`、`internal/cli/contract_command.go`、`internal/cli/command_support.go`、`internal/openplatform/contract/service_test.go`、`internal/cli/mcp_command_test.go`、`docs/ai-changes.md`

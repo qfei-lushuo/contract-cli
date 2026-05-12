@@ -1,11 +1,11 @@
 # Entity Commands Reference
 
 ```bash
-contract-cli mdm legal list --profile contract-group --name "上海主体"
-contract-cli mdm legal list --profile contract-group --name "上海主体" --page-size 20 --page-token next
-contract-cli mdm legal list --profile contract-group --as bot --name "主体A" --page-size 20 --user-id-type employee_id
-contract-cli mdm legal get 7023646046559404327 --profile contract-group
-contract-cli mdm legal get 7003410079584092448 --profile contract-group --as bot --user-id-type employee_id
+contract-cli mdm legal list --profile contract --name "上海主体"
+contract-cli mdm legal list --profile contract --name "上海主体" --page-size 20 --page-token next
+contract-cli mdm legal list --profile contract --as bot --name "主体A" --page-size 20 --user-id-type employee_id
+contract-cli mdm legal get 7023646046559404327 --profile contract
+contract-cli mdm legal get 7003410079584092448 --profile contract --as bot --user-id-type employee_id
 ```
 
 说明：

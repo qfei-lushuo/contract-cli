@@ -14,7 +14,7 @@ LDFLAGS="-s -w -X cn.qfei/contract-cli/internal/build.Version=${VERSION} -X cn.q
 
 cd "$ROOT_DIR"
 mkdir -p "$GO_CACHE"
-env GOCACHE="$GO_CACHE" go build -ldflags "$LDFLAGS" -o "$TMP_DIR/contract-cli" ./cmd/contract-cli
+env GOCACHE="$GO_CACHE" go build -trimpath -ldflags "$LDFLAGS" -o "$TMP_DIR/contract-cli" ./cmd/contract-cli
 
 version_output="$("$TMP_DIR/contract-cli" --version)"
 [[ "$version_output" == *"contract-cli version"* ]]

@@ -16,8 +16,8 @@
 当前结构化命令只有两类：
 
 ```bash
-contract-cli mdm legal list --profile contract-group --name "上海主体"
-contract-cli mdm legal get 7023646046559404327 --profile contract-group
+contract-cli mdm legal list --profile contract --name "上海主体"
+contract-cli mdm legal get 7023646046559404327 --profile contract
 ```
 
 硬约束：
@@ -41,7 +41,7 @@ contract-cli mdm legal get 7023646046559404327 --profile contract-group
 最小命令：
 
 ```bash
-contract-cli mdm legal list --profile contract-group --name "上海主体"
+contract-cli mdm legal list --profile contract --name "上海主体"
 ```
 
 常见追加参数：
@@ -67,13 +67,13 @@ contract-cli mdm legal list --profile contract-group --name "上海主体"
 最小命令：
 
 ```bash
-contract-cli mdm legal list --profile contract-group --page-size 20
+contract-cli mdm legal list --profile contract --page-size 20
 ```
 
 bot 示例：
 
 ```bash
-contract-cli mdm legal list --profile contract-group --as bot --name "主体A" --page-size 20 --user-id-type employee_id
+contract-cli mdm legal list --profile contract --as bot --name "主体A" --page-size 20 --user-id-type employee_id
 ```
 
 ### 2.3 已知 id 直接查详情
@@ -85,13 +85,13 @@ contract-cli mdm legal list --profile contract-group --as bot --name "主体A" -
 最小命令：
 
 ```bash
-contract-cli mdm legal get 7023646046559404327 --profile contract-group
+contract-cli mdm legal get 7023646046559404327 --profile contract
 ```
 
 bot 示例：
 
 ```bash
-contract-cli mdm legal get 7003410079584092448 --profile contract-group --as bot --user-id-type employee_id
+contract-cli mdm legal get 7003410079584092448 --profile contract --as bot --user-id-type employee_id
 ```
 
 补充说明：
