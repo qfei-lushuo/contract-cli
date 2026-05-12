@@ -36,7 +36,7 @@ func TestClientDoAddsAuthorizationAndQuery(t *testing.T) {
 	})
 
 	requestContext, err := client.RequestContext(config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityBot,
@@ -89,7 +89,7 @@ func TestClientDoCommonQueryPreservesUserOnlyRequestQuery(t *testing.T) {
 	})
 
 	requestContext, err := client.RequestContext(config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityUser,
@@ -141,7 +141,7 @@ func TestClientDoCommonQueryOverridesAnyPolicyRequestQuery(t *testing.T) {
 	})
 
 	requestContext, err := client.RequestContext(config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityBot,
@@ -198,7 +198,7 @@ func TestClientDoStreamsBodyReaderWithoutJSONContentType(t *testing.T) {
 	})
 
 	requestContext, err := client.RequestContext(config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityBot,
@@ -241,7 +241,7 @@ func TestClientDoPreservesMultipartContentType(t *testing.T) {
 	})
 
 	requestContext, err := client.RequestContext(config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityBot,
@@ -299,7 +299,7 @@ func TestClientDoStreamWritesSuccessBody(t *testing.T) {
 	})
 
 	requestContext, err := client.RequestContext(config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityBot,
@@ -356,7 +356,7 @@ func TestClientDoStreamWrapsNon2xxWithoutWritingBody(t *testing.T) {
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
 	requestContext, err := client.RequestContext(config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityBot,
@@ -404,7 +404,7 @@ func TestClientDoRejectsInvalidPathAndWrapsNon2xx(t *testing.T) {
 	})
 
 	requestContext, err := client.RequestContext(config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityBot,
@@ -452,7 +452,7 @@ func TestClientDoRejectsBotOnlyRequestForUserIdentity(t *testing.T) {
 	})
 
 	requestContext, err := client.RequestContext(config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityUser,
@@ -498,7 +498,7 @@ func TestClientDoRejectsUserOnlyRequestForBotIdentity(t *testing.T) {
 	})
 
 	requestContext, err := client.RequestContext(config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityBot,
@@ -548,7 +548,7 @@ func TestRequestContextRequiresConfiguredBaseURLAndToken(t *testing.T) {
 	})
 
 	_, err := client.RequestContext(config.Profile{
-		Name:        "contract-group",
+		Name:        "contract",
 		Environment: "dev",
 	}, config.IdentityBot)
 	if err == nil || !strings.Contains(err.Error(), "open platform base url is not configured") {
@@ -556,7 +556,7 @@ func TestRequestContextRequiresConfiguredBaseURLAndToken(t *testing.T) {
 	}
 
 	_, err = client.RequestContext(config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 	}, config.IdentityBot)

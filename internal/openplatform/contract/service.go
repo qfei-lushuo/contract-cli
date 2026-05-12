@@ -265,7 +265,7 @@ func (s *Service) UploadFile(ctx context.Context, requestContext openplatform.Re
 		Headers: http.Header{
 			"Content-Type": {contentType},
 		},
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAny,
 	})
 }
 

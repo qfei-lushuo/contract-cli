@@ -32,7 +32,7 @@
 - 这批命令不暴露 `--operator`
 - 请求体文件输入统一使用 `--input-file`
 - `--file` 仅用于真实二进制文件上传，不再表示 JSON 请求体
-- 文件上传当前已支持 bot 身份下的 `contract upload-file`
+- 文件上传当前已支持 user/bot 身份下的 `contract upload-file`
 
 ## 2. 设计目标
 
@@ -206,25 +206,25 @@ contract-cli api call
 #### 添加 profile
 
 ```bash
-contract-cli config add --env dev --name contract-group
+contract-cli config add --env dev --name contract
 ```
 
 #### 登录授权
 
 ```bash
-contract-cli auth login --profile contract-group
+contract-cli auth login --profile contract
 ```
 
 #### 查看授权状态
 
 ```bash
-contract-cli auth status --profile contract-group
+contract-cli auth status --profile contract
 ```
 
 #### 登出
 
 ```bash
-contract-cli auth logout --profile contract-group
+contract-cli auth logout --profile contract
 ```
 
 ### 6.2 合同命令
@@ -351,7 +351,7 @@ contract-cli contract template instantiate --input-file template-instance.json
 #### 上传合同相关文件
 
 ```bash
-contract-cli contract upload-file --profile contract-group --as bot --file ./附件.pdf --file-type attachment
+contract-cli contract upload-file --profile contract --as user --file ./附件.pdf --file-type attachment
 ```
 
 #### 下载合同相关文件
@@ -733,8 +733,8 @@ Examples:
 ## 11. 当前推荐的用户使用路径
 
 ```bash
-contract-cli config add --env dev --name contract-group
-contract-cli auth login --profile contract-group
+contract-cli config add --env dev --name contract
+contract-cli auth login --profile contract
 contract-cli contract template fields TMP001
 contract-cli contract create --input-file contract.json
 contract-cli mdm fields list --biz-line vendor

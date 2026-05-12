@@ -495,7 +495,7 @@ func TestConfigAddAndAuthStatus(t *testing.T) {
 
 	err := app.Run(context.Background(), []string{
 		"config", "add",
-		"--name", "contract-group",
+		"--name", "contract",
 		"--env", "dev",
 		"--resource-metadata-url", testServer.protectedResourceMetadataURL,
 		"--redirect-url", "http://127.0.0.1:19090/callback",
@@ -504,13 +504,13 @@ func TestConfigAddAndAuthStatus(t *testing.T) {
 		t.Fatalf("config add error = %v", err)
 	}
 
-	if !strings.Contains(stdout.String(), `Profile "contract-group" saved`) {
+	if !strings.Contains(stdout.String(), `Profile "contract" saved`) {
 		t.Fatalf("unexpected config add output: %s", stdout.String())
 	}
 	if strings.Contains(stdout.String(), "Server URL: ") {
 		t.Fatalf("config add output should not contain removed server url: %s", stdout.String())
 	}
-	savedProfile, err := store.GetProfile("contract-group")
+	savedProfile, err := store.GetProfile("contract")
 	if err != nil {
 		t.Fatalf("GetProfile() error = %v", err)
 	}
@@ -522,7 +522,7 @@ func TestConfigAddAndAuthStatus(t *testing.T) {
 	}
 
 	stdout.Reset()
-	if err := app.Run(context.Background(), []string{"auth", "status", "--profile", "contract-group"}); err != nil {
+	if err := app.Run(context.Background(), []string{"auth", "status", "--profile", "contract"}); err != nil {
 		t.Fatalf("auth status error = %v", err)
 	}
 	if !strings.Contains(stdout.String(), "Identity: user") || !strings.Contains(stdout.String(), "Authorization: unauthorized") {
@@ -557,11 +557,11 @@ func TestConfigAddUsesPublicDevPresetByDefault(t *testing.T) {
 		},
 	})
 
-	if err := app.Run(context.Background(), []string{"config", "add", "--name", "contract-group", "--env", "dev"}); err != nil {
+	if err := app.Run(context.Background(), []string{"config", "add", "--name", "contract", "--env", "dev"}); err != nil {
 		t.Fatalf("config add error = %v", err)
 	}
 
-	savedProfile, err := store.GetProfile("contract-group")
+	savedProfile, err := store.GetProfile("contract")
 	if err != nil {
 		t.Fatalf("GetProfile() error = %v", err)
 	}
@@ -595,7 +595,7 @@ func TestConfigAddRejectsRemovedServerURLFlag(t *testing.T) {
 
 	err := app.Run(context.Background(), []string{
 		"config", "add",
-		"--server-url", "https://example.test/mcp-servers/contract-group",
+		"--server-url", "https://example.test/mcp-servers/contract",
 	})
 	if err == nil || !strings.Contains(err.Error(), "flag provided but not defined: -server-url") {
 		t.Fatalf("unexpected error: %v", err)
@@ -612,7 +612,7 @@ func TestAuthLoginBotStoresCredentialsTokenAndSwitchesDefaultIdentity(t *testing
 	secrets := config.NewSecretsStore(dir)
 
 	profile := config.Profile{
-		Name:             "contract-group",
+		Name:             "contract",
 		Environment:      "dev",
 		BotTokenEndpoint: "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
 		DefaultIdentity:  config.IdentityUser,
@@ -643,7 +643,7 @@ func TestAuthLoginBotStoresCredentialsTokenAndSwitchesDefaultIdentity(t *testing
 
 	if err := app.Run(context.Background(), []string{
 		"auth", "login",
-		"--profile", "contract-group",
+		"--profile", "contract",
 		"--as", "bot",
 		"--app-id", "cli_bot_123",
 		"--app-secret", "bot-secret",
@@ -651,7 +651,7 @@ func TestAuthLoginBotStoresCredentialsTokenAndSwitchesDefaultIdentity(t *testing
 		t.Fatalf("auth login --as bot error = %v", err)
 	}
 
-	gotProfile, err := store.GetProfile("contract-group")
+	gotProfile, err := store.GetProfile("contract")
 	if err != nil {
 		t.Fatalf("GetProfile() error = %v", err)
 	}
@@ -686,7 +686,7 @@ func TestAuthLoginBotStoresCredentialsTokenAndSwitchesDefaultIdentity(t *testing
 		t.Fatalf("main config should not contain bot secret: %s", string(configContent))
 	}
 
-	if !strings.Contains(stdout.String(), `Bot authorization succeeded for profile "contract-group".`) {
+	if !strings.Contains(stdout.String(), `Bot authorization succeeded for profile "contract".`) {
 		t.Fatalf("unexpected bot login output: %s", stdout.String())
 	}
 	if !strings.Contains(stdout.String(), "Access token expires at: ") {
@@ -704,7 +704,7 @@ func TestAuthLoginBotCredentialPriority(t *testing.T) {
 	secrets := config.NewSecretsStore(dir)
 
 	profile := config.Profile{
-		Name:             "contract-group",
+		Name:             "contract",
 		Environment:      "dev",
 		BotTokenEndpoint: "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
 		DefaultIdentity:  config.IdentityUser,
@@ -712,14 +712,14 @@ func TestAuthLoginBotCredentialPriority(t *testing.T) {
 			Bot: config.BotIdentity{
 				AuthMode:  config.BotAuthModeAppCredentials,
 				AppID:     "local-app-id",
-				SecretRef: config.BotSecretKey("contract-group"),
+				SecretRef: config.BotSecretKey("contract"),
 			},
 		},
 	}
 	if err := store.UpsertProfile(profile, true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
-	if err := secrets.Set(config.BotSecretKey("contract-group"), "local-secret"); err != nil {
+	if err := secrets.Set(config.BotSecretKey("contract"), "local-secret"); err != nil {
 		t.Fatalf("secrets.Set() error = %v", err)
 	}
 
@@ -745,14 +745,14 @@ func TestAuthLoginBotCredentialPriority(t *testing.T) {
 
 	if err := app.Run(context.Background(), []string{
 		"auth", "login",
-		"--profile", "contract-group",
+		"--profile", "contract",
 		"--as", "bot",
 		"--app-id", "flag-app-id",
 	}); err != nil {
 		t.Fatalf("auth login --as bot error = %v", err)
 	}
 
-	gotProfile, err := store.GetProfile("contract-group")
+	gotProfile, err := store.GetProfile("contract")
 	if err != nil {
 		t.Fatalf("GetProfile() error = %v", err)
 	}
@@ -778,7 +778,7 @@ func TestAuthLoginBotFallsBackToLegacyEnvVariables(t *testing.T) {
 	secrets := config.NewSecretsStore(dir)
 
 	profile := config.Profile{
-		Name:             "contract-group",
+		Name:             "contract",
 		Environment:      "dev",
 		BotTokenEndpoint: "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
 		DefaultIdentity:  config.IdentityUser,
@@ -786,7 +786,7 @@ func TestAuthLoginBotFallsBackToLegacyEnvVariables(t *testing.T) {
 			Bot: config.BotIdentity{
 				AuthMode:  config.BotAuthModeAppCredentials,
 				AppID:     "local-app-id",
-				SecretRef: config.BotSecretKey("contract-group"),
+				SecretRef: config.BotSecretKey("contract"),
 			},
 		},
 	}
@@ -816,13 +816,13 @@ func TestAuthLoginBotFallsBackToLegacyEnvVariables(t *testing.T) {
 
 	if err := app.Run(context.Background(), []string{
 		"auth", "login",
-		"--profile", "contract-group",
+		"--profile", "contract",
 		"--as", "bot",
 	}); err != nil {
 		t.Fatalf("auth login --as bot error = %v", err)
 	}
 
-	gotProfile, err := store.GetProfile("contract-group")
+	gotProfile, err := store.GetProfile("contract")
 	if err != nil {
 		t.Fatalf("GetProfile() error = %v", err)
 	}
@@ -848,7 +848,7 @@ func TestAuthLoginBotReturnsErrorWhenProfileMissesTokenEndpoint(t *testing.T) {
 	secrets := config.NewSecretsStore(dir)
 
 	profile := config.Profile{
-		Name:            "contract-group",
+		Name:            "contract",
 		Environment:     "dev",
 		DefaultIdentity: config.IdentityUser,
 	}
@@ -868,7 +868,7 @@ func TestAuthLoginBotReturnsErrorWhenProfileMissesTokenEndpoint(t *testing.T) {
 
 	err := app.Run(context.Background(), []string{
 		"auth", "login",
-		"--profile", "contract-group",
+		"--profile", "contract",
 		"--as", "bot",
 		"--app-id", "cli_bot_123",
 		"--app-secret", "bot-secret",
@@ -876,7 +876,7 @@ func TestAuthLoginBotReturnsErrorWhenProfileMissesTokenEndpoint(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	if !strings.Contains(err.Error(), "run `contract-cli config add --env dev --name contract-group` first") {
+	if !strings.Contains(err.Error(), "run `contract-cli config add --env dev --name contract` first") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -891,7 +891,7 @@ func TestAuthLoginBotPersistsCredentialsWhenTokenExchangeFails(t *testing.T) {
 	secrets := config.NewSecretsStore(dir)
 
 	profile := config.Profile{
-		Name:             "contract-group",
+		Name:             "contract",
 		Environment:      "dev",
 		BotTokenEndpoint: "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
 		DefaultIdentity:  config.IdentityUser,
@@ -915,7 +915,7 @@ func TestAuthLoginBotPersistsCredentialsWhenTokenExchangeFails(t *testing.T) {
 
 	err := app.Run(context.Background(), []string{
 		"auth", "login",
-		"--profile", "contract-group",
+		"--profile", "contract",
 		"--as", "bot",
 		"--app-id", "cli_bot_123",
 		"--app-secret", "bot-secret",
@@ -927,7 +927,7 @@ func TestAuthLoginBotPersistsCredentialsWhenTokenExchangeFails(t *testing.T) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 
-	gotProfile, err := store.GetProfile("contract-group")
+	gotProfile, err := store.GetProfile("contract")
 	if err != nil {
 		t.Fatalf("GetProfile() error = %v", err)
 	}
@@ -941,7 +941,7 @@ func TestAuthLoginBotPersistsCredentialsWhenTokenExchangeFails(t *testing.T) {
 		t.Fatalf("bot token = %+v, want nil", gotProfile.Identities.Bot.Token)
 	}
 
-	secret, ok, err := secrets.Get(config.BotSecretKey("contract-group"))
+	secret, ok, err := secrets.Get(config.BotSecretKey("contract"))
 	if err != nil {
 		t.Fatalf("secrets.Get() error = %v", err)
 	}
@@ -959,7 +959,7 @@ func TestAuthStatusBotAndAuthUse(t *testing.T) {
 	store := config.NewStore(dir)
 	secrets := config.NewSecretsStore(dir)
 	profile := config.Profile{
-		Name:             "contract-group",
+		Name:             "contract",
 		Environment:      "dev",
 		BotTokenEndpoint: "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
 		DefaultIdentity:  config.IdentityBot,
@@ -967,7 +967,7 @@ func TestAuthStatusBotAndAuthUse(t *testing.T) {
 			Bot: config.BotIdentity{
 				AuthMode:     config.BotAuthModeAppCredentials,
 				AppID:        "bot-app-id",
-				SecretRef:    config.BotSecretKey("contract-group"),
+				SecretRef:    config.BotSecretKey("contract"),
 				ConfiguredAt: time.Date(2026, 4, 14, 10, 0, 0, 0, time.UTC),
 				Token: &config.Token{
 					AccessToken: "bot-token",
@@ -980,7 +980,7 @@ func TestAuthStatusBotAndAuthUse(t *testing.T) {
 	if err := store.UpsertProfile(profile, true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
-	if err := secrets.Set(config.BotSecretKey("contract-group"), "bot-secret"); err != nil {
+	if err := secrets.Set(config.BotSecretKey("contract"), "bot-secret"); err != nil {
 		t.Fatalf("secrets.Set() error = %v", err)
 	}
 
@@ -992,7 +992,7 @@ func TestAuthStatusBotAndAuthUse(t *testing.T) {
 		LookupEnv: func(string) (string, bool) { return "", false },
 	})
 
-	if err := app.Run(context.Background(), []string{"auth", "status", "--profile", "contract-group", "--as", "bot"}); err != nil {
+	if err := app.Run(context.Background(), []string{"auth", "status", "--profile", "contract", "--as", "bot"}); err != nil {
 		t.Fatalf("auth status --as bot error = %v", err)
 	}
 	if !strings.Contains(stdout.String(), "Identity: bot") ||
@@ -1004,11 +1004,11 @@ func TestAuthStatusBotAndAuthUse(t *testing.T) {
 	}
 
 	stdout.Reset()
-	if err := app.Run(context.Background(), []string{"auth", "use", "--profile", "contract-group", "--as", "user"}); err != nil {
+	if err := app.Run(context.Background(), []string{"auth", "use", "--profile", "contract", "--as", "user"}); err != nil {
 		t.Fatalf("auth use error = %v", err)
 	}
 
-	gotProfile, err := store.GetProfile("contract-group")
+	gotProfile, err := store.GetProfile("contract")
 	if err != nil {
 		t.Fatalf("GetProfile() error = %v", err)
 	}
@@ -1026,7 +1026,7 @@ func TestAuthStatusDefaultsToUserEvenWhenDefaultIdentityIsBot(t *testing.T) {
 	store := config.NewStore(dir)
 	secrets := config.NewSecretsStore(dir)
 	profile := config.Profile{
-		Name:             "contract-group",
+		Name:             "contract",
 		Environment:      "dev",
 		BotTokenEndpoint: "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
 		DefaultIdentity:  config.IdentityBot,
@@ -1034,14 +1034,14 @@ func TestAuthStatusDefaultsToUserEvenWhenDefaultIdentityIsBot(t *testing.T) {
 			Bot: config.BotIdentity{
 				AuthMode:  config.BotAuthModeAppCredentials,
 				AppID:     "bot-app-id",
-				SecretRef: config.BotSecretKey("contract-group"),
+				SecretRef: config.BotSecretKey("contract"),
 			},
 		},
 	}
 	if err := store.UpsertProfile(profile, true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
-	if err := secrets.Set(config.BotSecretKey("contract-group"), "bot-secret"); err != nil {
+	if err := secrets.Set(config.BotSecretKey("contract"), "bot-secret"); err != nil {
 		t.Fatalf("secrets.Set() error = %v", err)
 	}
 
@@ -1053,7 +1053,7 @@ func TestAuthStatusDefaultsToUserEvenWhenDefaultIdentityIsBot(t *testing.T) {
 		LookupEnv: func(string) (string, bool) { return "", false },
 	})
 
-	if err := app.Run(context.Background(), []string{"auth", "status", "--profile", "contract-group"}); err != nil {
+	if err := app.Run(context.Background(), []string{"auth", "status", "--profile", "contract"}); err != nil {
 		t.Fatalf("auth status error = %v", err)
 	}
 	if !strings.Contains(stdout.String(), "\nIdentity: user\n") || strings.Contains(stdout.String(), "\nIdentity: bot\n") {
@@ -1075,14 +1075,14 @@ func TestAuthStatusBotHandlesConfiguredExpiredAndUnconfigured(t *testing.T) {
 		{
 			name: "configured",
 			profile: config.Profile{
-				Name:             "contract-group",
+				Name:             "contract",
 				Environment:      "dev",
 				BotTokenEndpoint: "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
 				Identities: config.Identities{
 					Bot: config.BotIdentity{
 						AuthMode:  config.BotAuthModeAppCredentials,
 						AppID:     "bot-app-id",
-						SecretRef: config.BotSecretKey("contract-group"),
+						SecretRef: config.BotSecretKey("contract"),
 					},
 				},
 			},
@@ -1095,14 +1095,14 @@ func TestAuthStatusBotHandlesConfiguredExpiredAndUnconfigured(t *testing.T) {
 		{
 			name: "expired",
 			profile: config.Profile{
-				Name:             "contract-group",
+				Name:             "contract",
 				Environment:      "dev",
 				BotTokenEndpoint: "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
 				Identities: config.Identities{
 					Bot: config.BotIdentity{
 						AuthMode:  config.BotAuthModeAppCredentials,
 						AppID:     "bot-app-id",
-						SecretRef: config.BotSecretKey("contract-group"),
+						SecretRef: config.BotSecretKey("contract"),
 						Token: &config.Token{
 							AccessToken: "expired-token",
 							TokenType:   "Bearer",
@@ -1120,7 +1120,7 @@ func TestAuthStatusBotHandlesConfiguredExpiredAndUnconfigured(t *testing.T) {
 		{
 			name: "unconfigured",
 			profile: config.Profile{
-				Name:        "contract-group",
+				Name:        "contract",
 				Environment: "dev",
 			},
 			wantAuthorization: "Authorization: unconfigured",
@@ -1148,7 +1148,7 @@ func TestAuthStatusBotHandlesConfiguredExpiredAndUnconfigured(t *testing.T) {
 				t.Fatalf("UpsertProfile() error = %v", err)
 			}
 			if tc.seedSecret != "" {
-				if err := secrets.Set(config.BotSecretKey("contract-group"), tc.seedSecret); err != nil {
+				if err := secrets.Set(config.BotSecretKey("contract"), tc.seedSecret); err != nil {
 					t.Fatalf("secrets.Set() error = %v", err)
 				}
 			}
@@ -1161,7 +1161,7 @@ func TestAuthStatusBotHandlesConfiguredExpiredAndUnconfigured(t *testing.T) {
 				LookupEnv: func(string) (string, bool) { return "", false },
 			})
 
-			if err := app.Run(context.Background(), []string{"auth", "status", "--profile", "contract-group", "--as", "bot"}); err != nil {
+			if err := app.Run(context.Background(), []string{"auth", "status", "--profile", "contract", "--as", "bot"}); err != nil {
 				t.Fatalf("auth status --as bot error = %v", err)
 			}
 			if !strings.Contains(stdout.String(), tc.wantAuthorization) {
@@ -1190,7 +1190,7 @@ func TestAuthLogoutBotKeepsUserTokenAndCredentials(t *testing.T) {
 	store := config.NewStore(dir)
 	secrets := config.NewSecretsStore(dir)
 	profile := config.Profile{
-		Name:             "contract-group",
+		Name:             "contract",
 		Environment:      "dev",
 		BotTokenEndpoint: "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
 		DefaultIdentity:  config.IdentityBot,
@@ -1201,7 +1201,7 @@ func TestAuthLogoutBotKeepsUserTokenAndCredentials(t *testing.T) {
 			Bot: config.BotIdentity{
 				AuthMode:  config.BotAuthModeAppCredentials,
 				AppID:     "bot-app-id",
-				SecretRef: config.BotSecretKey("contract-group"),
+				SecretRef: config.BotSecretKey("contract"),
 				Token:     &config.Token{AccessToken: "bot-token"},
 			},
 		},
@@ -1209,7 +1209,7 @@ func TestAuthLogoutBotKeepsUserTokenAndCredentials(t *testing.T) {
 	if err := store.UpsertProfile(profile, true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
-	if err := secrets.Set(config.BotSecretKey("contract-group"), "bot-secret"); err != nil {
+	if err := secrets.Set(config.BotSecretKey("contract"), "bot-secret"); err != nil {
 		t.Fatalf("secrets.Set() error = %v", err)
 	}
 
@@ -1221,18 +1221,18 @@ func TestAuthLogoutBotKeepsUserTokenAndCredentials(t *testing.T) {
 		LookupEnv: func(string) (string, bool) { return "", false },
 	})
 
-	if err := app.Run(context.Background(), []string{"auth", "logout", "--profile", "contract-group", "--as", "bot"}); err != nil {
+	if err := app.Run(context.Background(), []string{"auth", "logout", "--profile", "contract", "--as", "bot"}); err != nil {
 		t.Fatalf("auth logout --as bot error = %v", err)
 	}
 
-	gotProfile, err := store.GetProfile("contract-group")
+	gotProfile, err := store.GetProfile("contract")
 	if err != nil {
 		t.Fatalf("GetProfile() error = %v", err)
 	}
 	if gotProfile.Identities.User.Token == nil || gotProfile.Identities.User.Token.AccessToken != "user-token" {
 		t.Fatalf("user token should remain intact, got %+v", gotProfile.Identities.User.Token)
 	}
-	if gotProfile.Identities.Bot.AppID != "bot-app-id" || gotProfile.Identities.Bot.SecretRef != config.BotSecretKey("contract-group") {
+	if gotProfile.Identities.Bot.AppID != "bot-app-id" || gotProfile.Identities.Bot.SecretRef != config.BotSecretKey("contract") {
 		t.Fatalf("bot credentials should remain intact, got %+v", gotProfile.Identities.Bot)
 	}
 	if gotProfile.Identities.Bot.Token != nil {
@@ -1241,14 +1241,14 @@ func TestAuthLogoutBotKeepsUserTokenAndCredentials(t *testing.T) {
 	if gotProfile.DefaultIdentity != config.IdentityBot {
 		t.Fatalf("default identity = %q, want %q", gotProfile.DefaultIdentity, config.IdentityBot)
 	}
-	_, ok, err := secrets.Get(config.BotSecretKey("contract-group"))
+	_, ok, err := secrets.Get(config.BotSecretKey("contract"))
 	if err != nil {
 		t.Fatalf("secrets.Get() error = %v", err)
 	}
 	if !ok {
 		t.Fatalf("bot secret should be retained")
 	}
-	if !strings.Contains(stdout.String(), `Logged out bot token for profile "contract-group" while keeping app credentials.`) {
+	if !strings.Contains(stdout.String(), `Logged out bot token for profile "contract" while keeping app credentials.`) {
 		t.Fatalf("unexpected logout output: %s", stdout.String())
 	}
 }

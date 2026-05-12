@@ -51,7 +51,7 @@ func TestUserAuthLoginNoOpenBrowserPrintsAuthorizationURLBeforeWaiting(t *testin
 		},
 	}
 	profile := &config.Profile{
-		Name:         "contract-group",
+		Name:         "contract",
 		ClientName:   "contract-cli",
 		BusinessType: "contract",
 		Scopes:       []string{"mcp:tools"},

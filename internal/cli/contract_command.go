@@ -679,7 +679,7 @@ func (a *App) runContractUploadFile(ctx context.Context, args []string) error {
 	}
 
 	a.logger.Info("contract upload-file command started", "profile", emptyFallback(options.profileName, "<current>"), "identity", emptyFallback(options.identity, "<default>"), "file_name", fileName, "file_type", fileType, "size_bytes", fileInfo.Size())
-	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/files/upload", openplatform.IdentityPolicyBotOnly)
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/files/upload", openplatform.IdentityPolicyAny)
 	if err != nil {
 		a.logger.Error("contract upload-file context failed", "profile", emptyFallback(options.profileName, "<current>"), "identity", emptyFallback(options.identity, "<default>"), "file_name", fileName, "file_type", fileType, "error", err.Error())
 		return err

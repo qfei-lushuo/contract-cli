@@ -1,5 +1,15 @@
 # AI 变更记录
 
+- 2026-05-12
+  变更摘要：全仓收敛旧 profile 示例名，统一使用 `--profile contract`。
+  涉及文件/模块：`internal/cli/help.go`、CLI 测试、`docs/*`、`skills/contract-cli-contract`、`skills/contract-cli-shared`
+  关键逻辑/决策：用户可见示例、测试命令参数和 profile fixture 从旧 `contract-group` 迁移到 `contract`；命令参考测试保留防回退断言，避免后续文档重新出现旧 profile 名。
+
+- 2026-05-12
+  变更摘要：支持 `contract upload-file` 在 user 身份下上传文件。
+  涉及文件/模块：`internal/cli/contract_command.go`、`internal/openplatform/contract/service.go`、上传命令测试、帮助与命令文档、contract skills
+  关键逻辑/决策：上传接口仍复用 `POST /open-apis/contract/v1/files/upload` 和 multipart 字段，将身份策略从 bot-only 调整为 user/bot 通用，并补充显式 user 与默认 user 上传测试。
+
 - 2026-04-23
   变更摘要：新增 9 个 bot-only 合同命令，覆盖提交、重提、更新、下载、删除、打印、分享记录和协商信息查询。
   涉及文件/模块：`internal/openplatform`、`internal/openplatform/contract`、`internal/cli/contract_command.go`、`internal/cli/help.go`、`docs/cli-command-reference.md`、`docs/cli-test-plan.md`、`skills/contract-cli-contract`、`skills/contract-cli-shared`

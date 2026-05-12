@@ -154,7 +154,7 @@ func TestServiceGetRejectsEmptyEntityID(t *testing.T) {
 
 func profileWithUserToken() config.Profile {
 	return config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityUser,
@@ -172,7 +172,7 @@ func profileWithUserToken() config.Profile {
 
 func profileWithBotToken() config.Profile {
 	return config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityBot,

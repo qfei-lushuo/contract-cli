@@ -47,7 +47,7 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 				"contract-cli contract upload-file --file <path> --file-type <type> [flags]",
 				"--file <path>",
 				"--file-type <type>",
-				"bot-only",
+				"user/bot",
 				"200MB",
 				"不接受 --input-file / --data",
 			},

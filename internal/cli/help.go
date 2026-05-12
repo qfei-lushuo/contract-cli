@@ -437,7 +437,7 @@ func addContractHelp(registry map[string]helpTopic) {
 			{"contract-cli contract sync-user-groups [flags]", "同步用户分组"},
 			{"contract-cli contract text <contract-id> [flags]", "获取合同文本"},
 			{"contract-cli contract create [flags]", "创建合同"},
-			{"contract-cli contract upload-file [flags]", "bot 身份上传合同文件"},
+			{"contract-cli contract upload-file [flags]", "上传合同文件"},
 			{"contract-cli contract submit <contract-id> [flags]", "bot 身份提交合同"},
 			{"contract-cli contract resubmit <contract-id> [flags]", "bot 身份重新提交合同"},
 			{"contract-cli contract patch <contract-id> [flags]", "bot 身份更新合同"},
@@ -531,7 +531,7 @@ func addContractHelp(registry map[string]helpTopic) {
 	}
 	registry["contract upload-file"] = helpTopic{
 		Name:    "contract upload-file",
-		Summary: "bot 身份上传合同相关文件，返回后端原始 JSON，重点关注 data.file_id。",
+		Summary: "上传合同相关文件，返回后端原始 JSON，重点关注 data.file_id。",
 		Usage:   []string{"contract-cli contract upload-file --file <path> --file-type <type> [flags]"},
 		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
 			{"--file <path>", "必填，本地待上传文件路径"},
@@ -539,12 +539,11 @@ func addContractHelp(registry map[string]helpTopic) {
 			{"--file-name <name>", "可选，上传给后端的文件名；默认使用本地文件名"},
 		}),
 		Examples: []string{
-			"contract-cli contract upload-file --profile contract --as bot --file ./合同正文.docx --file-type text",
+			"contract-cli contract upload-file --profile contract --as user --file ./合同正文.docx --file-type text",
 			"contract-cli contract upload-file --profile contract --as bot --file ./附件.pdf --file-type attachment --file-name 附件.pdf",
 		},
 		Notes: []string{
-			"bot-only: 当前仅支持 --as bot。",
-			"走 POST /open-apis/contract/v1/files/upload。",
+			"user/bot 均走 POST /open-apis/contract/v1/files/upload。",
 			"请求使用 multipart/form-data，字段为 file_name、file_type、file。",
 			"本地文件必须存在、是普通文件，大小 <= 200MB。",
 			"不接受 --input-file / --data；这两个参数只用于 JSON 请求体。",
@@ -556,8 +555,8 @@ func addContractHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli contract submit <contract-id> [flags]"},
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
 		Examples: []string{
-			"contract-cli contract submit <contract-id> --profile contract-group --as bot",
-			"contract-cli contract submit <contract-id> --profile contract-group --as bot --data '{\"comment\":\"ok\"}'",
+			"contract-cli contract submit <contract-id> --profile contract --as bot",
+			"contract-cli contract submit <contract-id> --profile contract --as bot --data '{\"comment\":\"ok\"}'",
 		},
 		Notes: []string{
 			"bot-only: 当前仅支持 --as bot。",
@@ -571,8 +570,8 @@ func addContractHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli contract resubmit <contract-id> [flags]"},
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
 		Examples: []string{
-			"contract-cli contract resubmit <contract-id> --profile contract-group --as bot",
-			"contract-cli contract resubmit <contract-id> --profile contract-group --as bot --input-file resubmit.json",
+			"contract-cli contract resubmit <contract-id> --profile contract --as bot",
+			"contract-cli contract resubmit <contract-id> --profile contract --as bot --input-file resubmit.json",
 		},
 		Notes: []string{
 			"bot-only: 当前仅支持 --as bot。",
@@ -586,8 +585,8 @@ func addContractHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli contract patch <contract-id> --input-file <path>|--data <json> [flags]"},
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
 		Examples: []string{
-			"contract-cli contract patch <contract-id> --profile contract-group --as bot --input-file patch.json",
-			"contract-cli contract patch <contract-id> --profile contract-group --as bot --data '{\"title\":\"demo\"}'",
+			"contract-cli contract patch <contract-id> --profile contract --as bot --input-file patch.json",
+			"contract-cli contract patch <contract-id> --profile contract --as bot --data '{\"title\":\"demo\"}'",
 		},
 		Notes: []string{
 			"bot-only: 当前仅支持 --as bot。",
@@ -604,9 +603,9 @@ func addContractHelp(registry map[string]helpTopic) {
 			{"--force", "覆盖已存在的 --output-file"},
 		}),
 		Examples: []string{
-			"contract-cli contract download-file <file-id> --profile contract-group --as bot",
-			"contract-cli contract download-file <file-id> --profile contract-group --as bot --output-file ./contract.pdf",
-			"contract-cli contract download-file <file-id> --profile contract-group --as bot --raw > contract.pdf",
+			"contract-cli contract download-file <file-id> --profile contract --as bot",
+			"contract-cli contract download-file <file-id> --profile contract --as bot --output-file ./contract.pdf",
+			"contract-cli contract download-file <file-id> --profile contract --as bot --raw > contract.pdf",
 		},
 		Notes: []string{
 			"bot-only: 当前仅支持 --as bot。",
@@ -622,7 +621,7 @@ func addContractHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli contract delete <contract-id> [flags]"},
 		Flags:   openPlatformCommonFlags(),
 		Examples: []string{
-			"contract-cli contract delete <contract-id> --profile contract-group --as bot",
+			"contract-cli contract delete <contract-id> --profile contract --as bot",
 		},
 		Notes: []string{
 			"bot-only: 当前仅支持 --as bot。",
@@ -636,8 +635,8 @@ func addContractHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli contract print-file --input-file <path>|--data <json> [flags]"},
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
 		Examples: []string{
-			"contract-cli contract print-file --profile contract-group --as bot --input-file print-file.json",
-			"contract-cli contract print-file --profile contract-group --as bot --data '{\"contract_id\":\"<contract-id>\"}'",
+			"contract-cli contract print-file --profile contract --as bot --input-file print-file.json",
+			"contract-cli contract print-file --profile contract --as bot --data '{\"contract_id\":\"<contract-id>\"}'",
 		},
 		Notes: []string{
 			"bot-only: 当前仅支持 --as bot。",
@@ -658,7 +657,7 @@ func addContractHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli contract share get <contract-id> [flags]"},
 		Flags:   openPlatformCommonFlags(),
 		Examples: []string{
-			"contract-cli contract share get <contract-id> --profile contract-group --as bot",
+			"contract-cli contract share get <contract-id> --profile contract --as bot",
 		},
 		Notes: []string{
 			"bot-only: 当前仅支持 --as bot。",
@@ -679,7 +678,7 @@ func addContractHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli contract cooperation link get <contract-id> [flags]"},
 		Flags:   openPlatformCommonFlags(),
 		Examples: []string{
-			"contract-cli contract cooperation link get <contract-id> --profile contract-group --as bot",
+			"contract-cli contract cooperation link get <contract-id> --profile contract --as bot",
 		},
 		Notes: []string{
 			"bot-only: 当前仅支持 --as bot。",
@@ -692,7 +691,7 @@ func addContractHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli contract cooperation record get <contract-id> [flags]"},
 		Flags:   openPlatformCommonFlags(),
 		Examples: []string{
-			"contract-cli contract cooperation record get <contract-id> --profile contract-group --as bot",
+			"contract-cli contract cooperation record get <contract-id> --profile contract --as bot",
 		},
 		Notes: []string{
 			"bot-only: 当前仅支持 --as bot。",

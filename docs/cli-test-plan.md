@@ -37,7 +37,7 @@ macOS/Linux 使用 tar，Windows 使用 PowerShell Expand-Archive
 
 ```bash
 export CONTRACT_CLI_CONFIG_DIR="$(mktemp -d)"
-export PROFILE="contract-group"
+export PROFILE="contract"
 ```
 
 后续命令都显式带：
@@ -623,6 +623,7 @@ printf '%s\n' '%PDF-1.4 contract-cli upload smoke' > /tmp/contract-upload.pdf
 
 ```bash
 contract-cli contract upload-file --profile "$PROFILE" --as bot --file /tmp/contract-upload.pdf --file-type attachment --file-name contract-upload.pdf --output json
+contract-cli contract upload-file --profile "$PROFILE" --as user --file /tmp/contract-upload.pdf --file-type attachment --file-name contract-upload.pdf --output json
 contract-cli contract upload-file --profile "$PROFILE" --as bot --file /tmp/contract-upload.pdf --file-type attachment --raw
 ```
 
@@ -637,7 +638,7 @@ POST /open-apis/contract/v1/files/upload
 - 请求是 `multipart/form-data`。
 - 表单字段包含 `file_name`、`file_type`、`file`。
 - 响应 JSON 中应包含后端返回的 `data.file_id`。
-- profile 默认身份是 user 或显式 `--as user` 时，CLI 应在发 HTTP 前报错。
+- `--as user` 与 `--as bot` 均使用同一个上传接口，Authorization 使用对应身份的 token。
 - 超过 `200MB`、目录路径、文件不存在、缺少 `--file`、缺少 `--file-type` 都应报明确错误。
 
 ### 5.10.1 bot-only 合同提交、重提、更新与删除
@@ -1274,7 +1275,7 @@ npm publish --dry-run --tag beta
 - `config add --env dev` 成功。
 - user 登录、状态、切换、登出成功。
 - bot 登录、状态、切换、登出成功，且 bot logout 保留凭证。
-- bot 身份下第 5 节结构化业务命令和 `contract upload-file` 完成正向验证，写操作至少在 dev 环境完成一次可回收数据验证。
+- bot 身份下第 5 节结构化业务命令完成正向验证，`contract upload-file` 需覆盖 user/bot 两种身份；写操作至少在 dev 环境完成一次可回收数据验证。
 - user 身份下第 6 节十五条结构化业务命令完成正向验证。
 - `api call` 暂未开放拦截、help 隐藏、skills 隐藏三类场景完成验证。
 - `make release-check` 通过。
@@ -1390,9 +1391,9 @@ contract-cli skills install --force
 - 通用 installer 依赖 GitHub 仓库内容，因此发版前要确认 skill 文档已经 push。
 - CLI 内置安装依赖 npm 包或二进制内嵌内容，因此发布前要跑 `make release-check`。
 
-## 15. bot 文件上传命令专项测试
+## 15. 文件上传命令专项测试
 
-本模块覆盖今天新增的 `contract-cli contract upload-file`。当前仅支持 bot 身份，user/MCP 三段式上传不在本期范围内。
+本模块覆盖 `contract-cli contract upload-file`。当前 user/bot 身份均支持，调用同一个开放平台上传接口。
 
 ### 15.1 正向上传
 
@@ -1406,6 +1407,7 @@ printf '%s\n' '%PDF-1.4 contract-cli upload smoke' > /tmp/contract-upload.pdf
 
 ```bash
 contract-cli contract upload-file --profile "$PROFILE" --as bot --file /tmp/contract-upload.pdf --file-type attachment --file-name contract-upload.pdf --output json
+contract-cli contract upload-file --profile "$PROFILE" --as user --file /tmp/contract-upload.pdf --file-type attachment --file-name contract-upload.pdf --output json
 contract-cli contract upload-file --profile "$PROFILE" --as bot --file /tmp/contract-upload.pdf --file-type attachment --raw
 ```
 
@@ -1417,7 +1419,7 @@ POST /open-apis/contract/v1/files/upload
 
 预期请求：
 
-- 使用 `Authorization: Bearer <bot-token>`。
+- 使用 `Authorization: Bearer <user-token>` 或 `Authorization: Bearer <bot-token>`，取决于 `--as` 或 profile 默认身份。
 - 使用 `multipart/form-data`。
 - 表单字段包含 `file_name`、`file_type`、`file`。
 - `--file-name` 不传时默认使用 `filepath.Base(--file)`。
@@ -1428,10 +1430,9 @@ POST /open-apis/contract/v1/files/upload
 - 后端返回原始 JSON envelope。
 - 成功时重点检查 `data.file_id`。
 
-### 15.2 参数与身份负向测试
+### 15.2 参数负向测试
 
 ```bash
-contract-cli contract upload-file --profile "$PROFILE" --as user --file /tmp/contract-upload.pdf --file-type attachment
 contract-cli contract upload-file --profile "$PROFILE" --as bot --file /tmp/contract-upload.pdf
 contract-cli contract upload-file --profile "$PROFILE" --as bot --file-type attachment
 contract-cli contract upload-file --profile "$PROFILE" --as bot --file /tmp --file-type attachment
@@ -1440,7 +1441,6 @@ contract-cli contract upload-file --profile "$PROFILE" --as bot --file /tmp/cont
 
 预期结果：
 
-- `--as user` 或 profile 默认身份为 user 时，在发 HTTP 前失败。
 - 缺少 `--file` 报 `--file is required`。
 - 缺少 `--file-type` 报 `--file-type is required`。
 - 文件不存在、目录路径、超过 `200MB` 均报明确错误。

@@ -34,7 +34,7 @@ func TestContractBotOnlyCommandsUseExpectedEndpoints(t *testing.T) {
 	}{
 		{
 			name:         "submit",
-			args:         []string{"contract", "submit", "contract-1", "--profile", "contract-group", "--data", `{"comment":"ok"}`, "--user-id", "ou_123"},
+			args:         []string{"contract", "submit", "contract-1", "--profile", "contract", "--data", `{"comment":"ok"}`, "--user-id", "ou_123"},
 			wantMethod:   http.MethodPost,
 			wantPath:     "/open-apis/contract/v1/contracts/contract-1/submit",
 			wantBody:     `{"comment":"ok"}`,
@@ -42,14 +42,14 @@ func TestContractBotOnlyCommandsUseExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "resubmit without body",
-			args:         []string{"contract", "resubmit", "contract-1", "--profile", "contract-group"},
+			args:         []string{"contract", "resubmit", "contract-1", "--profile", "contract"},
 			wantMethod:   http.MethodPost,
 			wantPath:     "/open-apis/contract/v1/contracts/contract-1/resubmit",
 			responseBody: `{"code":0,"data":{"resubmitted":true}}`,
 		},
 		{
 			name:         "patch",
-			args:         []string{"contract", "patch", "contract-1", "--profile", "contract-group", "--data", `{"title":"demo"}`},
+			args:         []string{"contract", "patch", "contract-1", "--profile", "contract", "--data", `{"title":"demo"}`},
 			wantMethod:   http.MethodPatch,
 			wantPath:     "/open-apis/contract/v1/contracts/contract-1",
 			wantBody:     `{"title":"demo"}`,
@@ -57,14 +57,14 @@ func TestContractBotOnlyCommandsUseExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "delete",
-			args:         []string{"contract", "delete", "contract-1", "--profile", "contract-group"},
+			args:         []string{"contract", "delete", "contract-1", "--profile", "contract"},
 			wantMethod:   http.MethodDelete,
 			wantPath:     "/open-apis/contract/v1/contracts/contract-1",
 			responseBody: `{"code":0,"data":{"deleted":true}}`,
 		},
 		{
 			name:         "print file",
-			args:         []string{"contract", "print-file", "--profile", "contract-group", "--data", `{"contract_id":"contract-1"}`},
+			args:         []string{"contract", "print-file", "--profile", "contract", "--data", `{"contract_id":"contract-1"}`},
 			wantMethod:   http.MethodPost,
 			wantPath:     "/open-apis/contract/v1/files",
 			wantBody:     `{"contract_id":"contract-1"}`,
@@ -72,21 +72,21 @@ func TestContractBotOnlyCommandsUseExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "share get",
-			args:         []string{"contract", "share", "get", "contract-1", "--profile", "contract-group"},
+			args:         []string{"contract", "share", "get", "contract-1", "--profile", "contract"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/contracts/contract-1/share_records",
 			responseBody: `{"code":0,"data":{"items":[{"share_id":"share-1"}]}}`,
 		},
 		{
 			name:         "cooperation link get",
-			args:         []string{"contract", "cooperation", "link", "get", "contract-1", "--profile", "contract-group"},
+			args:         []string{"contract", "cooperation", "link", "get", "contract-1", "--profile", "contract"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/contracts/contract-1/cooperation_link",
 			responseBody: `{"code":0,"data":{"link":"https://example.test/cooperate"}}`,
 		},
 		{
 			name:         "cooperation record get",
-			args:         []string{"contract", "cooperation", "record", "get", "contract-1", "--profile", "contract-group"},
+			args:         []string{"contract", "cooperation", "record", "get", "contract-1", "--profile", "contract"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/contracts/contract-1/cooperation_record_info",
 			responseBody: `{"code":0,"data":{"records":[{"action":"open"}]}}`,
@@ -181,7 +181,7 @@ func TestContractDownloadFileCommandWritesOutputFileAsBot(t *testing.T) {
 
 	err := app.Run(context.Background(), []string{
 		"contract", "download-file", "file-123",
-		"--profile", "contract-group",
+		"--profile", "contract",
 		"--output-file", outputPath,
 	})
 	if err != nil {
@@ -234,7 +234,7 @@ func TestContractDownloadFileCommandUsesSaveDialogByDefault(t *testing.T) {
 
 	if err := app.Run(context.Background(), []string{
 		"contract", "download-file", "file-123",
-		"--profile", "contract-group",
+		"--profile", "contract",
 	}); err != nil {
 		t.Fatalf("Run() error = %v", err)
 	}
@@ -280,7 +280,7 @@ func TestContractDownloadFileCommandRawWritesStdout(t *testing.T) {
 
 	if err := app.Run(context.Background(), []string{
 		"contract", "download-file", "file-123",
-		"--profile", "contract-group",
+		"--profile", "contract",
 		"--raw",
 	}); err != nil {
 		t.Fatalf("Run() error = %v", err)
@@ -322,7 +322,7 @@ func TestContractDownloadFileCommandValidationAndForce(t *testing.T) {
 
 	err := app.Run(context.Background(), []string{
 		"contract", "download-file", "file-123",
-		"--profile", "contract-group",
+		"--profile", "contract",
 		"--output-file", existingPath,
 	})
 	if err == nil || !strings.Contains(err.Error(), "already exists") {
@@ -334,7 +334,7 @@ func TestContractDownloadFileCommandValidationAndForce(t *testing.T) {
 
 	if err := app.Run(context.Background(), []string{
 		"contract", "download-file", "file-123",
-		"--profile", "contract-group",
+		"--profile", "contract",
 		"--output-file", existingPath,
 		"--force",
 	}); err != nil {
@@ -376,7 +376,7 @@ func TestContractDownloadFileCommandDialogFailureDoesNotSendHTTP(t *testing.T) {
 
 	err := app.Run(context.Background(), []string{
 		"contract", "download-file", "file-123",
-		"--profile", "contract-group",
+		"--profile", "contract",
 	})
 	if err == nil || !strings.Contains(err.Error(), "select save path") || !strings.Contains(err.Error(), "--output-file") {
 		t.Fatalf("unexpected dialog error: %v", err)
@@ -396,15 +396,15 @@ func TestContractBotOnlyCommandsRejectUserIdentityBeforeHTTP(t *testing.T) {
 	}
 
 	testCases := [][]string{
-		{"contract", "submit", "contract-1", "--profile", "contract-group", "--as", "user"},
-		{"contract", "resubmit", "contract-1", "--profile", "contract-group", "--as", "user"},
-		{"contract", "patch", "contract-1", "--profile", "contract-group", "--as", "user", "--data", `{"title":"demo"}`},
-		{"contract", "download-file", "file-123", "--profile", "contract-group", "--as", "user", "--output-file", filepath.Join(dir, "download.pdf")},
-		{"contract", "delete", "contract-1", "--profile", "contract-group", "--as", "user"},
-		{"contract", "print-file", "--profile", "contract-group", "--as", "user", "--data", `{"contract_id":"contract-1"}`},
-		{"contract", "share", "get", "contract-1", "--profile", "contract-group", "--as", "user"},
-		{"contract", "cooperation", "link", "get", "contract-1", "--profile", "contract-group", "--as", "user"},
-		{"contract", "cooperation", "record", "get", "contract-1", "--profile", "contract-group", "--as", "user"},
+		{"contract", "submit", "contract-1", "--profile", "contract", "--as", "user"},
+		{"contract", "resubmit", "contract-1", "--profile", "contract", "--as", "user"},
+		{"contract", "patch", "contract-1", "--profile", "contract", "--as", "user", "--data", `{"title":"demo"}`},
+		{"contract", "download-file", "file-123", "--profile", "contract", "--as", "user", "--output-file", filepath.Join(dir, "download.pdf")},
+		{"contract", "delete", "contract-1", "--profile", "contract", "--as", "user"},
+		{"contract", "print-file", "--profile", "contract", "--as", "user", "--data", `{"contract_id":"contract-1"}`},
+		{"contract", "share", "get", "contract-1", "--profile", "contract", "--as", "user"},
+		{"contract", "cooperation", "link", "get", "contract-1", "--profile", "contract", "--as", "user"},
+		{"contract", "cooperation", "record", "get", "contract-1", "--profile", "contract", "--as", "user"},
 	}
 
 	for _, args := range testCases {
@@ -459,17 +459,17 @@ func TestContractBotOnlyCommandValidationErrors(t *testing.T) {
 	}{
 		{
 			name:    "submit missing id",
-			args:    []string{"contract", "submit", "--profile", "contract-group"},
+			args:    []string{"contract", "submit", "--profile", "contract"},
 			wantErr: "usage: contract-cli contract submit <contract-id> [flags]",
 		},
 		{
 			name:    "patch missing body",
-			args:    []string{"contract", "patch", "contract-1", "--profile", "contract-group"},
+			args:    []string{"contract", "patch", "contract-1", "--profile", "contract"},
 			wantErr: "--input-file or --data is required",
 		},
 		{
 			name:    "print missing body",
-			args:    []string{"contract", "print-file", "--profile", "contract-group"},
+			args:    []string{"contract", "print-file", "--profile", "contract"},
 			wantErr: "--input-file or --data is required",
 		},
 		{

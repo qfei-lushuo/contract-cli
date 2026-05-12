@@ -12,8 +12,8 @@
 示例：
 
 ```bash
-contract-cli contract search --profile contract-group --as user ...
-contract-cli contract search --profile contract-group --as bot ...
+contract-cli contract search --profile contract --as user ...
+contract-cli contract search --profile contract --as bot ...
 ```
 
 同一个 `contract search` 命令，`user` 和 `bot` 可以走不同后端路径。
@@ -82,7 +82,7 @@ default:
 }
 ```
 
-如果命令只支持 bot，例如文件上传，使用：
+如果命令只支持 bot，例如合同提交、删除等操作，使用：
 
 ```go
 IdentityPolicy: openplatform.IdentityPolicyBotOnly
@@ -208,6 +208,7 @@ MCP user-only 请求的固定 query 优先级更高。即使用户传 `--user-id
 例如：
 
 ```bash
+contract-cli contract upload-file --as user --file ./合同.docx --file-type text
 contract-cli contract upload-file --as bot --file ./合同.docx --file-type text
 ```
 

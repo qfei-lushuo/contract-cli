@@ -513,15 +513,34 @@ func TestServiceUploadFileUsesBotMultipartEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceUploadFileRejectsUserIdentityBeforeHTTP(t *testing.T) {
+func TestServiceUploadFileUsesUserMultipartEndpoint(t *testing.T) {
 	t.Parallel()
 
-	transportUsed := false
 	client := openplatform.New(openplatform.Options{
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				transportUsed = true
-				return jsonResponse(`{"code":0}`), nil
+				if req.Method != http.MethodPost {
+					t.Fatalf("method = %s", req.Method)
+				}
+				if req.URL.String() != "https://dev-open.qtech.cn/open-apis/contract/v1/files/upload" {
+					t.Fatalf("url = %q", req.URL.String())
+				}
+				if req.Header.Get("Authorization") != "Bearer user-token" {
+					t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
+				}
+				if got := req.Header.Get("Content-Type"); !strings.HasPrefix(got, "multipart/form-data; boundary=") {
+					t.Fatalf("content-type = %q", got)
+				}
+				if err := req.ParseMultipartForm(1 << 20); err != nil {
+					t.Fatalf("ParseMultipartForm() error = %v", err)
+				}
+				if got := req.MultipartForm.Value["file_name"]; len(got) != 1 || got[0] != "财务合同.docx" {
+					t.Fatalf("file_name = %v", got)
+				}
+				if got := req.MultipartForm.Value["file_type"]; len(got) != 1 || got[0] != "text" {
+					t.Fatalf("file_type = %v", got)
+				}
+				return jsonResponse(`{"code":0,"data":{"file_id":"user-file-123"},"msg":"success"}`), nil
 			}),
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
@@ -532,16 +551,16 @@ func TestServiceUploadFileRejectsUserIdentityBeforeHTTP(t *testing.T) {
 	}
 
 	service := contract.NewService(client)
-	_, err = service.UploadFile(context.Background(), requestContext, contract.UploadFileInput{
+	response, err := service.UploadFile(context.Background(), requestContext, contract.UploadFileInput{
 		FileName: "财务合同.docx",
 		FileType: "text",
 		File:     strings.NewReader("contract file bytes"),
 	})
-	if err == nil || !strings.Contains(err.Error(), "only supports --as bot") {
-		t.Fatalf("unexpected user error: %v", err)
+	if err != nil {
+		t.Fatalf("UploadFile() error = %v", err)
 	}
-	if transportUsed {
-		t.Fatalf("request transport should not be used for rejected bot-only upload")
+	if !strings.Contains(string(response.Body), `"file_id":"user-file-123"`) {
+		t.Fatalf("response body = %s", string(response.Body))
 	}
 }
 
@@ -832,7 +851,7 @@ func TestServiceRequiresContractAndTemplateIdentifiers(t *testing.T) {
 
 func profileWithUserToken() config.Profile {
 	return config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityUser,
@@ -850,7 +869,7 @@ func profileWithUserToken() config.Profile {
 
 func profileWithBotToken() config.Profile {
 	return config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityBot,
