@@ -1,0 +1,161 @@
+stages:
+  - release
+
+variables:
+  GIT_DEPTH: "0"
+  CONTRACT_CLI_BUILD_IMAGE: "docker.cnb.cool/yuwen-gueen/docker-images-chrom/golang:1.24-alpine_amd64"
+  GITHUB_RELEASE_REPO: "yuwenGueen/contract-cli"
+  GITHUB_SYNC_BRANCH: "main"
+  GITHUB_FORCE_PUSH: "false"
+  NPM_REGISTRY_URL: "https://registry.npmjs.org/"
+  NPM_ACCESS: "public"
+  # Optional. Set these in GitLab CI variables when you want branch-source checks.
+  BETA_RELEASE_BRANCH: ""
+  PRODUCTION_RELEASE_BRANCH: ""
+
+release:
+  stage: release
+  image: "$CONTRACT_CLI_BUILD_IMAGE"
+  rules:
+    - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+-beta(\.[0-9]+)?$/'
+    - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
+    - when: never
+  before_script:
+    - |
+      set -euo pipefail
+      missing=""
+      for cmd in git go make node npm zip gh; do
+        if ! command -v "$cmd" >/dev/null 2>&1; then
+          missing="$missing $cmd"
+        fi
+      done
+      if [ -n "$missing" ] && command -v apt-get >/dev/null 2>&1; then
+        apt-get update
+        apt-get install -y --no-install-recommends ca-certificates git make nodejs npm zip gh
+      fi
+      for cmd in git go make node npm zip gh; do
+        command -v "$cmd" >/dev/null 2>&1 || {
+          echo "missing required command: $cmd" >&2
+          exit 1
+        }
+      done
+  script:
+    - |
+      set -euo pipefail
+
+      require_env() {
+        name="$1"
+        if [ -z "${!name:-}" ]; then
+          echo "$name is required" >&2
+          exit 1
+        fi
+      }
+
+      require_env GITHUB_TOKEN
+      require_env NPM_TOKEN
+
+      VERSION="${CI_COMMIT_TAG#v}"
+      if [[ "$VERSION" != "$CI_COMMIT_TAG" ]]; then
+        RELEASE_TAG="$CI_COMMIT_TAG"
+      else
+        RELEASE_TAG="v$VERSION"
+      fi
+
+      if [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta(\.[0-9]+)?$ ]]; then
+        NPM_DIST_TAG="beta"
+        GITHUB_RELEASE_FLAGS=(--prerelease)
+        EXPECTED_BRANCH="${BETA_RELEASE_BRANCH:-}"
+      elif [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+        NPM_DIST_TAG="latest"
+        GITHUB_RELEASE_FLAGS=(--latest)
+        EXPECTED_BRANCH="${PRODUCTION_RELEASE_BRANCH:-}"
+      else
+        echo "unsupported release tag: $CI_COMMIT_TAG" >&2
+        exit 1
+      fi
+
+      if [ -n "$EXPECTED_BRANCH" ]; then
+        git fetch origin "$EXPECTED_BRANCH"
+        if ! git merge-base --is-ancestor "$CI_COMMIT_SHA" "origin/$EXPECTED_BRANCH"; then
+          echo "tag $CI_COMMIT_TAG is not reachable from origin/$EXPECTED_BRANCH" >&2
+          exit 1
+        fi
+      fi
+
+      go test ./...
+      export VERSION GITHUB_RELEASE_REPO NPM_REGISTRY_URL NPM_ACCESS
+
+      node <<'NODE'
+      const fs = require("fs");
+      const pkg = require("./package.json");
+
+      pkg.version = process.env.VERSION;
+      pkg.config = pkg.config || {};
+      pkg.config.downloadBaseURLTemplate =
+        `https://github.com/${process.env.GITHUB_RELEASE_REPO}/releases/download/v{version}`;
+
+      if (process.env.NPM_PACKAGE_NAME) {
+        pkg.name = process.env.NPM_PACKAGE_NAME;
+      }
+      pkg.publishConfig = pkg.publishConfig || {};
+      pkg.publishConfig.registry = process.env.NPM_REGISTRY_URL || "https://registry.npmjs.org/";
+      if (process.env.NPM_ACCESS) {
+        pkg.publishConfig.access = process.env.NPM_ACCESS;
+      }
+
+      fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+      NODE
+
+      PACKAGE_NAME="$(node -p "require('./package.json').name")"
+
+      VERSION="$VERSION" make release-assets
+
+      git remote remove github-release 2>/dev/null || true
+      git remote add github-release "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_RELEASE_REPO}.git"
+      if [ -n "${GITHUB_SYNC_BRANCH:-}" ]; then
+        if [ "${GITHUB_FORCE_PUSH:-false}" = "true" ]; then
+          git push --force-with-lease github-release "HEAD:refs/heads/${GITHUB_SYNC_BRANCH}"
+        else
+          git push github-release "HEAD:refs/heads/${GITHUB_SYNC_BRANCH}"
+        fi
+      fi
+      if ! git ls-remote --exit-code --tags github-release "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+        git push github-release "HEAD:refs/tags/$RELEASE_TAG"
+      fi
+
+      export GH_TOKEN="$GITHUB_TOKEN"
+      if gh release view "$RELEASE_TAG" --repo "$GITHUB_RELEASE_REPO" >/dev/null 2>&1; then
+        gh release upload "$RELEASE_TAG" dist/release-assets/* --repo "$GITHUB_RELEASE_REPO" --clobber
+      else
+        gh release create "$RELEASE_TAG" dist/release-assets/* \
+          --repo "$GITHUB_RELEASE_REPO" \
+          --title "$RELEASE_TAG" \
+          --notes "Release $RELEASE_TAG from GitLab pipeline $CI_PIPELINE_URL" \
+          "${GITHUB_RELEASE_FLAGS[@]}"
+      fi
+
+      printf "//registry.npmjs.org/:_authToken=%s\n" "$NPM_TOKEN" > ~/.npmrc
+      publish_args=(--registry "$NPM_REGISTRY_URL" --tag "$NPM_DIST_TAG")
+      if [ -n "${NPM_ACCESS:-}" ]; then
+        publish_args+=(--access "$NPM_ACCESS")
+      fi
+      npm publish "${publish_args[@]}"
+
+      for attempt in 1 2 3 4 5 6; do
+        published_version="$(npm view "$PACKAGE_NAME@$NPM_DIST_TAG" version --registry "$NPM_REGISTRY_URL" 2>/dev/null || true)"
+        if [ "$published_version" = "$VERSION" ]; then
+          break
+        fi
+        echo "npm dist-tag $NPM_DIST_TAG is not visible yet, retry $attempt/6"
+        sleep 10
+      done
+      test "$(npm view "$PACKAGE_NAME@$NPM_DIST_TAG" version --registry "$NPM_REGISTRY_URL")" = "$VERSION"
+
+      tmpdir="$(mktemp -d)"
+      npm install -g "$PACKAGE_NAME@$VERSION" --registry "$NPM_REGISTRY_URL" --prefix "$tmpdir/prefix" --cache "$tmpdir/cache" --prefer-online
+      "$tmpdir/prefix/bin/contract-cli" --version
+  artifacts:
+    when: always
+    expire_in: 7 days
+    paths:
+      - dist/release-assets/
