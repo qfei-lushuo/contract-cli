@@ -14,7 +14,7 @@ jobs:
     env:
       NPM_REGISTRY_URL: https://registry.npmjs.org/
       NPM_ACCESS: public
-      NPM_PACKAGE_NAME: ${{ vars.NPM_PACKAGE_NAME }}
+      NPM_PACKAGE_NAME: ${{ vars.NPM_PACKAGE_NAME || secrets.NPM_PACKAGE_NAME }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -65,14 +65,16 @@ jobs:
           const fs = require("fs");
           const pkg = require("./package.json");
 
+          if (!process.env.NPM_PACKAGE_NAME) {
+            throw new Error("Repository variable NPM_PACKAGE_NAME is required, e.g. @your-npm-user/contract-cli-test");
+          }
+
           pkg.version = process.env.VERSION;
           pkg.config = pkg.config || {};
           pkg.config.downloadBaseURLTemplate =
             `https://github.com/${process.env.GITHUB_RELEASE_REPO}/releases/download/v{version}`;
 
-          if (process.env.NPM_PACKAGE_NAME) {
-            pkg.name = process.env.NPM_PACKAGE_NAME;
-          }
+          pkg.name = process.env.NPM_PACKAGE_NAME;
           pkg.publishConfig = pkg.publishConfig || {};
           pkg.publishConfig.registry = process.env.NPM_REGISTRY_URL;
           pkg.publishConfig.access = process.env.NPM_ACCESS || "public";
@@ -87,6 +89,7 @@ jobs:
         run: make release-assets
 
       - name: Create or update GitHub Release
+        if: steps.version.outputs.dist_tag == 'latest'
         env:
           GH_TOKEN: ${{ github.token }}
           RELEASE_TAG: ${{ steps.version.outputs.release_tag }}

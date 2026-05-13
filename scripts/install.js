@@ -158,8 +158,40 @@ function installFromDownload(downloadBaseURL) {
   }
 }
 
+function installFromArchive(archivePath) {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "contract-cli-"));
+
+  try {
+    extractArchive(archivePath, tempDir);
+    const extractedBinary = path.join(tempDir, binaryName + (isWindows ? ".exe" : ""));
+    if (!fs.existsSync(extractedBinary)) {
+      throw new Error(`binary ${path.basename(extractedBinary)} not found in archive`);
+    }
+    fs.mkdirSync(binDir, { recursive: true });
+    fs.copyFileSync(extractedBinary, destination);
+    fs.chmodSync(destination, 0o755);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
+function installFromPackagedArchive() {
+  const archivePath = path.join(rootDir, "dist", "release-assets", archiveName);
+  if (!fs.existsSync(archivePath)) {
+    return false;
+  }
+
+  installFromArchive(archivePath);
+  console.log(`${binaryName} ${version} installed from packaged release assets`);
+  return true;
+}
+
 function install() {
   const downloadBaseURL = resolveDownloadBaseURL();
+
+  if (installFromPackagedArchive()) {
+    return;
+  }
 
   if (downloadBaseURL) {
     try {
