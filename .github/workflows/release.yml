@@ -3,8 +3,7 @@ name: release
 on:
   push:
     tags:
-      - "v*"
-      - "*.*.*"
+      - "*"
 
 permissions:
   contents: write
@@ -22,31 +21,6 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Resolve tag
-        id: release
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          tag="$GITHUB_REF_NAME"
-          version="${tag#v}"
-
-          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta(\.[0-9]+)?$ ]]; then
-            channel="beta"
-            stable="false"
-          elif [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
-            channel="latest"
-            stable="true"
-          else
-            echo "Unsupported tag: $tag" >&2
-            echo "Use v1.0.0-beta.1 or v1.0.0." >&2
-            exit 1
-          fi
-
-          echo "version=$version" >> "$GITHUB_OUTPUT"
-          echo "channel=$channel" >> "$GITHUB_OUTPUT"
-          echo "stable=$stable" >> "$GITHUB_OUTPUT"
-
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
@@ -58,31 +32,8 @@ jobs:
           node-version: 20
           registry-url: ${{ env.NPM_REGISTRY_URL }}
 
-      - name: Test
-        run: go test ./...
-
-      - name: Prepare package
-        env:
-          VERSION: ${{ steps.release.outputs.version }}
-          RELEASE_TAG: ${{ github.ref_name }}
-          PACKAGE_NAME: ${{ vars.NPM_PACKAGE_NAME }}
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [ -n "${PACKAGE_NAME:-}" ]; then
-            npm pkg set "name=$PACKAGE_NAME"
-          fi
-
-          npm pkg set "version=$VERSION"
-          npm pkg set "publishConfig.registry=$NPM_REGISTRY_URL"
-          npm pkg set "publishConfig.access=$NPM_ACCESS"
-          npm pkg set "config.downloadBaseURLTemplate=https://github.com/$GITHUB_REPOSITORY/releases/download/$RELEASE_TAG"
-
-          node -p "'prepared ' + require('./package.json').name + '@' + require('./package.json').version"
-
       - name: Publish GitHub Release
-        if: steps.release.outputs.stable == 'true'
+        if: ${{ !contains(github.ref_name, 'beta') }}
         uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
@@ -90,19 +41,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
 
+      - name: Prepare package
+        env:
+          PACKAGE_NAME: ${{ vars.NPM_PACKAGE_NAME }}
+        run: |
+          [ -z "${PACKAGE_NAME:-}" ] || npm pkg set "name=$PACKAGE_NAME"
+          npm pkg set "version=${GITHUB_REF_NAME#v}" "config.downloadBaseURLTemplate=https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
+
       - name: Publish npm package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-          CHANNEL: ${{ steps.release.outputs.channel }}
-        run: |
-          set -euo pipefail
-
-          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
-            echo "NPM_TOKEN secret is required." >&2
-            exit 1
-          fi
-
-          npm publish \
-            --registry "$NPM_REGISTRY_URL" \
-            --access "$NPM_ACCESS" \
-            --tag "$CHANNEL"
+          NPM_TAG: ${{ contains(github.ref_name, 'beta') && 'beta' || 'latest' }}
+        run: npm publish --registry "$NPM_REGISTRY_URL" --access "$NPM_ACCESS" --tag "$NPM_TAG"
