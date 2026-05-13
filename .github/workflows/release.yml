@@ -33,7 +33,6 @@ jobs:
           registry-url: ${{ env.NPM_REGISTRY_URL }}
 
       - name: Publish GitHub Release
-        if: ${{ !contains(github.ref_name, 'beta') }}
         uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
