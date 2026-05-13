@@ -122,7 +122,7 @@ npx skills add qfeius/contract-cli -y -g
 contract-cli skills list
 contract-cli skills install --target ~/.codex/skills
 contract-cli contract get <contract-id> --profile contract --as user
-contract-cli contract upload-file --file ./合同正文.docx --file-type text --profile contract --as bot
+contract-cli contract upload-file --file ./合同正文.docx --file-type text --profile contract --as user
 contract-cli mdm vendor list --profile contract --as user
 contract-cli mdm legal get <legal-entity-id> --profile contract --as user
 contract-cli mdm fields list --biz-line vendor --profile contract --as user

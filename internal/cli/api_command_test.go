@@ -28,7 +28,7 @@ func TestAPICommandIsTemporarilyUnavailable(t *testing.T) {
 	})
 
 	err := app.Run(context.Background(), []string{
-		"api", "call", "GET", "/open-apis/mdm/v1/vendors/1", "--profile", "contract-group",
+		"api", "call", "GET", "/open-apis/mdm/v1/vendors/1", "--profile", "contract",
 	})
 	if err == nil || !strings.Contains(err.Error(), "api call 暂未开放使用") {
 		t.Fatalf("unexpected api unavailable error: %v", err)

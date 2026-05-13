@@ -154,6 +154,84 @@ func (c *Client) Do(ctx context.Context, requestContext RequestContext, request 
 	return response, nil
 }
 
+func (c *Client) DoStream(ctx context.Context, requestContext RequestContext, request Request, writer io.Writer) (Response, error) {
+	if writer == nil {
+		return Response{}, fmt.Errorf("open platform stream writer is required")
+	}
+
+	method := strings.ToUpper(strings.TrimSpace(request.Method))
+	if method == "" {
+		return Response{}, fmt.Errorf("open platform request method is required")
+	}
+	policy := request.IdentityPolicy
+	if policy == "" {
+		policy = IdentityPolicyForPath(request.Path)
+	}
+	if err := validateIdentityPolicy(requestContext.Identity, policy, request.Path); err != nil {
+		c.logger.Error("open platform identity policy rejected", "method", method, "path", request.Path, "identity", requestContext.Identity, "error", err.Error())
+		return Response{}, err
+	}
+	fullURL, err := buildURL(requestContext.BaseURL, request.Path, mergeQuery(policy, request.Query, requestContext.CommonQuery))
+	if err != nil {
+		return Response{}, err
+	}
+
+	headers := cloneHeaders(request.Headers)
+	if headers.Get("Authorization") == "" {
+		headers.Set("Authorization", "Bearer "+requestContext.AccessToken)
+	}
+	if headers.Get("Accept") == "" {
+		headers.Set("Accept", "*/*")
+	}
+	if request.BodyReader == nil && len(request.Body) > 0 && headers.Get("Content-Type") == "" {
+		headers.Set("Content-Type", "application/json")
+	}
+
+	c.logger.Info("open platform stream request started", "method", method, "path", request.Path, "identity", requestContext.Identity)
+
+	bodyReader := io.Reader(bytes.NewReader(request.Body))
+	if request.BodyReader != nil {
+		bodyReader = request.BodyReader
+	}
+	httpRequest, err := http.NewRequestWithContext(ctx, method, fullURL, bodyReader)
+	if err != nil {
+		c.logger.Error("build open platform stream request failed", "method", method, "path", request.Path, "error", err.Error())
+		return Response{}, fmt.Errorf("build open platform request: %w", err)
+	}
+	httpRequest.Header = headers
+
+	resp, err := c.httpClient.Do(httpRequest)
+	if err != nil {
+		c.logger.Error("perform open platform stream request failed", "method", method, "path", request.Path, "error", err.Error())
+		return Response{}, fmt.Errorf("perform open platform request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	response := Response{
+		StatusCode: resp.StatusCode,
+		Headers:    resp.Header.Clone(),
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		body, readErr := io.ReadAll(resp.Body)
+		if readErr != nil {
+			c.logger.Error("read open platform stream error response failed", "method", method, "path", request.Path, "error", readErr.Error())
+			return response, fmt.Errorf("read open platform response: %w", readErr)
+		}
+		response.Body = body
+		err = fmt.Errorf("open platform request failed with status %d: %s", resp.StatusCode, responseSnippet(body))
+		c.logger.Error("open platform stream request failed", "method", method, "path", request.Path, "status_code", resp.StatusCode, "error", err.Error())
+		return response, err
+	}
+
+	if _, err := io.Copy(writer, resp.Body); err != nil {
+		c.logger.Error("copy open platform stream response failed", "method", method, "path", request.Path, "error", err.Error())
+		return response, fmt.Errorf("copy open platform response: %w", err)
+	}
+
+	c.logger.Info("open platform stream request completed", "method", method, "path", request.Path, "status_code", resp.StatusCode)
+	return response, nil
+}
+
 func (ProfileAuthProvider) Resolve(profile config.Profile, identity config.IdentityKind) (RequestContext, error) {
 	resolvedIdentity := identity
 	if resolvedIdentity == "" {

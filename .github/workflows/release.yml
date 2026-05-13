@@ -3,13 +3,18 @@ name: release
 on:
   push:
     tags:
-      - "v*"
+      - "*"
+
+permissions:
+  contents: write
+
+env:
+  NPM_REGISTRY_URL: https://registry.npmjs.org/
+  NPM_ACCESS: public
 
 jobs:
-  goreleaser:
+  release:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -21,13 +26,29 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Run tests
-        run: go test ./...
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: ${{ env.NPM_REGISTRY_URL }}
 
-      - name: Run GoReleaser
+      - name: Publish GitHub Release
         uses: goreleaser/goreleaser-action@v6
         with:
           version: latest
           args: release --clean
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ github.token }}
+
+      - name: Prepare package
+        env:
+          PACKAGE_NAME: ${{ vars.NPM_PACKAGE_NAME }}
+        run: |
+          [ -z "${PACKAGE_NAME:-}" ] || npm pkg set "name=$PACKAGE_NAME"
+          npm pkg set "version=${GITHUB_REF_NAME#v}" "config.downloadBaseURLTemplate=https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
+
+      - name: Publish npm package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          NPM_TAG: ${{ contains(github.ref_name, 'beta') && 'beta' || 'latest' }}
+        run: npm publish --registry "$NPM_REGISTRY_URL" --access "$NPM_ACCESS" --tag "$NPM_TAG"

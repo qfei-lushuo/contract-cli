@@ -1,5 +1,25 @@
 # AI 变更记录
 
+- 2026-05-12
+  变更摘要：全仓收敛旧 profile 示例名，统一使用 `--profile contract`。
+  涉及文件/模块：`internal/cli/help.go`、CLI 测试、`docs/*`、`skills/contract-cli-contract`、`skills/contract-cli-shared`
+  关键逻辑/决策：用户可见示例、测试命令参数和 profile fixture 从旧 `contract-group` 迁移到 `contract`；命令参考测试保留防回退断言，避免后续文档重新出现旧 profile 名。
+
+- 2026-05-12
+  变更摘要：支持 `contract upload-file` 在 user 身份下上传文件。
+  涉及文件/模块：`internal/cli/contract_command.go`、`internal/openplatform/contract/service.go`、上传命令测试、帮助与命令文档、contract skills
+  关键逻辑/决策：上传接口仍复用 `POST /open-apis/contract/v1/files/upload` 和 multipart 字段，将身份策略从 bot-only 调整为 user/bot 通用，并补充显式 user 与默认 user 上传测试。
+
+- 2026-04-23
+  变更摘要：新增 9 个 bot-only 合同命令，覆盖提交、重提、更新、下载、删除、打印、分享记录和协商信息查询。
+  涉及文件/模块：`internal/openplatform`、`internal/openplatform/contract`、`internal/cli/contract_command.go`、`internal/cli/help.go`、`docs/cli-command-reference.md`、`docs/cli-test-plan.md`、`skills/contract-cli-contract`、`skills/contract-cli-shared`
+  关键逻辑/决策：所有新增结构化命令统一 `IdentityPolicyBotOnly`，通用 query 仍由 `CommonQuery` 注入；`download-file` 使用流式下载，默认保存弹窗，脚本环境推荐 `--output-file`，`--raw` 直接写 stdout；`delete` 直接执行不加 `--yes`。
+
+- 2026-04-23
+  变更摘要：新增 bot 命令开发指南，沉淀后续 bot 功能和 skill 文档开发约定。
+  涉及文件/模块：`docs/bot-command-development-guide.md`、`docs/ai-changes.md`
+  关键逻辑/决策：按功能开发、身份路由、通用 query、测试要求、skill 编写和 Definition of Done 组织；补充 skill 版本、业务错误、`user_id` 必填、输出归一化等后续需要团队确认的问题。
+
 - 2026-04-29
   变更摘要：发布前忽略所有层级的 macOS `.DS_Store` 本机文件。
   涉及文件/模块：`.gitignore`、`docs/ai-changes.md`

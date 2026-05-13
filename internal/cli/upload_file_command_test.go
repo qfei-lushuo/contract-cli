@@ -61,7 +61,7 @@ func TestContractUploadFileCommandUploadsDefaultFileNameAsBot(t *testing.T) {
 
 	err := app.Run(context.Background(), []string{
 		"contract", "upload-file",
-		"--profile", "contract-group",
+		"--profile", "contract",
 		"--as", "bot",
 		"--file", uploadPath,
 		"--file-type", "text",
@@ -108,7 +108,7 @@ func TestContractUploadFileCommandUsesDefaultBotIdentityAndOverridesFileName(t *
 
 	err := app.Run(context.Background(), []string{
 		"contract", "upload-file",
-		"--profile", "contract-group",
+		"--profile", "contract",
 		"--file", uploadPath,
 		"--file-type", "attachment",
 		"--file-name", "附件.pdf",
@@ -122,20 +122,25 @@ func TestContractUploadFileCommandUsesDefaultBotIdentityAndOverridesFileName(t *
 	}
 }
 
-func TestContractUploadFileCommandRejectsUserIdentityBeforeHTTP(t *testing.T) {
+func TestContractUploadFileCommandUploadsAsUser(t *testing.T) {
 	t.Parallel()
 
 	for _, tc := range []struct {
-		name string
-		args []string
+		name           string
+		args           []string
+		wantUserID     string
+		wantUserIDType string
 	}{
 		{
-			name: "explicit user",
-			args: []string{"contract", "upload-file", "--profile", "contract-group", "--as", "user"},
+			name:           "explicit user",
+			args:           []string{"contract", "upload-file", "--profile", "contract", "--as", "user", "--user-id", "ou_user_1", "--user-id-type", "employee_id"},
+			wantUserID:     "ou_user_1",
+			wantUserIDType: "employee_id",
 		},
 		{
-			name: "default user",
-			args: []string{"contract", "upload-file", "--profile", "contract-group"},
+			name:           "default user",
+			args:           []string{"contract", "upload-file", "--profile", "contract"},
+			wantUserIDType: "user_id",
 		},
 	} {
 		tc := tc
@@ -152,27 +157,45 @@ func TestContractUploadFileCommandRejectsUserIdentityBeforeHTTP(t *testing.T) {
 				t.Fatalf("UpsertProfile() error = %v", err)
 			}
 
-			transportUsed := false
+			stdout := &bytes.Buffer{}
 			app := cli.New(cli.Options{
-				Stdout: &bytes.Buffer{},
+				Stdout: stdout,
 				Stderr: &bytes.Buffer{},
 				Store:  store,
 				HTTPClient: &http.Client{
 					Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-						transportUsed = true
-						return jsonResponse(`{"code":0}`), nil
+						if req.Method != http.MethodPost {
+							t.Fatalf("method = %s", req.Method)
+						}
+						if req.URL.Path != "/open-apis/contract/v1/files/upload" {
+							t.Fatalf("path = %s", req.URL.Path)
+						}
+						if req.Header.Get("Authorization") != "Bearer user-token" {
+							t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
+						}
+						if req.URL.Query().Get("user_id") != tc.wantUserID {
+							t.Fatalf("user_id = %q", req.URL.Query().Get("user_id"))
+						}
+						if req.URL.Query().Get("user_id_type") != tc.wantUserIDType {
+							t.Fatalf("user_id_type = %q", req.URL.Query().Get("user_id_type"))
+						}
+						if got := req.Header.Get("Content-Type"); !strings.HasPrefix(got, "multipart/form-data; boundary=") {
+							t.Fatalf("content-type = %q", got)
+						}
+						assertUploadMultipart(t, req, "合同.pdf", "text", "pdf bytes")
+						return jsonResponse(`{"code":0,"data":{"file_id":"user-file-123"},"msg":"success"}`), nil
 					}),
 				},
 			})
 
 			args := append([]string{}, tc.args...)
-			args = append(args, "--file", uploadPath, "--file-type", "text")
+			args = append(args, "--file", uploadPath, "--file-type", "text", "--output", "json")
 			err := app.Run(context.Background(), args)
-			if err == nil || !strings.Contains(err.Error(), "only supports --as bot") {
-				t.Fatalf("unexpected user error: %v", err)
+			if err != nil {
+				t.Fatalf("Run() error = %v", err)
 			}
-			if transportUsed {
-				t.Fatalf("request transport should not be used for rejected bot-only upload")
+			if !strings.Contains(stdout.String(), `"file_id": "user-file-123"`) {
+				t.Fatalf("missing file_id in output: %s", stdout.String())
 			}
 		})
 	}
@@ -205,32 +228,32 @@ func TestContractUploadFileCommandValidationErrors(t *testing.T) {
 	}{
 		{
 			name:    "missing file",
-			args:    []string{"contract", "upload-file", "--profile", "contract-group", "--as", "bot", "--file-type", "text"},
+			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "bot", "--file-type", "text"},
 			wantErr: "--file is required",
 		},
 		{
 			name:    "missing file type",
-			args:    []string{"contract", "upload-file", "--profile", "contract-group", "--as", "bot", "--file", uploadPath},
+			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "bot", "--file", uploadPath},
 			wantErr: "--file-type is required",
 		},
 		{
 			name:    "missing path",
-			args:    []string{"contract", "upload-file", "--profile", "contract-group", "--as", "bot", "--file", filepath.Join(dir, "missing.pdf"), "--file-type", "text"},
+			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "bot", "--file", filepath.Join(dir, "missing.pdf"), "--file-type", "text"},
 			wantErr: "stat upload file",
 		},
 		{
 			name:    "directory path",
-			args:    []string{"contract", "upload-file", "--profile", "contract-group", "--as", "bot", "--file", dir, "--file-type", "text"},
+			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "bot", "--file", dir, "--file-type", "text"},
 			wantErr: "must be a regular file",
 		},
 		{
 			name:    "too large",
-			args:    []string{"contract", "upload-file", "--profile", "contract-group", "--as", "bot", "--file", tooLargePath, "--file-type", "text"},
+			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "bot", "--file", tooLargePath, "--file-type", "text"},
 			wantErr: "must be <= 200MB",
 		},
 		{
 			name:    "json body flags",
-			args:    []string{"contract", "upload-file", "--profile", "contract-group", "--as", "bot", "--file", uploadPath, "--file-type", "text", "--input-file", uploadPath},
+			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "bot", "--file", uploadPath, "--file-type", "text", "--input-file", uploadPath},
 			wantErr: "does not accept --input-file or --data",
 		},
 	}
@@ -299,7 +322,7 @@ func assertUploadMultipart(t *testing.T, req *http.Request, wantFileName, wantFi
 
 func uploadProfile(defaultIdentity config.IdentityKind) config.Profile {
 	return config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     defaultIdentity,

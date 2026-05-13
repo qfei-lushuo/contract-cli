@@ -24,6 +24,10 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 
 - `contract get/search/create/sync-user-groups/text`
 - `contract upload-file`
+- `contract submit/resubmit/patch/download-file/delete/print-file`
+- `contract share get`
+- `contract cooperation link get`
+- `contract cooperation record get`
 - `contract category list`
 - `contract template list/get/instantiate`
 - `contract enum list`
@@ -35,12 +39,13 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 
 - `api call` 当前不对外开放；执行 `contract-cli api ...` 会直接返回 `api call 暂未开放使用，请使用已开放的结构化命令`
 - `contract/v1/mcp` 这批路径大部分只支持 `--as user`
-- 当前结构化命令里只有 `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 支持 bot；其中合同命令的 bot 路由走 `/open-apis/contract/v1/...`，`contract upload-file` 走 `/open-apis/contract/v1/files/upload` 且仅支持 bot，`mdm vendor list/get` 的 bot 路由走 `/open-apis/mdm/v1/vendors...`，`mdm legal list` 的 bot 路由走 `/open-apis/mdm/v1/legal_entities/list_all`，`mdm legal get` 的 bot 路由走 `/open-apis/mdm/v1/legal_entities/{legal_entity_id}`，`mdm fields list` 的 bot 路由走 `/open-apis/mdm/v1/config/config_list`
+- 当前结构化命令里只有 `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 支持 bot；其中合同命令的 bot 路由走 `/open-apis/contract/v1/...`，`contract upload-file` 走 `/open-apis/contract/v1/files/upload` 且同时支持 user/bot，新增 `contract submit/resubmit/patch/download-file/delete/print-file/share/cooperation` 仅支持 bot，`mdm vendor list/get` 的 bot 路由走 `/open-apis/mdm/v1/vendors...`，`mdm legal list` 的 bot 路由走 `/open-apis/mdm/v1/legal_entities/list_all`，`mdm legal get` 的 bot 路由走 `/open-apis/mdm/v1/legal_entities/{legal_entity_id}`，`mdm fields list` 的 bot 路由走 `/open-apis/mdm/v1/config/config_list`
 - 若命中 `/open-apis/contract/v1/mcp/` 且未传 `--as`，CLI 会默认按 `user` 解析，不看 `default_identity`
 - 这批命令不暴露 `--operator`
 - 请求体文件输入统一使用 `--input-file`
 - `--user-id-type` / `--user-id` 是开放平台通用 query 参数：结构化命令支持；`--user-id-type` 不传时默认拼接 `user_id_type=user_id`，显式传值会覆盖默认值；`--user-id` 传了就透传，不传就不带；不做命令级校验
 - `--file` 现在只用于真实二进制文件上传，例如 `contract upload-file`
+- `contract download-file` 下载二进制响应，默认弹窗保存；Agent/CI/远程环境优先传 `--output-file`，管道场景用 `--raw`
 - JSON 请求体文件输入始终使用 `--input-file`，不要把 `--file` 当 JSON 请求体参数
 - 默认输出建议用 `json`；需要排障时可加 `--raw`
 
@@ -55,4 +60,5 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 - 命令报 `only supports --as user`：当前命中的是 user-only `contract/v1/mcp` 路径，切到 `--as user`
 - 命令报 `profile "<name>" not found`：先执行 `contract-cli config add --env prod --name <profile>`
 - 命令报 `user identity is not authorized`：先执行 `contract-cli auth login --profile <profile> --as user`
-- 用户想做文件上传：当前只支持 `contract upload-file --as bot --file <path> --file-type <type>`
+- 用户想做文件上传：使用 `contract upload-file --as user|bot --file <path> --file-type <type>`
+- 用户想下载文件：使用 `contract download-file --as bot --output-file <path>`；不要写成 `dowload-file`

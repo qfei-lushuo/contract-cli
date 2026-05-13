@@ -5,8 +5,8 @@
 ## 当前状态
 
 - 当前内置 `prod` 和 `dev` 两套环境预设；正式包默认使用 `prod`：`contract-cli config add --env prod --name contract`
-- `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 是当前仅有的十四个同时支持 `user` 与 `bot` 的结构化业务命令
-- `contract upload-file` 当前仅支持 `--as bot`
+- `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 是当前仅有的十五个同时支持 `user` 与 `bot` 的结构化业务命令
+- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get` 当前仅支持 `--as bot`
 - 除上述 bot 能力外，当前其他结构化业务命令仍只支持 `--as user`
 - `bot` 目前已经支持登录、状态查看、登出、默认身份切换
 - 推荐使用 `npx skills add qfeius/contract-cli -y -g` 安装跨 Agent 平台 skills；`contract-cli skills install` 保留为 CLI 内置兜底
@@ -47,7 +47,8 @@ contract-cli contract get <contract-id> --help
 - `auth login --as bot` 走 `appId + appSecret -> tenant_access_token/internal`
 - `contract ...`、`mdm ...` 结构化命令大多默认只支持 `--as user`
 - `/open-apis/contract/v1/mcp/...` 路径大多仍只支持 `--as user`
-- `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 是例外：
+- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get` 当前仅支持 `--as bot`
+- `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 是例外：
   - `contract get --as user` 走 MCP 路径 `/open-apis/contract/v1/mcp/contracts/{contract_id}`
   - `contract get --as bot` 走开放平台路径 `/open-apis/contract/v1/contracts/{contract_id}`
   - `--as user` 走 MCP 路径 `/open-apis/contract/v1/mcp/contracts/search`
@@ -66,6 +67,7 @@ contract-cli contract get <contract-id> --help
   - `contract template get --as bot` 走 `/open-apis/contract/v1/templates/{template_id}`
   - `contract template instantiate --as user` 走 `/open-apis/contract/v1/mcp/template_instances`
   - `contract template instantiate --as bot` 走 `POST /open-apis/contract/v1/template_instances`
+  - `contract upload-file --as user` 与 `contract upload-file --as bot` 均走 `POST /open-apis/contract/v1/files/upload`
   - `mdm vendor list --as user` 走 `/open-apis/contract/v1/mcp/vendors`
   - `mdm vendor list --as bot` 走 `/open-apis/mdm/v1/vendors`
   - `mdm vendor get --as user` 走 `/open-apis/contract/v1/mcp/vendors/{vendor_id}`
@@ -371,6 +373,7 @@ contract-cli auth use --profile contract --as bot
 - `--raw`
 - 需要请求体的命令额外支持 `--input-file` / `--data`
 - `contract upload-file` 额外支持 `--file` / `--file-type` / `--file-name`
+- `contract download-file` 额外支持 `--output-file` / `--force`
 
 #### `contract-cli contract search`
 
@@ -530,7 +533,7 @@ contract-cli contract create --profile contract --as bot --data '{"contract_name
 命令：
 
 ```bash
-contract-cli contract upload-file --profile contract --as bot --file ./合同正文.docx --file-type text
+contract-cli contract upload-file --profile contract --as user --file ./合同正文.docx --file-type text
 contract-cli contract upload-file --profile contract --as bot --file ./附件.pdf --file-type attachment --file-name 附件.pdf
 ```
 
@@ -544,8 +547,7 @@ contract-cli contract upload-file --profile contract --as bot --file ./附件.pd
 
 身份规则：
 
-- 当前仅支持 `--as bot`。
-- 显式 `--as user` 或 profile 默认身份为 user 时会在发 HTTP 前失败。
+- `--as user` 和 `--as bot` 均支持。
 - 走 `POST /open-apis/contract/v1/files/upload`。
 - 请求是 `multipart/form-data`，字段为 `file_name`、`file_type`、`file`。
 - 不接受 `--input-file` / `--data`；这两个参数只用于 JSON 请求体。
@@ -564,6 +566,195 @@ contract-cli contract upload-file --profile contract --as bot --file ./附件.pd
 - `cause`：合同附件。
 - `archiveAttachment`：归档附件。
 - `customPictureAttachment` / `customTableAttachment` / `customFileAttachment`：自定义附件。
+
+#### `contract-cli contract submit`
+
+用途：bot 身份提交合同。
+
+命令：
+
+```bash
+contract-cli contract submit <contract-id> --profile contract --as bot
+contract-cli contract submit <contract-id> --profile contract --as bot --data '{"comment":"ok"}'
+```
+
+支持参数：
+
+- `--input-file`：可选，透传 JSON 请求体。
+- `--data`：可选，透传 JSON 请求体。
+- `--user-id-type`
+- `--user-id`
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `POST /open-apis/contract/v1/contracts/{contract_id}/submit`。
+- 不传 `--input-file` / `--data` 时不发送请求体。
+
+#### `contract-cli contract resubmit`
+
+用途：bot 身份重新提交合同。
+
+命令：
+
+```bash
+contract-cli contract resubmit <contract-id> --profile contract --as bot
+contract-cli contract resubmit <contract-id> --profile contract --as bot --input-file resubmit.json
+```
+
+支持参数：
+
+- `--input-file`：可选，透传 JSON 请求体。
+- `--data`：可选，透传 JSON 请求体。
+- `--user-id-type`
+- `--user-id`
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `POST /open-apis/contract/v1/contracts/{contract_id}/resubmit`。
+- 不传 `--input-file` / `--data` 时不发送请求体。
+
+#### `contract-cli contract patch`
+
+用途：bot 身份更新合同。
+
+命令：
+
+```bash
+contract-cli contract patch <contract-id> --profile contract --as bot --input-file patch.json
+contract-cli contract patch <contract-id> --profile contract --as bot --data '{"title":"demo"}'
+```
+
+支持参数：
+
+- `--input-file`
+- `--data`
+- `--user-id-type`
+- `--user-id`
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `PATCH /open-apis/contract/v1/contracts/{contract_id}`。
+- `--input-file` / `--data` 必须传一个且互斥。
+
+#### `contract-cli contract download-file`
+
+用途：bot 身份下载合同相关文件。
+
+命令：
+
+```bash
+contract-cli contract download-file <file-id> --profile contract --as bot
+contract-cli contract download-file <file-id> --profile contract --as bot --output-file ./contract.pdf
+contract-cli contract download-file <file-id> --profile contract --as bot --raw > contract.pdf
+```
+
+支持参数：
+
+- `--output-file`：保存到指定文件；不传时默认拉起保存文件弹窗。
+- `--force`：覆盖已存在的 `--output-file`。
+- `--raw`：把文件内容写到 stdout，不打印额外提示。
+- `--user-id-type`
+- `--user-id`
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `GET /open-apis/contract/v1/files/{file_id}`。
+- 不实现 `dowload-file` 拼写别名。
+- 无 GUI、远程、CI、Agent 环境推荐显式传 `--output-file`。
+
+#### `contract-cli contract delete`
+
+用途：bot 身份删除草稿合同。
+
+命令：
+
+```bash
+contract-cli contract delete <contract-id> --profile contract --as bot
+```
+
+支持参数：
+
+- `--user-id-type`
+- `--user-id`
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `DELETE /open-apis/contract/v1/contracts/{contract_id}`。
+- 命令直接删除，不额外要求 `--yes`。
+
+#### `contract-cli contract print-file`
+
+用途：bot 身份生成合同打印文件。
+
+命令：
+
+```bash
+contract-cli contract print-file --profile contract --as bot --input-file print-file.json
+contract-cli contract print-file --profile contract --as bot --data '{"contract_id":"<contract-id>"}'
+```
+
+支持参数：
+
+- `--input-file`
+- `--data`
+- `--user-id-type`
+- `--user-id`
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `POST /open-apis/contract/v1/files`。
+- `--input-file` / `--data` 必须传一个且互斥。
+
+#### `contract-cli contract share get`
+
+用途：bot 身份查询合同分享记录。
+
+命令：
+
+```bash
+contract-cli contract share get <contract-id> --profile contract --as bot
+```
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `GET /open-apis/contract/v1/contracts/{contract_id}/share_records`。
+
+#### `contract-cli contract cooperation link get`
+
+用途：bot 身份查询合同协商邀请链接。
+
+命令：
+
+```bash
+contract-cli contract cooperation link get <contract-id> --profile contract --as bot
+```
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_link`。
+
+#### `contract-cli contract cooperation record get`
+
+用途：bot 身份查询合同协商操作记录信息。
+
+命令：
+
+```bash
+contract-cli contract cooperation record get <contract-id> --profile contract --as bot
+```
+
+身份规则：
+
+- 当前仅支持 `--as bot`。
+- 走 `GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_record_info`。
 
 #### `contract-cli contract category list`
 

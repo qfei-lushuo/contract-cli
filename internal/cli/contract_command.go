@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -31,6 +32,22 @@ func (a *App) runContract(ctx context.Context, args []string) error {
 		return a.runContractText(ctx, args[1:])
 	case "create":
 		return a.runContractCreate(ctx, args[1:])
+	case "submit":
+		return a.runContractSubmit(ctx, args[1:])
+	case "resubmit":
+		return a.runContractResubmit(ctx, args[1:])
+	case "patch":
+		return a.runContractPatch(ctx, args[1:])
+	case "download-file":
+		return a.runContractDownloadFile(ctx, args[1:])
+	case "delete":
+		return a.runContractDelete(ctx, args[1:])
+	case "print-file":
+		return a.runContractPrintFile(ctx, args[1:])
+	case "share":
+		return a.runContractShare(ctx, args[1:])
+	case "cooperation":
+		return a.runContractCooperation(ctx, args[1:])
 	case "category":
 		return a.runContractCategory(ctx, args[1:])
 	case "template":
@@ -193,6 +210,297 @@ func (a *App) runContractCreate(ctx context.Context, args []string) error {
 		return err
 	}
 	response, err := contractsvc.NewService(client).Create(ctx, requestContext, body)
+	if err != nil {
+		return err
+	}
+	return a.renderOpenPlatformResponse(options, response)
+}
+
+func (a *App) runContractSubmit(ctx context.Context, args []string) error {
+	parsed, err := parseArgs(args, structuredValueFlags(), commonBoolFlags())
+	if err != nil {
+		return err
+	}
+	if len(parsed.positionals) != 1 {
+		return fmt.Errorf("usage: contract-cli contract submit <contract-id> [flags]")
+	}
+	options := parseCommandOptions(parsed)
+	body, err := resolveRawBody(options)
+	if err != nil {
+		return err
+	}
+
+	contractID := parsed.positionals[0]
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID+"/submit", openplatform.IdentityPolicyBotOnly)
+	if err != nil {
+		return err
+	}
+	response, err := contractsvc.NewService(client).Submit(ctx, requestContext, contractID, body)
+	if err != nil {
+		return err
+	}
+	return a.renderOpenPlatformResponse(options, response)
+}
+
+func (a *App) runContractResubmit(ctx context.Context, args []string) error {
+	parsed, err := parseArgs(args, structuredValueFlags(), commonBoolFlags())
+	if err != nil {
+		return err
+	}
+	if len(parsed.positionals) != 1 {
+		return fmt.Errorf("usage: contract-cli contract resubmit <contract-id> [flags]")
+	}
+	options := parseCommandOptions(parsed)
+	body, err := resolveRawBody(options)
+	if err != nil {
+		return err
+	}
+
+	contractID := parsed.positionals[0]
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID+"/resubmit", openplatform.IdentityPolicyBotOnly)
+	if err != nil {
+		return err
+	}
+	response, err := contractsvc.NewService(client).Resubmit(ctx, requestContext, contractID, body)
+	if err != nil {
+		return err
+	}
+	return a.renderOpenPlatformResponse(options, response)
+}
+
+func (a *App) runContractPatch(ctx context.Context, args []string) error {
+	parsed, err := parseArgs(args, structuredValueFlags(), commonBoolFlags())
+	if err != nil {
+		return err
+	}
+	if len(parsed.positionals) != 1 {
+		return fmt.Errorf("usage: contract-cli contract patch <contract-id> --input-file <path>|--data <json> [flags]")
+	}
+	options := parseCommandOptions(parsed)
+	body, err := resolveRequiredRawBody(options)
+	if err != nil {
+		return err
+	}
+
+	contractID := parsed.positionals[0]
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID, openplatform.IdentityPolicyBotOnly)
+	if err != nil {
+		return err
+	}
+	response, err := contractsvc.NewService(client).Patch(ctx, requestContext, contractID, body)
+	if err != nil {
+		return err
+	}
+	return a.renderOpenPlatformResponse(options, response)
+}
+
+func (a *App) runContractDownloadFile(ctx context.Context, args []string) error {
+	parsed, err := parseArgs(args, structuredValueFlags("--output-file"), commonBoolFlags("--force"))
+	if err != nil {
+		return err
+	}
+	if len(parsed.positionals) != 1 {
+		return fmt.Errorf("usage: contract-cli contract download-file <file-id> [flags]")
+	}
+	options := parseCommandOptions(parsed)
+	if options.inputFile != "" || options.data != "" {
+		return fmt.Errorf("contract download-file does not accept --input-file or --data")
+	}
+
+	fileID := parsed.positionals[0]
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/files/"+fileID, openplatform.IdentityPolicyBotOnly)
+	if err != nil {
+		return err
+	}
+
+	writer, outputPath, closeOutput, err := a.contractDownloadWriter(ctx, strings.TrimSpace(fileID), parsed.String("--output-file"), options.raw, parsed.Bool("--force"))
+	if err != nil {
+		return err
+	}
+	if closeOutput != nil {
+		defer closeOutput()
+	}
+
+	if _, err := contractsvc.NewService(client).DownloadFile(ctx, requestContext, fileID, writer); err != nil {
+		return err
+	}
+	if !options.raw {
+		_, _ = fmt.Fprintf(a.stdout, "Downloaded file to %s\n", outputPath)
+	}
+	return nil
+}
+
+func (a *App) contractDownloadWriter(ctx context.Context, fileID string, outputFile string, raw bool, force bool) (io.Writer, string, func() error, error) {
+	if raw {
+		return a.stdout, "", nil, nil
+	}
+
+	outputPath := strings.TrimSpace(outputFile)
+	if outputPath == "" {
+		selectedPath, err := a.saveFileDialog(ctx, fileID)
+		if err != nil {
+			return nil, "", nil, fmt.Errorf("select save path failed; pass --output-file <path> in non-GUI environments: %w", err)
+		}
+		outputPath = strings.TrimSpace(selectedPath)
+		if outputPath == "" {
+			return nil, "", nil, fmt.Errorf("select save path failed; pass --output-file <path> in non-GUI environments")
+		}
+	}
+
+	flags := os.O_WRONLY | os.O_CREATE
+	if force {
+		flags |= os.O_TRUNC
+	} else {
+		flags |= os.O_EXCL
+	}
+	file, err := os.OpenFile(outputPath, flags, 0o600)
+	if err != nil {
+		if os.IsExist(err) {
+			return nil, "", nil, fmt.Errorf("download output file %q already exists; pass --force to overwrite", outputPath)
+		}
+		return nil, "", nil, fmt.Errorf("open download output file: %w", err)
+	}
+	return file, outputPath, file.Close, nil
+}
+
+func (a *App) runContractDelete(ctx context.Context, args []string) error {
+	parsed, err := parseArgs(args, structuredValueFlags(), commonBoolFlags())
+	if err != nil {
+		return err
+	}
+	if len(parsed.positionals) != 1 {
+		return fmt.Errorf("usage: contract-cli contract delete <contract-id> [flags]")
+	}
+	options := parseCommandOptions(parsed)
+
+	contractID := parsed.positionals[0]
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID, openplatform.IdentityPolicyBotOnly)
+	if err != nil {
+		return err
+	}
+	response, err := contractsvc.NewService(client).Delete(ctx, requestContext, contractID)
+	if err != nil {
+		return err
+	}
+	return a.renderOpenPlatformResponse(options, response)
+}
+
+func (a *App) runContractPrintFile(ctx context.Context, args []string) error {
+	parsed, err := parseArgs(args, structuredValueFlags(), commonBoolFlags())
+	if err != nil {
+		return err
+	}
+	if len(parsed.positionals) != 0 {
+		return fmt.Errorf("usage: contract-cli contract print-file --input-file <path>|--data <json> [flags]")
+	}
+	options := parseCommandOptions(parsed)
+	body, err := resolveRequiredRawBody(options)
+	if err != nil {
+		return err
+	}
+
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/files", openplatform.IdentityPolicyBotOnly)
+	if err != nil {
+		return err
+	}
+	response, err := contractsvc.NewService(client).PrintFile(ctx, requestContext, body)
+	if err != nil {
+		return err
+	}
+	return a.renderOpenPlatformResponse(options, response)
+}
+
+func (a *App) runContractShare(ctx context.Context, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("missing contract share subcommand")
+	}
+	switch args[0] {
+	case "get":
+		parsed, err := parseArgs(args[1:], structuredValueFlags(), commonBoolFlags())
+		if err != nil {
+			return err
+		}
+		if len(parsed.positionals) != 1 {
+			return fmt.Errorf("usage: contract-cli contract share get <contract-id> [flags]")
+		}
+		options := parseCommandOptions(parsed)
+		contractID := parsed.positionals[0]
+		client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID+"/share_records", openplatform.IdentityPolicyBotOnly)
+		if err != nil {
+			return err
+		}
+		response, err := contractsvc.NewService(client).GetShareRecords(ctx, requestContext, contractID)
+		if err != nil {
+			return err
+		}
+		return a.renderOpenPlatformResponse(options, response)
+	default:
+		return fmt.Errorf("unknown contract share subcommand %q", args[0])
+	}
+}
+
+func (a *App) runContractCooperation(ctx context.Context, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("missing contract cooperation resource")
+	}
+	switch args[0] {
+	case "link":
+		return a.runContractCooperationLink(ctx, args[1:])
+	case "record":
+		return a.runContractCooperationRecord(ctx, args[1:])
+	default:
+		return fmt.Errorf("unknown contract cooperation resource %q", args[0])
+	}
+}
+
+func (a *App) runContractCooperationLink(ctx context.Context, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("missing contract cooperation link subcommand")
+	}
+	if args[0] != "get" {
+		return fmt.Errorf("unknown contract cooperation link subcommand %q", args[0])
+	}
+	parsed, err := parseArgs(args[1:], structuredValueFlags(), commonBoolFlags())
+	if err != nil {
+		return err
+	}
+	if len(parsed.positionals) != 1 {
+		return fmt.Errorf("usage: contract-cli contract cooperation link get <contract-id> [flags]")
+	}
+	options := parseCommandOptions(parsed)
+	contractID := parsed.positionals[0]
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID+"/cooperation_link", openplatform.IdentityPolicyBotOnly)
+	if err != nil {
+		return err
+	}
+	response, err := contractsvc.NewService(client).GetCooperationLink(ctx, requestContext, contractID)
+	if err != nil {
+		return err
+	}
+	return a.renderOpenPlatformResponse(options, response)
+}
+
+func (a *App) runContractCooperationRecord(ctx context.Context, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("missing contract cooperation record subcommand")
+	}
+	if args[0] != "get" {
+		return fmt.Errorf("unknown contract cooperation record subcommand %q", args[0])
+	}
+	parsed, err := parseArgs(args[1:], structuredValueFlags(), commonBoolFlags())
+	if err != nil {
+		return err
+	}
+	if len(parsed.positionals) != 1 {
+		return fmt.Errorf("usage: contract-cli contract cooperation record get <contract-id> [flags]")
+	}
+	options := parseCommandOptions(parsed)
+	contractID := parsed.positionals[0]
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID+"/cooperation_record_info", openplatform.IdentityPolicyBotOnly)
+	if err != nil {
+		return err
+	}
+	response, err := contractsvc.NewService(client).GetCooperationRecordInfo(ctx, requestContext, contractID)
 	if err != nil {
 		return err
 	}
@@ -371,7 +679,7 @@ func (a *App) runContractUploadFile(ctx context.Context, args []string) error {
 	}
 
 	a.logger.Info("contract upload-file command started", "profile", emptyFallback(options.profileName, "<current>"), "identity", emptyFallback(options.identity, "<default>"), "file_name", fileName, "file_type", fileType, "size_bytes", fileInfo.Size())
-	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/files/upload", openplatform.IdentityPolicyBotOnly)
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/files/upload", openplatform.IdentityPolicyAny)
 	if err != nil {
 		a.logger.Error("contract upload-file context failed", "profile", emptyFallback(options.profileName, "<current>"), "identity", emptyFallback(options.identity, "<default>"), "file_name", fileName, "file_type", fileType, "error", err.Error())
 		return err

@@ -26,15 +26,16 @@ const defaultProfileName = "contract"
 var errAPICommandUnavailable = errors.New("api call 暂未开放使用，请使用已开放的结构化命令")
 
 type Options struct {
-	Stdout      io.Writer
-	Stderr      io.Writer
-	Logger      *slog.Logger
-	Store       *config.Store
-	Secrets     *config.SecretsStore
-	HTTPClient  *http.Client
-	OpenBrowser func(string) error
-	LookupEnv   func(string) (string, bool)
-	SkillsFS    fs.FS
+	Stdout         io.Writer
+	Stderr         io.Writer
+	Logger         *slog.Logger
+	Store          *config.Store
+	Secrets        *config.SecretsStore
+	HTTPClient     *http.Client
+	OpenBrowser    func(string) error
+	SaveFileDialog func(context.Context, string) (string, error)
+	LookupEnv      func(string) (string, bool)
+	SkillsFS       fs.FS
 
 	UpdateRegistryURL    string
 	UpdateCurrentVersion string
@@ -51,6 +52,7 @@ type App struct {
 	secrets        *config.SecretsStore
 	httpClient     *http.Client
 	openBrowser    func(string) error
+	saveFileDialog func(context.Context, string) (string, error)
 	lookupEnv      func(string) (string, bool)
 	skillsFS       fs.FS
 	updateURL      string
@@ -113,6 +115,10 @@ func New(options Options) *App {
 	if opener == nil {
 		opener = oauth.OpenBrowser
 	}
+	saveFileDialog := options.SaveFileDialog
+	if saveFileDialog == nil {
+		saveFileDialog = defaultSaveFileDialog
+	}
 	lookupEnv := options.LookupEnv
 	if lookupEnv == nil {
 		lookupEnv = os.LookupEnv
@@ -142,6 +148,7 @@ func New(options Options) *App {
 		secrets:        secrets,
 		httpClient:     httpClient,
 		openBrowser:    opener,
+		saveFileDialog: saveFileDialog,
 		lookupEnv:      lookupEnv,
 		skillsFS:       skillsFS,
 		updateURL:      options.UpdateRegistryURL,

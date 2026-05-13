@@ -30,7 +30,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 	}
 
 	profile := config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityBot,
@@ -68,7 +68,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 	}{
 		{
 			name:         "contract get user",
-			args:         []string{"contract", "get", "contract-1", "--profile", "contract-group", "--as", "user"},
+			args:         []string{"contract", "get", "contract-1", "--profile", "contract", "--as", "user"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/mcp/contracts/contract-1",
 			wantQuery:    map[string]string{"user_id_type": "user_id"},
@@ -78,7 +78,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract get bot by default identity",
-			args:         []string{"contract", "get", "contract-1", "--profile", "contract-group"},
+			args:         []string{"contract", "get", "contract-1", "--profile", "contract"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/contracts/contract-1",
 			wantQuery:    map[string]string{},
@@ -88,7 +88,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract search user",
-			args:         []string{"contract", "search", "--profile", "contract-group", "--as", "user", "--input-file", searchFile, "--contract-number", "CN-001", "--page-size", "20", "--user-id", "ou_user_1", "--user-id-type", "employee_id"},
+			args:         []string{"contract", "search", "--profile", "contract", "--as", "user", "--input-file", searchFile, "--contract-number", "CN-001", "--page-size", "20", "--user-id", "ou_user_1", "--user-id-type", "employee_id"},
 			wantMethod:   http.MethodPost,
 			wantPath:     "/open-apis/contract/v1/mcp/contracts/search",
 			wantQuery:    map[string]string{"user_id_type": "user_id", "user_id": "ou_user_1"},
@@ -99,7 +99,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract search bot by default identity",
-			args:         []string{"contract", "search", "--profile", "contract-group", "--input-file", searchFile, "--contract-number", "CN-001", "--page-size", "20"},
+			args:         []string{"contract", "search", "--profile", "contract", "--input-file", searchFile, "--contract-number", "CN-001", "--page-size", "20"},
 			wantMethod:   http.MethodPost,
 			wantPath:     "/open-apis/contract/v1/contracts/search",
 			wantQuery:    map[string]string{"user_id_type": "user_id"},
@@ -110,7 +110,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract sync-user-groups",
-			args:         []string{"contract", "sync-user-groups", "--profile", "contract-group", "--as", "user"},
+			args:         []string{"contract", "sync-user-groups", "--profile", "contract", "--as", "user"},
 			wantMethod:   http.MethodPost,
 			wantPath:     "/open-apis/contract/v1/mcp/contracts/user-groups/sync",
 			wantQuery:    map[string]string{"user_id_type": "user_id"},
@@ -120,7 +120,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract sync-user-groups bot by default identity",
-			args:         []string{"contract", "sync-user-groups", "--profile", "contract-group", "--user-id", "ou_bot_owner"},
+			args:         []string{"contract", "sync-user-groups", "--profile", "contract", "--user-id", "ou_bot_owner"},
 			wantMethod:   http.MethodPost,
 			wantPath:     "/open-apis/contract/v1/contracts/user-groups/sync",
 			wantQuery:    map[string]string{"user_id": "ou_bot_owner"},
@@ -130,7 +130,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract text",
-			args:         []string{"contract", "text", "contract-1", "--profile", "contract-group", "--as", "user", "--full-text"},
+			args:         []string{"contract", "text", "contract-1", "--profile", "contract", "--as", "user", "--full-text"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/mcp/contracts/contract-1/text",
 			wantQuery:    map[string]string{"user_id_type": "user_id", "full_text": "true"},
@@ -140,7 +140,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract text bot by default identity",
-			args:         []string{"contract", "text", "contract-1", "--profile", "contract-group", "--offset", "0", "--limit", "2", "--user-id-type", "employee_id"},
+			args:         []string{"contract", "text", "contract-1", "--profile", "contract", "--offset", "0", "--limit", "2", "--user-id-type", "employee_id"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/contracts/contract-1/text",
 			wantQuery:    map[string]string{"full_text": "false", "offset": "0", "limit": "2", "user_id_type": "employee_id"},
@@ -150,7 +150,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract create user",
-			args:         []string{"contract", "create", "--profile", "contract-group", "--as", "user", "--data", `{"title":"demo"}`},
+			args:         []string{"contract", "create", "--profile", "contract", "--as", "user", "--data", `{"title":"demo"}`},
 			wantMethod:   http.MethodPost,
 			wantPath:     "/open-apis/contract/v1/mcp/contracts",
 			wantQuery:    map[string]string{"user_id_type": "user_id"},
@@ -161,7 +161,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract create bot by default identity",
-			args:         []string{"contract", "create", "--profile", "contract-group", "--data", `{"title":"demo","create_user_id":"ou_creator"}`},
+			args:         []string{"contract", "create", "--profile", "contract", "--data", `{"title":"demo","create_user_id":"ou_creator"}`},
 			wantMethod:   http.MethodPost,
 			wantPath:     "/open-apis/contract/v1/contracts",
 			wantQuery:    map[string]string{},
@@ -172,7 +172,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract category list",
-			args:         []string{"contract", "category", "list", "--profile", "contract-group", "--as", "user", "--lang", "zh-CN"},
+			args:         []string{"contract", "category", "list", "--profile", "contract", "--as", "user", "--lang", "zh-CN"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/mcp/contract_categorys",
 			wantQuery:    map[string]string{"lang": "zh-CN"},
@@ -182,7 +182,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract category list bot by default identity",
-			args:         []string{"contract", "category", "list", "--profile", "contract-group", "--lang", "zh-CN"},
+			args:         []string{"contract", "category", "list", "--profile", "contract", "--lang", "zh-CN"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/contract_categorys",
 			wantQuery:    map[string]string{"lang": "zh-CN"},
@@ -192,7 +192,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract template list",
-			args:         []string{"contract", "template", "list", "--profile", "contract-group", "--as", "user", "--category-number", "CAT-1", "--page-size", "20"},
+			args:         []string{"contract", "template", "list", "--profile", "contract", "--as", "user", "--category-number", "CAT-1", "--page-size", "20"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/mcp/templates",
 			wantQuery:    map[string]string{"category_number": "CAT-1", "page_size": "20"},
@@ -202,7 +202,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract template list bot by default identity",
-			args:         []string{"contract", "template", "list", "--profile", "contract-group", "--category-number", "CAT-1", "--page-size", "20", "--page-token", "next", "--user-id", "ou_bot_owner", "--user-id-type", "employee_id"},
+			args:         []string{"contract", "template", "list", "--profile", "contract", "--category-number", "CAT-1", "--page-size", "20", "--page-token", "next", "--user-id", "ou_bot_owner", "--user-id-type", "employee_id"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/templates",
 			wantQuery:    map[string]string{"category_number": "CAT-1", "page_size": "20", "page_token": "next", "user_id": "ou_bot_owner", "user_id_type": "employee_id"},
@@ -212,7 +212,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract template get",
-			args:         []string{"contract", "template", "get", "tpl-1", "--profile", "contract-group", "--as", "user"},
+			args:         []string{"contract", "template", "get", "tpl-1", "--profile", "contract", "--as", "user"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/mcp/templates/tpl-1",
 			wantAuth:     "Bearer user-token",
@@ -221,7 +221,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract template get bot by default identity",
-			args:         []string{"contract", "template", "get", "tpl-1", "--profile", "contract-group", "--user-id", "ou_bot_owner", "--user-id-type", "employee_id"},
+			args:         []string{"contract", "template", "get", "tpl-1", "--profile", "contract", "--user-id", "ou_bot_owner", "--user-id-type", "employee_id"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/templates/tpl-1",
 			wantQuery:    map[string]string{"user_id": "ou_bot_owner", "user_id_type": "employee_id"},
@@ -231,7 +231,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract template instantiate",
-			args:         []string{"contract", "template", "instantiate", "--profile", "contract-group", "--as", "user", "--input-file", templateFile},
+			args:         []string{"contract", "template", "instantiate", "--profile", "contract", "--as", "user", "--input-file", templateFile},
 			wantMethod:   http.MethodPost,
 			wantPath:     "/open-apis/contract/v1/mcp/template_instances",
 			wantAuth:     "Bearer user-token",
@@ -241,7 +241,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract template instantiate bot by default identity",
-			args:         []string{"contract", "template", "instantiate", "--profile", "contract-group", "--data", `{"template_number":"TMP001","create_user_id":"ou_creator"}`, "--user-id-type", "employee_id"},
+			args:         []string{"contract", "template", "instantiate", "--profile", "contract", "--data", `{"template_number":"TMP001","create_user_id":"ou_creator"}`, "--user-id-type", "employee_id"},
 			wantMethod:   http.MethodPost,
 			wantPath:     "/open-apis/contract/v1/template_instances",
 			wantQuery:    map[string]string{"user_id_type": "employee_id"},
@@ -252,7 +252,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "contract enum list",
-			args:         []string{"contract", "enum", "list", "--profile", "contract-group", "--type", "contract_status"},
+			args:         []string{"contract", "enum", "list", "--profile", "contract", "--type", "contract_status"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/mcp/enum_values",
 			wantQuery:    map[string]string{"enum_type": "contract_status"},
@@ -262,7 +262,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "mdm vendor list",
-			args:         []string{"mdm", "vendor", "list", "--profile", "contract-group", "--as", "user", "--name", "供应商", "--page-size", "10"},
+			args:         []string{"mdm", "vendor", "list", "--profile", "contract", "--as", "user", "--name", "供应商", "--page-size", "10"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/mcp/vendors",
 			wantQuery:    map[string]string{"vendor": "供应商", "page_size": "10", "user_id_type": "user_id"},
@@ -272,7 +272,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "mdm vendor list bot by default identity",
-			args:         []string{"mdm", "vendor", "list", "--profile", "contract-group", "--name", "V00000001", "--page-size", "10", "--page-token", "next", "--user-id-type", "employee_id"},
+			args:         []string{"mdm", "vendor", "list", "--profile", "contract", "--name", "V00000001", "--page-size", "10", "--page-token", "next", "--user-id-type", "employee_id"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/mdm/v1/vendors",
 			wantQuery:    map[string]string{"vendor": "V00000001", "page_size": "10", "page_token": "next", "user_id_type": "employee_id"},
@@ -282,7 +282,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "mdm vendor get",
-			args:         []string{"mdm", "vendor", "get", "vendor-1", "--profile", "contract-group", "--as", "user"},
+			args:         []string{"mdm", "vendor", "get", "vendor-1", "--profile", "contract", "--as", "user"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/mcp/vendors/vendor-1",
 			wantQuery:    map[string]string{"user_id_type": "user_id"},
@@ -292,7 +292,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "mdm vendor get bot by default identity",
-			args:         []string{"mdm", "vendor", "get", "7003410079584092448", "--profile", "contract-group", "--user-id-type", "employee_id"},
+			args:         []string{"mdm", "vendor", "get", "7003410079584092448", "--profile", "contract", "--user-id-type", "employee_id"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/mdm/v1/vendors/7003410079584092448",
 			wantQuery:    map[string]string{"user_id_type": "employee_id"},
@@ -302,7 +302,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "mdm legal list",
-			args:         []string{"mdm", "legal", "list", "--profile", "contract-group", "--as", "user", "--name", "主体A", "--page-size", "10"},
+			args:         []string{"mdm", "legal", "list", "--profile", "contract", "--as", "user", "--name", "主体A", "--page-size", "10"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/mcp/legal_entities",
 			wantQuery:    map[string]string{"legalEntity": "主体A", "page_size": "10", "user_id_type": "user_id"},
@@ -312,7 +312,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "mdm legal list bot by default identity",
-			args:         []string{"mdm", "legal", "list", "--profile", "contract-group", "--name", "主体A", "--page-size", "10", "--page-token", "next", "--user-id-type", "employee_id"},
+			args:         []string{"mdm", "legal", "list", "--profile", "contract", "--name", "主体A", "--page-size", "10", "--page-token", "next", "--user-id-type", "employee_id"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/mdm/v1/legal_entities/list_all",
 			wantQuery:    map[string]string{"legalEntity": "主体A", "page_size": "10", "page_token": "next", "user_id_type": "employee_id"},
@@ -322,7 +322,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "mdm legal get",
-			args:         []string{"mdm", "legal", "get", "entity-1", "--profile", "contract-group", "--as", "user"},
+			args:         []string{"mdm", "legal", "get", "entity-1", "--profile", "contract", "--as", "user"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/mcp/legal_entities/entity-1",
 			wantQuery:    map[string]string{"user_id_type": "user_id"},
@@ -332,7 +332,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "mdm legal get bot by default identity",
-			args:         []string{"mdm", "legal", "get", "7003410079584092448", "--profile", "contract-group", "--user-id-type", "employee_id"},
+			args:         []string{"mdm", "legal", "get", "7003410079584092448", "--profile", "contract", "--user-id-type", "employee_id"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/mdm/v1/legal_entities/7003410079584092448",
 			wantQuery:    map[string]string{"legal_entity_id": "7003410079584092448", "user_id_type": "employee_id"},
@@ -342,7 +342,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "mdm fields list",
-			args:         []string{"mdm", "fields", "list", "--profile", "contract-group", "--as", "user", "--biz-line", "vendor"},
+			args:         []string{"mdm", "fields", "list", "--profile", "contract", "--as", "user", "--biz-line", "vendor"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/contract/v1/mcp/config/config_list",
 			wantQuery:    map[string]string{"biz_line": "vendor", "user_id_type": "user_id"},
@@ -352,7 +352,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "mdm fields list bot by default identity",
-			args:         []string{"mdm", "fields", "list", "--profile", "contract-group", "--biz-line", "vendor", "--user-id-type", "employee_id"},
+			args:         []string{"mdm", "fields", "list", "--profile", "contract", "--biz-line", "vendor", "--user-id-type", "employee_id"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/mdm/v1/config/config_list",
 			wantQuery:    map[string]string{"biz_line": "vendor", "user_id_type": "employee_id"},
@@ -362,7 +362,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		},
 		{
 			name:         "mdm fields list bot maps legal entity alias",
-			args:         []string{"mdm", "fields", "list", "--profile", "contract-group", "--biz-line", "legal_entity"},
+			args:         []string{"mdm", "fields", "list", "--profile", "contract", "--biz-line", "legal_entity"},
 			wantMethod:   http.MethodGet,
 			wantPath:     "/open-apis/mdm/v1/config/config_list",
 			wantQuery:    map[string]string{"biz_line": "legalEntity", "user_id_type": "user_id"},
@@ -432,7 +432,7 @@ func TestStructuredUserOnlyMCPCommandRejectsBotIdentity(t *testing.T) {
 	stderr := &bytes.Buffer{}
 	store := config.NewStore(t.TempDir())
 	if err := store.UpsertProfile(config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityBot,
@@ -463,7 +463,7 @@ func TestStructuredUserOnlyMCPCommandRejectsBotIdentity(t *testing.T) {
 	})
 
 	err := app.Run(context.Background(), []string{
-		"contract", "enum", "list", "--profile", "contract-group", "--as", "bot", "--type", "contract_status",
+		"contract", "enum", "list", "--profile", "contract", "--as", "bot", "--type", "contract_status",
 	})
 	if err == nil || !strings.Contains(err.Error(), "only supports --as user") {
 		t.Fatalf("unexpected bot error: %v", err)

@@ -1,6 +1,7 @@
 package contract_test
 
 import (
+	"bytes"
 	"context"
 	"io"
 	"log/slog"
@@ -512,7 +513,224 @@ func TestServiceUploadFileUsesBotMultipartEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceUploadFileRejectsUserIdentityBeforeHTTP(t *testing.T) {
+func TestServiceUploadFileUsesUserMultipartEndpoint(t *testing.T) {
+	t.Parallel()
+
+	client := openplatform.New(openplatform.Options{
+		HTTPClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodPost {
+					t.Fatalf("method = %s", req.Method)
+				}
+				if req.URL.String() != "https://dev-open.qtech.cn/open-apis/contract/v1/files/upload" {
+					t.Fatalf("url = %q", req.URL.String())
+				}
+				if req.Header.Get("Authorization") != "Bearer user-token" {
+					t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
+				}
+				if got := req.Header.Get("Content-Type"); !strings.HasPrefix(got, "multipart/form-data; boundary=") {
+					t.Fatalf("content-type = %q", got)
+				}
+				if err := req.ParseMultipartForm(1 << 20); err != nil {
+					t.Fatalf("ParseMultipartForm() error = %v", err)
+				}
+				if got := req.MultipartForm.Value["file_name"]; len(got) != 1 || got[0] != "财务合同.docx" {
+					t.Fatalf("file_name = %v", got)
+				}
+				if got := req.MultipartForm.Value["file_type"]; len(got) != 1 || got[0] != "text" {
+					t.Fatalf("file_type = %v", got)
+				}
+				return jsonResponse(`{"code":0,"data":{"file_id":"user-file-123"},"msg":"success"}`), nil
+			}),
+		},
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	requestContext, err := client.RequestContext(profileWithUserToken(), config.IdentityUser)
+	if err != nil {
+		t.Fatalf("RequestContext() error = %v", err)
+	}
+
+	service := contract.NewService(client)
+	response, err := service.UploadFile(context.Background(), requestContext, contract.UploadFileInput{
+		FileName: "财务合同.docx",
+		FileType: "text",
+		File:     strings.NewReader("contract file bytes"),
+	})
+	if err != nil {
+		t.Fatalf("UploadFile() error = %v", err)
+	}
+	if !strings.Contains(string(response.Body), `"file_id":"user-file-123"`) {
+		t.Fatalf("response body = %s", string(response.Body))
+	}
+}
+
+func TestServiceBotOnlyContractActionEndpoints(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name             string
+		want             string
+		wantBody         string
+		call             func(*contract.Service, openplatform.RequestContext) (openplatform.Response, error)
+		wantBodyOptional bool
+	}{
+		{
+			name:     "submit",
+			want:     "POST https://dev-open.qtech.cn/open-apis/contract/v1/contracts/contract-1/submit",
+			wantBody: `{"comment":"ok"}`,
+			call: func(service *contract.Service, requestContext openplatform.RequestContext) (openplatform.Response, error) {
+				return service.Submit(context.Background(), requestContext, "contract-1", []byte(`{"comment":"ok"}`))
+			},
+		},
+		{
+			name: "resubmit without body",
+			want: "POST https://dev-open.qtech.cn/open-apis/contract/v1/contracts/contract-1/resubmit",
+			call: func(service *contract.Service, requestContext openplatform.RequestContext) (openplatform.Response, error) {
+				return service.Resubmit(context.Background(), requestContext, "contract-1", nil)
+			},
+			wantBodyOptional: true,
+		},
+		{
+			name:     "patch",
+			want:     "PATCH https://dev-open.qtech.cn/open-apis/contract/v1/contracts/contract-1",
+			wantBody: `{"title":"demo"}`,
+			call: func(service *contract.Service, requestContext openplatform.RequestContext) (openplatform.Response, error) {
+				return service.Patch(context.Background(), requestContext, "contract-1", []byte(`{"title":"demo"}`))
+			},
+		},
+		{
+			name: "delete",
+			want: "DELETE https://dev-open.qtech.cn/open-apis/contract/v1/contracts/contract-1",
+			call: func(service *contract.Service, requestContext openplatform.RequestContext) (openplatform.Response, error) {
+				return service.Delete(context.Background(), requestContext, "contract-1")
+			},
+			wantBodyOptional: true,
+		},
+		{
+			name:     "print file",
+			want:     "POST https://dev-open.qtech.cn/open-apis/contract/v1/files",
+			wantBody: `{"contract_id":"contract-1"}`,
+			call: func(service *contract.Service, requestContext openplatform.RequestContext) (openplatform.Response, error) {
+				return service.PrintFile(context.Background(), requestContext, []byte(`{"contract_id":"contract-1"}`))
+			},
+		},
+		{
+			name: "share records",
+			want: "GET https://dev-open.qtech.cn/open-apis/contract/v1/contracts/contract-1/share_records",
+			call: func(service *contract.Service, requestContext openplatform.RequestContext) (openplatform.Response, error) {
+				return service.GetShareRecords(context.Background(), requestContext, "contract-1")
+			},
+			wantBodyOptional: true,
+		},
+		{
+			name: "cooperation link",
+			want: "GET https://dev-open.qtech.cn/open-apis/contract/v1/contracts/contract-1/cooperation_link",
+			call: func(service *contract.Service, requestContext openplatform.RequestContext) (openplatform.Response, error) {
+				return service.GetCooperationLink(context.Background(), requestContext, "contract-1")
+			},
+			wantBodyOptional: true,
+		},
+		{
+			name: "cooperation record",
+			want: "GET https://dev-open.qtech.cn/open-apis/contract/v1/contracts/contract-1/cooperation_record_info",
+			call: func(service *contract.Service, requestContext openplatform.RequestContext) (openplatform.Response, error) {
+				return service.GetCooperationRecordInfo(context.Background(), requestContext, "contract-1")
+			},
+			wantBodyOptional: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			client := openplatform.New(openplatform.Options{
+				HTTPClient: &http.Client{
+					Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+						got := req.Method + " " + req.URL.String()
+						if got != tc.want {
+							t.Fatalf("request = %q, want %q", got, tc.want)
+						}
+						if req.Header.Get("Authorization") != "Bearer bot-token" {
+							t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
+						}
+						body, err := io.ReadAll(req.Body)
+						if err != nil {
+							t.Fatalf("ReadAll() error = %v", err)
+						}
+						if tc.wantBody != "" && string(body) != tc.wantBody {
+							t.Fatalf("body = %s, want %s", string(body), tc.wantBody)
+						}
+						if tc.wantBodyOptional && len(body) != 0 {
+							t.Fatalf("body = %q, want empty", string(body))
+						}
+						return jsonResponse(`{"code":0,"data":{"ok":true}}`), nil
+					}),
+				},
+				Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+			})
+			requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+			if err != nil {
+				t.Fatalf("RequestContext() error = %v", err)
+			}
+
+			response, err := tc.call(contract.NewService(client), requestContext)
+			if err != nil {
+				t.Fatalf("call error = %v", err)
+			}
+			if response.StatusCode != http.StatusOK {
+				t.Fatalf("status = %d", response.StatusCode)
+			}
+		})
+	}
+}
+
+func TestServiceDownloadFileStreamsBotEndpoint(t *testing.T) {
+	t.Parallel()
+
+	client := openplatform.New(openplatform.Options{
+		HTTPClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet {
+					t.Fatalf("method = %s", req.Method)
+				}
+				if req.URL.String() != "https://dev-open.qtech.cn/open-apis/contract/v1/files/file%20123" {
+					t.Fatalf("url = %q", req.URL.String())
+				}
+				if req.Header.Get("Authorization") != "Bearer bot-token" {
+					t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header: http.Header{
+						"Content-Disposition": {`attachment; filename="contract.pdf"`},
+					},
+					Body: io.NopCloser(strings.NewReader("download bytes")),
+				}, nil
+			}),
+		},
+		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+	})
+	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	if err != nil {
+		t.Fatalf("RequestContext() error = %v", err)
+	}
+
+	out := &bytes.Buffer{}
+	response, err := contract.NewService(client).DownloadFile(context.Background(), requestContext, "file 123", out)
+	if err != nil {
+		t.Fatalf("DownloadFile() error = %v", err)
+	}
+	if response.StatusCode != http.StatusOK {
+		t.Fatalf("status = %d", response.StatusCode)
+	}
+	if out.String() != "download bytes" {
+		t.Fatalf("downloaded body = %q", out.String())
+	}
+}
+
+func TestServiceBotOnlyContractActionsRejectUserIdentityBeforeHTTP(t *testing.T) {
 	t.Parallel()
 
 	transportUsed := false
@@ -530,17 +748,12 @@ func TestServiceUploadFileRejectsUserIdentityBeforeHTTP(t *testing.T) {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
 
-	service := contract.NewService(client)
-	_, err = service.UploadFile(context.Background(), requestContext, contract.UploadFileInput{
-		FileName: "财务合同.docx",
-		FileType: "text",
-		File:     strings.NewReader("contract file bytes"),
-	})
+	_, err = contract.NewService(client).Submit(context.Background(), requestContext, "contract-1", nil)
 	if err == nil || !strings.Contains(err.Error(), "only supports --as bot") {
 		t.Fatalf("unexpected user error: %v", err)
 	}
 	if transportUsed {
-		t.Fatalf("request transport should not be used for rejected bot-only upload")
+		t.Fatalf("request transport should not be used for rejected bot-only action")
 	}
 }
 
@@ -625,11 +838,20 @@ func TestServiceRequiresContractAndTemplateIdentifiers(t *testing.T) {
 	if _, err := service.ListEnums(context.Background(), openplatform.RequestContext{}, ""); err == nil || !strings.Contains(err.Error(), "enum type is required") {
 		t.Fatalf("unexpected enum error: %v", err)
 	}
+	if _, err := service.Submit(context.Background(), openplatform.RequestContext{}, "", nil); err == nil || !strings.Contains(err.Error(), "contract id is required") {
+		t.Fatalf("unexpected submit error: %v", err)
+	}
+	if _, err := service.DownloadFile(context.Background(), openplatform.RequestContext{}, "", io.Discard); err == nil || !strings.Contains(err.Error(), "file id is required") {
+		t.Fatalf("unexpected download error: %v", err)
+	}
+	if _, err := service.DownloadFile(context.Background(), openplatform.RequestContext{}, "file-1", nil); err == nil || !strings.Contains(err.Error(), "download writer is required") {
+		t.Fatalf("unexpected download writer error: %v", err)
+	}
 }
 
 func profileWithUserToken() config.Profile {
 	return config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityUser,
@@ -647,7 +869,7 @@ func profileWithUserToken() config.Profile {
 
 func profileWithBotToken() config.Profile {
 	return config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		DefaultIdentity:     config.IdentityBot,

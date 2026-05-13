@@ -16,7 +16,7 @@ func TestStoreRoundTrip(t *testing.T) {
 	store := config.NewStore(t.TempDir())
 	expiry := time.Date(2026, 4, 8, 18, 0, 0, 0, time.UTC)
 	profile := config.Profile{
-		Name:                "contract-group",
+		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
 		BotTokenEndpoint:    "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
@@ -42,7 +42,7 @@ func TestStoreRoundTrip(t *testing.T) {
 			Bot: config.BotIdentity{
 				AuthMode:     config.BotAuthModeAppCredentials,
 				AppID:        "cli_bot_123",
-				SecretRef:    "contract-group.bot.app_secret",
+				SecretRef:    "contract.bot.app_secret",
 				ConfiguredAt: expiry,
 				Token: &config.Token{
 					AccessToken: "bot-token",
@@ -56,7 +56,7 @@ func TestStoreRoundTrip(t *testing.T) {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 
-	got, err := store.GetProfile("contract-group")
+	got, err := store.GetProfile("contract")
 	if err != nil {
 		t.Fatalf("GetProfile() error = %v", err)
 	}
@@ -96,7 +96,7 @@ func TestClearIdentityToken(t *testing.T) {
 
 	store := config.NewStore(t.TempDir())
 	profile := config.Profile{
-		Name:        "contract-group",
+		Name:        "contract",
 		Environment: "dev",
 		Identities: config.Identities{
 			User: config.UserIdentity{
@@ -115,11 +115,11 @@ func TestClearIdentityToken(t *testing.T) {
 	if err := store.UpsertProfile(profile, true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
-	if err := store.ClearToken("contract-group", config.IdentityBot); err != nil {
+	if err := store.ClearToken("contract", config.IdentityBot); err != nil {
 		t.Fatalf("ClearToken() error = %v", err)
 	}
 
-	got, err := store.GetProfile("contract-group")
+	got, err := store.GetProfile("contract")
 	if err != nil {
 		t.Fatalf("GetProfile() error = %v", err)
 	}
@@ -136,10 +136,10 @@ func TestLoadLegacyProfileMigration(t *testing.T) {
 
 	store := config.NewStore(t.TempDir())
 	legacyConfig := `{
-  "current_profile": "contract-group",
+  "current_profile": "contract",
   "profiles": {
-    "contract-group": {
-      "name": "contract-group",
+    "contract": {
+      "name": "contract",
       "environment": "dev",
       "protected_resource_metadata_url": "http://example.com/.well-known/oauth-protected-resource",
       "authorization_server_metadata_url": "http://example.com/.well-known/oauth-authorization-server/contract",
@@ -164,7 +164,7 @@ func TestLoadLegacyProfileMigration(t *testing.T) {
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 
-	got, err := store.GetProfile("contract-group")
+	got, err := store.GetProfile("contract")
 	if err != nil {
 		t.Fatalf("GetProfile() error = %v", err)
 	}
@@ -250,7 +250,7 @@ func TestSecretsStoreRoundTrip(t *testing.T) {
 	t.Parallel()
 
 	secrets := config.NewSecretsStore(t.TempDir())
-	const key = "contract-group.bot.app_secret"
+	const key = "contract.bot.app_secret"
 	const value = "super-secret"
 
 	if err := secrets.Set(key, value); err != nil {
