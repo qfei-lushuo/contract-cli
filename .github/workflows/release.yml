@@ -68,13 +68,20 @@ jobs:
           if (!process.env.NPM_PACKAGE_NAME) {
             throw new Error("Repository variable NPM_PACKAGE_NAME is required, e.g. @your-npm-user/contract-cli-test");
           }
+          const packageName = process.env.NPM_PACKAGE_NAME.trim();
+          if (packageName !== packageName.toLowerCase()) {
+            throw new Error("NPM_PACKAGE_NAME must be lowercase, e.g. @yuwengueen/contract-cli-test");
+          }
+          if (!/^(@[a-z0-9][a-z0-9._-]*\/)?[a-z0-9][a-z0-9._-]*$/.test(packageName)) {
+            throw new Error("NPM_PACKAGE_NAME must be a valid npm package name, e.g. @yuwengueen/contract-cli-test");
+          }
 
           pkg.version = process.env.VERSION;
           pkg.config = pkg.config || {};
           pkg.config.downloadBaseURLTemplate =
             `https://github.com/${process.env.GITHUB_RELEASE_REPO}/releases/download/v{version}`;
 
-          pkg.name = process.env.NPM_PACKAGE_NAME;
+          pkg.name = packageName;
           pkg.publishConfig = pkg.publishConfig || {};
           pkg.publishConfig.registry = process.env.NPM_REGISTRY_URL;
           pkg.publishConfig.access = process.env.NPM_ACCESS || "public";
