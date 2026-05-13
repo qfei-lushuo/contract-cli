@@ -91,6 +91,7 @@ jobs:
           node -p "'package=' + require('./package.json').name + ', version=' + require('./package.json').version"
 
       - name: Build release assets
+        if: steps.version.outputs.dist_tag == 'latest'
         env:
           VERSION: ${{ steps.version.outputs.version }}
         run: make release-assets
@@ -133,7 +134,7 @@ jobs:
           fi
           npm publish "${publish_args[@]}"
 
-      - name: Verify npm install
+      - name: Verify npm dist-tag
         env:
           VERSION: ${{ steps.version.outputs.version }}
           DIST_TAG: ${{ steps.version.outputs.dist_tag }}
@@ -151,13 +152,21 @@ jobs:
           done
           test "$(npm view "$package_name@$DIST_TAG" version --registry "$NPM_REGISTRY_URL")" = "$VERSION"
 
+      - name: Verify npm install
+        if: steps.version.outputs.dist_tag == 'latest'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_name="$(node -p "require('./package.json').name")"
           tmpdir="$(mktemp -d)"
           npm install -g "$package_name@$VERSION" --registry "$NPM_REGISTRY_URL" --prefix "$tmpdir/prefix" --cache "$tmpdir/cache" --prefer-online
           "$tmpdir/prefix/bin/contract-cli" --version
 
       - name: Upload workflow artifacts
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && steps.version.outputs.dist_tag == 'latest'
         with:
           name: release-assets-${{ steps.version.outputs.version }}
           path: dist/release-assets/

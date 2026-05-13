@@ -38,7 +38,6 @@
   "files": [
     "scripts/install.js",
     "scripts/run.js",
-    "dist/release-assets/**",
     "skills/**/SKILL.md",
     "skills/**/agents/**",
     "skills/**/references/**",
