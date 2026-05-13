@@ -4,30 +4,151 @@ on:
   push:
     tags:
       - "v*"
+      - "*.*.*"
 
 jobs:
-  goreleaser:
+  release:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    env:
+      NPM_REGISTRY_URL: https://registry.npmjs.org/
+      NPM_ACCESS: public
+      NPM_PACKAGE_NAME: ${{ vars.NPM_PACKAGE_NAME }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
+      - name: Resolve release version
+        id: version
+        shell: bash
+        run: |
+          set -euo pipefail
+          version="${GITHUB_REF_NAME#v}"
+          if [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+-beta(\.[0-9]+)?$ ]]; then
+            echo "dist_tag=beta" >> "$GITHUB_OUTPUT"
+            echo "release_flags=--prerelease" >> "$GITHUB_OUTPUT"
+          elif [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "dist_tag=latest" >> "$GITHUB_OUTPUT"
+            echo "release_flags=--latest" >> "$GITHUB_OUTPUT"
+          else
+            echo "Unsupported release tag: $GITHUB_REF_NAME" >&2
+            echo "Expected examples: 1.0.0-beta.1, v1.0.0-beta.1, 1.0.0, v1.0.0" >&2
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "release_tag=v$version" >> "$GITHUB_OUTPUT"
+
       - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version-file: go.mod
 
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          registry-url: ${{ env.NPM_REGISTRY_URL }}
+
       - name: Run tests
         run: go test ./...
 
-      - name: Run GoReleaser
-        uses: goreleaser/goreleaser-action@v6
-        with:
-          version: latest
-          args: release --clean
+      - name: Prepare npm manifest for this release
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          GITHUB_RELEASE_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          node <<'NODE'
+          const fs = require("fs");
+          const pkg = require("./package.json");
+
+          pkg.version = process.env.VERSION;
+          pkg.config = pkg.config || {};
+          pkg.config.downloadBaseURLTemplate =
+            `https://github.com/${process.env.GITHUB_RELEASE_REPO}/releases/download/v{version}`;
+
+          if (process.env.NPM_PACKAGE_NAME) {
+            pkg.name = process.env.NPM_PACKAGE_NAME;
+          }
+          pkg.publishConfig = pkg.publishConfig || {};
+          pkg.publishConfig.registry = process.env.NPM_REGISTRY_URL;
+          pkg.publishConfig.access = process.env.NPM_ACCESS || "public";
+
+          fs.writeFileSync("package.json", JSON.stringify(pkg, null, 2) + "\n");
+          NODE
+          node -p "'package=' + require('./package.json').name + ', version=' + require('./package.json').version"
+
+      - name: Build release assets
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: make release-assets
+
+      - name: Create or update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ steps.version.outputs.release_tag }}
+          RELEASE_FLAGS: ${{ steps.version.outputs.release_flags }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! git ls-remote --exit-code --tags origin "refs/tags/$RELEASE_TAG" >/dev/null 2>&1; then
+            git tag "$RELEASE_TAG" "$GITHUB_SHA"
+            git push origin "refs/tags/$RELEASE_TAG"
+          fi
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/release-assets/* --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/release-assets/* \
+              --title "$RELEASE_TAG" \
+              --notes "Release $RELEASE_TAG from GitHub Actions run $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+              $RELEASE_FLAGS
+          fi
+
+      - name: Publish npm package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          DIST_TAG: ${{ steps.version.outputs.dist_tag }}
+        run: |
+          set -euo pipefail
+          if [ -z "${NODE_AUTH_TOKEN:-}" ]; then
+            echo "NPM_TOKEN repository secret is required" >&2
+            exit 1
+          fi
+          publish_args=(--registry "$NPM_REGISTRY_URL" --tag "$DIST_TAG")
+          if [ -n "${NPM_ACCESS:-}" ]; then
+            publish_args+=(--access "$NPM_ACCESS")
+          fi
+          npm publish "${publish_args[@]}"
+
+      - name: Verify npm install
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          DIST_TAG: ${{ steps.version.outputs.dist_tag }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_name="$(node -p "require('./package.json').name")"
+          for attempt in 1 2 3 4 5 6; do
+            published_version="$(npm view "$package_name@$DIST_TAG" version --registry "$NPM_REGISTRY_URL" 2>/dev/null || true)"
+            if [ "$published_version" = "$VERSION" ]; then
+              break
+            fi
+            echo "npm dist-tag $DIST_TAG is not visible yet, retry $attempt/6"
+            sleep 10
+          done
+          test "$(npm view "$package_name@$DIST_TAG" version --registry "$NPM_REGISTRY_URL")" = "$VERSION"
+
+          tmpdir="$(mktemp -d)"
+          npm install -g "$package_name@$VERSION" --registry "$NPM_REGISTRY_URL" --prefix "$tmpdir/prefix" --cache "$tmpdir/cache" --prefer-online
+          "$tmpdir/prefix/bin/contract-cli" --version
+
+      - name: Upload workflow artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: release-assets-${{ steps.version.outputs.version }}
+          path: dist/release-assets/
+          if-no-files-found: ignore
