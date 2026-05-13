@@ -81,28 +81,14 @@ jobs:
 
           node -p "'prepared ' + require('./package.json').name + '@' + require('./package.json').version"
 
-      - name: Build release assets
-        if: steps.release.outputs.stable == 'true'
-        env:
-          VERSION: ${{ steps.release.outputs.version }}
-        run: make release-assets
-
       - name: Publish GitHub Release
         if: steps.release.outputs.stable == 'true'
+        uses: goreleaser/goreleaser-action@v6
+        with:
+          version: latest
+          args: release --clean
         env:
-          GH_TOKEN: ${{ github.token }}
-          RELEASE_TAG: ${{ github.ref_name }}
-        run: |
-          set -euo pipefail
-
-          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
-            gh release upload "$RELEASE_TAG" dist/release-assets/* --clobber
-          else
-            gh release create "$RELEASE_TAG" dist/release-assets/* \
-              --title "$RELEASE_TAG" \
-              --notes "Release $RELEASE_TAG" \
-              --latest
-          fi
+          GITHUB_TOKEN: ${{ github.token }}
 
       - name: Publish npm package
         env:
@@ -165,5 +151,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: release-assets-${{ steps.release.outputs.version }}
-          path: dist/release-assets/
+          path: dist/
           if-no-files-found: ignore
