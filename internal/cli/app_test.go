@@ -335,8 +335,10 @@ description: "api call skill"
 	}
 }
 
-func TestSkillsListReadsBundledSkillMetadata(t *testing.T) {
-	t.Parallel()
+func TestSkillsListDisplaysCurrentCLIVersion(t *testing.T) {
+	originalVersion := build.Version
+	build.Version = "1.2.3"
+	t.Cleanup(func() { build.Version = originalVersion })
 
 	stdout := &bytes.Buffer{}
 	app := cli.New(cli.Options{
@@ -353,11 +355,16 @@ func TestSkillsListReadsBundledSkillMetadata(t *testing.T) {
 	output := stdout.String()
 	for _, want := range []string{
 		"Built-in skills:",
-		"auth\t1.1.0\tcontract-cli auth skill",
-		"contract-cli-contract\t1.0.0\tcontract commands skill",
+		"auth\t1.2.3\tcontract-cli auth skill",
+		"contract-cli-contract\t1.2.3\tcontract commands skill",
 	} {
 		if !strings.Contains(output, want) {
 			t.Fatalf("skills list output missing %q: %s", want, output)
+		}
+	}
+	for _, localSkillVersion := range []string{"auth\t1.1.0", "contract-cli-contract\t1.0.0"} {
+		if strings.Contains(output, localSkillVersion) {
+			t.Fatalf("skills list should display CLI version instead of SKILL.md version %q: %s", localSkillVersion, output)
 		}
 	}
 	if strings.Contains(output, "contract-cli-api-call") {

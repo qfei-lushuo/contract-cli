@@ -399,14 +399,13 @@ references/<domain>-enums.md
 
 ### 8.5 skill 版本号
 
-当前 `skills list` 读取的是各 `SKILL.md` 的 `version` 字段，不是 npm 包版本。
+`contract-cli skills list` 面向用户展示的版本必须和 `contract-cli --version` 保持一致，统一使用当前 CLI 运行时版本。
 
-后续有两种可选策略：
+`SKILL.md` 头部的 `version` 字段保留为 skill 文档自身的内部元数据：
 
-- 保持 skill 独立版本：只在该 skill 语义重大变化时升级。
-- 跟随 CLI 发布版本：每次 npm beta/release 时统一改成包版本。
-
-这点还需要产品/团队确认。未确认前，新增 skill 可先用 `1.0.0`，已有 skill 做重大语义变更时再局部升级。
+- `skills list` 不再把该字段作为展示版本。
+- `skills install` 仍原样复制 `SKILL.md`，不动态改写 front matter。
+- 新增 skill 可继续使用 `1.0.0` 作为内部文档版本；用户看到的版本由 CLI 发布版本决定。
 
 ## 9. 开发步骤模板
 
