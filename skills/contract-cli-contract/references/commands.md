@@ -57,6 +57,19 @@ contract-cli contract enum list --profile contract --type contract_status
 - `contract template get --as bot` 按生产文档通常需要 `user_id`、`user_id_type`，但 CLI 目前只负责透传，不做本地必填校验
 - `contract template instantiate --as bot` 按生产文档会用到 query `user_id_type` 和 body `create_user_id`，但 CLI 目前只负责透传，不做本地必填校验
 
+## 字段参考入口
+
+- 搜索合同请求体：看 [search-contract-fields.md](search-contract-fields.md)
+- 合同详情和搜索响应：看 [contract-response-fields.md](contract-response-fields.md)
+- 创建合同请求体：看 [create-contract-fields.md](create-contract-fields.md)、[create-contract-field-tree.md](create-contract-field-tree.md)、[create-contract-enums.md](create-contract-enums.md)
+- 更新合同文件/归档字段：看 [patch-contract-fields.md](patch-contract-fields.md)
+- 模板列表和模板详情：看 [template-fields.md](template-fields.md)
+- 创建模板实例：看 [template-instance-fields.md](template-instance-fields.md)
+- 生成打印文件：看 [print-file-fields.md](print-file-fields.md)
+- 合同分类树：看 [category-fields.md](category-fields.md)
+- 分享和协商响应：看 [share-cooperation-fields.md](share-cooperation-fields.md)
+- 上传、下载、提交、重提、删除：看 [contract-actions-fields.md](contract-actions-fields.md)
+
 ## bot-only 合同操作
 
 ```bash
@@ -64,7 +77,7 @@ contract-cli contract enum list --profile contract --type contract_status
 contract-cli contract submit 7023646046559404327 --profile contract --as bot
 contract-cli contract resubmit 7023646046559404327 --profile contract --as bot --data '{"comment":"修正后重新提交"}'
 
-# 更新合同：请求体必填
+# 更新合同文件/归档字段：请求体必填
 contract-cli contract patch 7023646046559404327 --profile contract --as bot --input-file contract-patch.json
 
 # 删除草稿合同：直接删除，不额外要求 --yes
@@ -77,6 +90,16 @@ contract-cli contract delete 7023646046559404327 --profile contract --as bot
 - `resubmit`：`POST /open-apis/contract/v1/contracts/{contract_id}/resubmit`
 - `patch`：`PATCH /open-apis/contract/v1/contracts/{contract_id}`
 - `delete`：`DELETE /open-apis/contract/v1/contracts/{contract_id}`
+
+`contract-patch.json` 示例：
+
+```json
+{
+  "scan_file_id": "file_scan_xxx"
+}
+```
+
+不要把 `contract patch` 当成任意基础字段更新；官方文档当前只确认了 `ocr_file_id`、`scan_file_id`、`archive_attachment_map`、`archive_attachment_file_ids` 等文件/归档字段。
 
 ## bot-only 文件命令
 
