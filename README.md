@@ -142,7 +142,7 @@ make release-check
 
 `make release-check` 会额外验证 npm 包 dry-run、本地 tgz 安装、安装后 `contract-cli --version`、`skills list` 和 `skills install`。
 
-CLI 会在交互终端下最多每 30 分钟自动检查一次 npm 远端版本，并在发现新版本时提示升级命令。也可以手动执行 `contract-cli update check --channel latest`；如需关闭自动检查，可设置 `CONTRACT_CLI_NO_UPDATE_CHECK=1`。
+CLI 会在交互终端下为每次符合条件的普通命令自动检查 npm 远端版本，并在发现新版本时提示升级命令。也可以手动执行 `contract-cli update check --channel latest`；如需关闭自动检查，可设置 `CONTRACT_CLI_NO_UPDATE_CHECK=1`。
 
 ## 目录说明
 

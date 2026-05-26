@@ -152,7 +152,7 @@ func TestUpdateCheckReportsAvailableBetaVersion(t *testing.T) {
 	}
 }
 
-func TestAutomaticUpdateNoticeUsesThirtyMinuteCache(t *testing.T) {
+func TestAutomaticUpdateNoticeChecksEveryRun(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	requests := 0
@@ -164,11 +164,7 @@ func TestAutomaticUpdateNoticeUsesThirtyMinuteCache(t *testing.T) {
 		SkillsFS:             testSkillsFS(),
 		UpdateRegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
 		UpdateCurrentVersion: "0.1.0-beta.1",
-		UpdateCheckInterval:  30 * time.Minute,
-		Now: func() time.Time {
-			return time.Date(2026, 4, 20, 16, 0, 0, 0, time.FixedZone("CST", 8*60*60))
-		},
-		IsTerminal: func(io.Writer) bool { return true },
+		IsTerminal:           func(io.Writer) bool { return true },
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
 				requests++
@@ -192,11 +188,11 @@ func TestAutomaticUpdateNoticeUsesThirtyMinuteCache(t *testing.T) {
 	if err := app.Run(context.Background(), []string{"skills", "list"}); err != nil {
 		t.Fatalf("second skills list error = %v", err)
 	}
-	if requests != 1 {
-		t.Fatalf("fresh cache should avoid another update request, got %d requests", requests)
+	if requests != 2 {
+		t.Fatalf("automatic update check requests = %d, want 2", requests)
 	}
-	if strings.Contains(stderr.String(), "A new contract-cli version is available") {
-		t.Fatalf("fresh cache should suppress update notice: %s", stderr.String())
+	if !strings.Contains(stderr.String(), "A new contract-cli version is available: 0.1.0-beta.1 -> 0.1.0-beta.2") {
+		t.Fatalf("missing second automatic update notice: %s", stderr.String())
 	}
 }
 
@@ -232,11 +228,10 @@ func TestAutomaticUpdateNoticeCanBeDisabledByEnv(t *testing.T) {
 	}
 }
 
-func TestAutomaticUpdateNoticeCachesFailureForThirtyMinutes(t *testing.T) {
+func TestAutomaticUpdateNoticeRetriesFailureEveryRun(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	requests := 0
-	now := time.Date(2026, 4, 20, 16, 0, 0, 0, time.FixedZone("CST", 8*60*60))
 
 	app := cli.New(cli.Options{
 		Stdout:               stdout,
@@ -245,8 +240,6 @@ func TestAutomaticUpdateNoticeCachesFailureForThirtyMinutes(t *testing.T) {
 		SkillsFS:             testSkillsFS(),
 		UpdateRegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
 		UpdateCurrentVersion: "0.1.0-beta.1",
-		UpdateCheckInterval:  30 * time.Minute,
-		Now:                  func() time.Time { return now },
 		IsTerminal:           func(io.Writer) bool { return true },
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
@@ -262,8 +255,8 @@ func TestAutomaticUpdateNoticeCachesFailureForThirtyMinutes(t *testing.T) {
 	if err := app.Run(context.Background(), []string{"skills", "list"}); err != nil {
 		t.Fatalf("second skills list error = %v", err)
 	}
-	if requests != 1 {
-		t.Fatalf("failed update check should be cached, got %d requests", requests)
+	if requests != 2 {
+		t.Fatalf("failed update check requests = %d, want 2", requests)
 	}
 	if strings.Contains(stderr.String(), "A new contract-cli version is available") {
 		t.Fatalf("failed update check should not print notice: %s", stderr.String())

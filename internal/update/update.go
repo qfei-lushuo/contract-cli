@@ -16,10 +16,9 @@ import (
 )
 
 const (
-	DefaultPackageName   = "@qfeius/contract-cli"
-	DefaultRegistryURL   = "https://registry.npmjs.org/@qfeius%2fcontract-cli"
-	DefaultRegistryHost  = "https://registry.npmjs.org"
-	DefaultCheckInterval = 30 * time.Minute
+	DefaultPackageName  = "@qfeius/contract-cli"
+	DefaultRegistryURL  = "https://registry.npmjs.org/@qfeius%2fcontract-cli"
+	DefaultRegistryHost = "https://registry.npmjs.org"
 )
 
 type Options struct {
@@ -188,20 +187,6 @@ func CompareSemver(a, b string) (int, error) {
 		}
 	}
 	return comparePrerelease(left.prerelease, right.prerelease), nil
-}
-
-func CacheFresh(cache Cache, now time.Time, interval time.Duration, currentVersion, channel string) bool {
-	if interval <= 0 {
-		return false
-	}
-	if cache.CurrentVersion != currentVersion || cache.Channel != channel {
-		return false
-	}
-	if cache.CheckedAt.IsZero() {
-		return false
-	}
-	elapsed := now.Sub(cache.CheckedAt)
-	return elapsed >= 0 && elapsed < interval
 }
 
 func LoadCache(path string) (Cache, bool, error) {

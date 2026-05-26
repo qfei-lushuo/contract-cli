@@ -395,7 +395,7 @@ func addUpdateHelp(registry map[string]helpTopic) {
 			"contract-cli update check --channel latest",
 		},
 		Notes: []string{
-			"交互终端下普通命令最多每 30 分钟自动检查一次。",
+			"交互终端下每次符合条件的普通命令都会自动检查一次。",
 			"可设置 CONTRACT_CLI_NO_UPDATE_CHECK=1 关闭自动检查。",
 		},
 	}

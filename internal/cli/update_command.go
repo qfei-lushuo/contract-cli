@@ -63,29 +63,12 @@ func (a *App) maybePrintUpdateNotice(ctx context.Context, args []string) {
 		return
 	}
 
-	currentVersion := a.currentUpdateVersion()
-	channel := updatecheck.InferChannel(currentVersion)
-	cache, ok, err := updatecheck.LoadCache(a.updateCachePath())
-	if err != nil {
-		a.logger.Warn("load update check cache failed", "path", a.updateCachePath(), "error", err.Error())
-	}
-	if err == nil && ok && updatecheck.CacheFresh(cache, a.now(), a.updateInterval, currentVersion, channel) {
-		return
-	}
-
 	checkCtx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
 	defer cancel()
 
 	result, err := a.checkUpdateWithLogger(checkCtx, "", nil)
 	if err != nil {
 		a.logger.Debug("automatic update check failed", "error", err.Error())
-		if err := updatecheck.SaveCache(a.updateCachePath(), updatecheck.Cache{
-			CheckedAt:      a.now(),
-			Channel:        channel,
-			CurrentVersion: currentVersion,
-		}); err != nil {
-			a.logger.Warn("save update check failure cache failed", "path", a.updateCachePath(), "error", err.Error())
-		}
 		return
 	}
 	if result.Skipped {

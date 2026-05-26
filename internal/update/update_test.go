@@ -112,30 +112,6 @@ func TestCompareSemanticVersionsWithPrerelease(t *testing.T) {
 	}
 }
 
-func TestCacheFreshOnlyWithinIntervalForSameVersionAndChannel(t *testing.T) {
-	t.Parallel()
-
-	cache := Cache{
-		CheckedAt:      fixedNow().Add(-29 * time.Minute),
-		Channel:        "beta",
-		CurrentVersion: "0.1.0-beta.1",
-		LatestVersion:  "0.1.0-beta.1",
-	}
-
-	if !CacheFresh(cache, fixedNow(), 30*time.Minute, "0.1.0-beta.1", "beta") {
-		t.Fatalf("CacheFresh() = false, want true")
-	}
-	if CacheFresh(cache, fixedNow().Add(2*time.Minute), 30*time.Minute, "0.1.0-beta.1", "beta") {
-		t.Fatalf("CacheFresh() after interval = true, want false")
-	}
-	if CacheFresh(cache, fixedNow(), 30*time.Minute, "0.1.0-beta.2", "beta") {
-		t.Fatalf("CacheFresh() with different current version = true, want false")
-	}
-	if CacheFresh(cache, fixedNow(), 30*time.Minute, "0.1.0-beta.1", "latest") {
-		t.Fatalf("CacheFresh() with different channel = true, want false")
-	}
-}
-
 func TestCacheRoundTrip(t *testing.T) {
 	t.Parallel()
 

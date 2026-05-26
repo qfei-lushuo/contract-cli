@@ -10,7 +10,7 @@
 - 除上述 bot 能力外，当前其他结构化业务命令仍只支持 `--as user`
 - `bot` 目前已经支持登录、状态查看、登出、默认身份切换
 - 推荐使用 `npx skills add qfeius/contract-cli -y -g` 安装跨 Agent 平台 skills；`contract-cli skills install` 保留为 CLI 内置兜底
-- `update check` 支持手动检查 npm 远端版本；CLI 在交互终端下会每 30 分钟最多自动检查一次并提示升级
+- `update check` 支持手动检查 npm 远端版本；CLI 在交互终端下会为每次符合条件的普通命令自动检查并提示升级
 - 当前全部已支持命令都可以通过 `--help` 查看本地帮助，例如 `contract-cli --help`、`contract-cli contract search --help`、`contract-cli help contract upload-file`
 - `bot` 业务接口后续继续新增时，优先在本文件补充命令矩阵
 
@@ -185,8 +185,8 @@ contract-cli update check --channel latest
 自动提示：
 
 - 普通命令在交互终端下会自动检查远端版本
-- 自动检查最多每 30 分钟触发一次，缓存文件位于当前配置目录的 `update-check.json`
-- 网络失败、registry 失败或当前是 dev 构建时不会阻断原命令；自动检查失败也会按 30 分钟间隔抑制重复探测
+- 每次符合条件的普通命令都会触发一次自动检查；成功结果会写入当前配置目录的 `update-check.json`，但该缓存不再抑制后续检查
+- 网络失败、registry 失败或当前是 dev 构建时不会阻断原命令；自动检查失败不会写入失败缓存
 - 设置 `CONTRACT_CLI_NO_UPDATE_CHECK=1` 可以关闭自动检查
 
 #### `contract-cli skills list`

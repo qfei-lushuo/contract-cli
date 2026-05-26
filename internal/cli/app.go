@@ -17,7 +17,6 @@ import (
 	"cn.qfei/contract-cli/internal/build"
 	"cn.qfei/contract-cli/internal/config"
 	"cn.qfei/contract-cli/internal/oauth"
-	updatecheck "cn.qfei/contract-cli/internal/update"
 	contractskills "cn.qfei/contract-cli/skills"
 )
 
@@ -39,7 +38,6 @@ type Options struct {
 
 	UpdateRegistryURL    string
 	UpdateCurrentVersion string
-	UpdateCheckInterval  time.Duration
 	Now                  func() time.Time
 	IsTerminal           func(io.Writer) bool
 }
@@ -57,7 +55,6 @@ type App struct {
 	skillsFS       fs.FS
 	updateURL      string
 	updateVersion  string
-	updateInterval time.Duration
 	now            func() time.Time
 	isTerminal     func(io.Writer) bool
 	userProvider   authProvider
@@ -127,10 +124,6 @@ func New(options Options) *App {
 	if skillsFS == nil {
 		skillsFS = contractskills.FS
 	}
-	updateInterval := options.UpdateCheckInterval
-	if updateInterval == 0 {
-		updateInterval = updatecheck.DefaultCheckInterval
-	}
 	now := options.Now
 	if now == nil {
 		now = time.Now
@@ -153,7 +146,6 @@ func New(options Options) *App {
 		skillsFS:       skillsFS,
 		updateURL:      options.UpdateRegistryURL,
 		updateVersion:  options.UpdateCurrentVersion,
-		updateInterval: updateInterval,
 		now:            now,
 		isTerminal:     isTerminal,
 	}
