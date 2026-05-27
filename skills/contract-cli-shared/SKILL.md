@@ -1,7 +1,7 @@
 ---
 name: contract-cli-shared
 version: 1.0.0
-description: "contract-cli 开放平台共享约定技能：在 `contract` 和 `mdm` 模块间做选择，并遵守 `contract/v1/mcp` user-only 限制、`--input-file` 请求体输入、输出格式和 profile 选择规则。当用户要操作开放平台 CLI 但尚未明确命令模块时触发。"
+description: "contract-cli 开放平台共享约定技能：在 `contract` 和 `mdm` 模块间做选择，并遵守 `contract/v1/mcp` user-only 限制、`--input-file` 请求体输入、输出格式和 profile 选择规则。当用户要操作开放平台 CLI 但尚未明确命令模块、需要更新 contract-cli，或看到 JSON 输出中的 `_notice` / `_notice.update` 时触发。"
 ---
 
 # contract-cli Shared
@@ -47,7 +47,21 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 - `--file` 现在只用于真实二进制文件上传，例如 `contract upload-file`
 - `contract download-file` 下载二进制响应，默认弹窗保存；Agent/CI/远程环境优先传 `--output-file`，管道场景用 `--raw`
 - JSON 请求体文件输入始终使用 `--input-file`，不要把 `--file` 当 JSON 请求体参数
-- 默认输出建议用 `json`；需要排障时可加 `--raw`
+- 默认输出使用 `--output json`，普通查询不要加 `--raw`。
+- `--raw` 只在用户明确要求原始开放平台响应、排障、管道处理或二进制下载场景使用；`--raw` 会绕过 JSON renderer，因此不会注入 `_notice.update`，也不会触发升级提示 skill。
+
+## 更新提示
+
+普通命令执行后，如果 CLI 检测到 npm 远端有新版本，JSON object 输出中会包含 `_notice.update` 字段。该字段包含 `current`、`latest`、`message`、`command`。
+
+注意：只有普通命令的 JSON object 输出会注入 `_notice.update`。`--raw`、yaml、table、纯文本命令，以及 `version`、`help`、`update check` 自身都不会触发升级提示。
+
+当你看到 `_notice.update` 时：
+
+- 先完成用户当前请求，不要中断当前任务。
+- 在最终回复中告知用户当前版本和最新版本。
+- 建议执行 `_notice.update.command` 中的命令进行升级。
+- 不要静默忽略 `_notice.update`；即使当前任务与升级无关，也应补充提示。
 
 ## 实现来源
 

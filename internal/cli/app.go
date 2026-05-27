@@ -39,7 +39,6 @@ type Options struct {
 	UpdateRegistryURL    string
 	UpdateCurrentVersion string
 	Now                  func() time.Time
-	IsTerminal           func(io.Writer) bool
 }
 
 type App struct {
@@ -55,8 +54,8 @@ type App struct {
 	skillsFS       fs.FS
 	updateURL      string
 	updateVersion  string
+	updateNotice   map[string]any
 	now            func() time.Time
-	isTerminal     func(io.Writer) bool
 	userProvider   authProvider
 	botProvider    authProvider
 }
@@ -128,10 +127,6 @@ func New(options Options) *App {
 	if now == nil {
 		now = time.Now
 	}
-	isTerminal := options.IsTerminal
-	if isTerminal == nil {
-		isTerminal = defaultIsTerminal
-	}
 
 	app := &App{
 		stdout:         stdout,
@@ -147,7 +142,6 @@ func New(options Options) *App {
 		updateURL:      options.UpdateRegistryURL,
 		updateVersion:  options.UpdateCurrentVersion,
 		now:            now,
-		isTerminal:     isTerminal,
 	}
 	app.userProvider = userAuthProvider{
 		httpClient:             httpClient,
@@ -168,6 +162,7 @@ func New(options Options) *App {
 }
 
 func (a *App) Run(ctx context.Context, args []string) error {
+	a.updateNotice = nil
 	if len(args) == 0 {
 		a.printUsage()
 		return nil
@@ -192,7 +187,7 @@ func (a *App) Run(ctx context.Context, args []string) error {
 	}
 
 	a.logger.Info("run command", "args", strings.Join(args, " "))
-	a.maybePrintUpdateNotice(ctx, args)
+	a.maybePrepareUpdateNotice(ctx, args)
 
 	switch args[0] {
 	case "config":
@@ -220,15 +215,6 @@ func (a *App) printUsage() {
 
 func (a *App) printVersion() {
 	_, _ = fmt.Fprintln(a.stdout, build.Current().String())
-}
-
-func defaultIsTerminal(writer io.Writer) bool {
-	file, ok := writer.(*os.File)
-	if !ok {
-		return false
-	}
-	info, err := file.Stat()
-	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
 
 func (a *App) updateCachePath() string {

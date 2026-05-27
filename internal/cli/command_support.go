@@ -221,7 +221,7 @@ func (a *App) openPlatformClientAndContext(profileName, identityArg, path string
 }
 
 func (a *App) renderOpenPlatformResponse(options commandOptions, response openplatform.Response) error {
-	renderer := output.NewRenderer(a.stdout)
+	renderer := output.NewRenderer(a.stdout).WithNotice(a.updateNotice)
 	if options.raw {
 		return renderer.RenderRaw(response.Body)
 	}

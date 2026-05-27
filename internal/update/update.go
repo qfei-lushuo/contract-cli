@@ -19,6 +19,7 @@ const (
 	DefaultPackageName  = "@qfeius/contract-cli"
 	DefaultRegistryURL  = "https://registry.npmjs.org/@qfeius%2fcontract-cli"
 	DefaultRegistryHost = "https://registry.npmjs.org"
+	CacheTTL            = 24 * time.Hour
 )
 
 type Options struct {
@@ -41,6 +42,13 @@ type Result struct {
 	InstallCommand  string
 	Skipped         bool
 	Reason          string
+}
+
+type Notice struct {
+	Current string `json:"current"`
+	Latest  string `json:"latest"`
+	Message string `json:"message"`
+	Command string `json:"command"`
 }
 
 type Cache struct {
@@ -153,7 +161,7 @@ func Check(ctx context.Context, options Options) (Result, error) {
 
 	result.LatestVersion = latestVersion
 	result.UpdateAvailable = compare < 0
-	result.InstallCommand = fmt.Sprintf("npm install -g %s@%s --registry %s", packageName, channel, DefaultRegistryHost)
+	result.InstallCommand = InstallCommand(packageName, channel)
 	if logger != nil {
 		logger.Info("update check completed", "package", packageName, "current_version", currentVersion, "latest_version", latestVersion, "channel", channel, "update_available", result.UpdateAvailable)
 	}
@@ -224,6 +232,71 @@ func CacheFromResult(result Result) Cache {
 		LatestVersion:   result.LatestVersion,
 		UpdateAvailable: result.UpdateAvailable,
 		InstallCommand:  result.InstallCommand,
+	}
+}
+
+func CacheFresh(cache Cache, channel string, now time.Time, ttl time.Duration) bool {
+	if strings.TrimSpace(cache.Channel) != strings.TrimSpace(channel) {
+		return false
+	}
+	if cache.CheckedAt.IsZero() {
+		return false
+	}
+	if ttl <= 0 {
+		return false
+	}
+	return now.Before(cache.CheckedAt.Add(ttl))
+}
+
+func NoticeFromResult(result Result) *Notice {
+	if result.Skipped || !result.UpdateAvailable {
+		return nil
+	}
+	return newNotice(result.CurrentVersion, result.LatestVersion, result.InstallCommand)
+}
+
+func NoticeFromCache(cache Cache, currentVersion string, packageName string) *Notice {
+	currentVersion = strings.TrimSpace(currentVersion)
+	latestVersion := strings.TrimSpace(cache.LatestVersion)
+	if shouldSkipVersion(currentVersion) || latestVersion == "" {
+		return nil
+	}
+	if _, err := parseSemver(currentVersion); err != nil {
+		return nil
+	}
+	compare, err := CompareSemver(currentVersion, latestVersion)
+	if err != nil || compare >= 0 {
+		return nil
+	}
+	command := strings.TrimSpace(cache.InstallCommand)
+	if command == "" {
+		command = InstallCommand(defaultString(packageName, DefaultPackageName), cache.Channel)
+	}
+	return newNotice(currentVersion, latestVersion, command)
+}
+
+func InstallCommand(packageName string, channel string) string {
+	return fmt.Sprintf("npm install -g %s@%s --registry %s", defaultString(packageName, DefaultPackageName), defaultString(channel, "latest"), DefaultRegistryHost)
+}
+
+func (n *Notice) Map() map[string]any {
+	if n == nil {
+		return nil
+	}
+	return map[string]any{
+		"current": n.Current,
+		"latest":  n.Latest,
+		"message": n.Message,
+		"command": n.Command,
+	}
+}
+
+func newNotice(current string, latest string, command string) *Notice {
+	return &Notice{
+		Current: current,
+		Latest:  latest,
+		Message: fmt.Sprintf("contract-cli %s available, current %s, run: %s", latest, current, command),
+		Command: command,
 	}
 }
 

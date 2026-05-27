@@ -1,6 +1,7 @@
 package output
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -20,10 +21,16 @@ const (
 
 type Renderer struct {
 	stdout io.Writer
+	notice map[string]any
 }
 
 func NewRenderer(stdout io.Writer) *Renderer {
 	return &Renderer{stdout: stdout}
+}
+
+func (r *Renderer) WithNotice(notice map[string]any) *Renderer {
+	r.notice = notice
+	return r
 }
 
 func (r *Renderer) Render(format Format, value any) error {
@@ -50,13 +57,34 @@ func (r *Renderer) RenderRaw(raw []byte) error {
 }
 
 func (r *Renderer) renderJSON(value any) error {
-	data, err := json.MarshalIndent(value, "", "  ")
-	if err != nil {
+	injectNotice(value, r.notice)
+	var data bytes.Buffer
+	encoder := json.NewEncoder(&data)
+	encoder.SetEscapeHTML(false)
+	encoder.SetIndent("", "  ")
+	if err := encoder.Encode(value); err != nil {
 		return fmt.Errorf("marshal json output: %w", err)
 	}
-	data = append(data, '\n')
-	_, err = r.stdout.Write(data)
+	_, err := r.stdout.Write(data.Bytes())
 	return err
+}
+
+func injectNotice(value any, notice map[string]any) {
+	if len(notice) == 0 {
+		return
+	}
+	object, ok := value.(map[string]any)
+	if !ok {
+		return
+	}
+	existing, ok := object["_notice"].(map[string]any)
+	if !ok {
+		existing = map[string]any{}
+		object["_notice"] = existing
+	}
+	for key, val := range notice {
+		existing[key] = val
+	}
 }
 
 func (r *Renderer) renderTable(value any) error {

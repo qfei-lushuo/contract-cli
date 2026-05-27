@@ -10,7 +10,7 @@
 - 除上述 bot 能力外，当前其他结构化业务命令仍只支持 `--as user`
 - `bot` 目前已经支持登录、状态查看、登出、默认身份切换
 - 推荐使用 `npx skills add qfeius/contract-cli -y -g` 安装跨 Agent 平台 skills；`contract-cli skills install` 保留为 CLI 内置兜底
-- `update check` 支持手动检查 npm 远端版本；CLI 在交互终端下会为每次符合条件的普通命令自动检查并提示升级
+- `update check` 支持手动检查 npm 远端版本；默认输出文本，带 `--json` 时返回飞书式 JSON；CLI 会为符合条件的普通命令按 24 小时缓存检查远端版本，并在 JSON object 输出中注入 `_notice.update`
 - 当前全部已支持命令都可以通过 `--help` 查看本地帮助，例如 `contract-cli --help`、`contract-cli contract search --help`、`contract-cli help contract upload-file`
 - `bot` 业务接口后续继续新增时，优先在本文件补充命令矩阵
 
@@ -169,24 +169,31 @@ contract-cli --version
 ```bash
 contract-cli update check
 contract-cli update check --channel latest
+contract-cli update check --channel latest --json
 ```
 
 支持参数：
 
 - `--channel`：npm dist-tag；不传时根据当前版本推断，预发布版本默认检查 `beta`，稳定版本默认检查 `latest`
+- `--json`：输出飞书式结构化 JSON；默认输出文本提示
 
 执行结果：
 
 - 当前版本是 `dev`、`unknown` 或非语义化版本（例如源码 git hash）时跳过远端检查
-- 有新版本时输出当前版本、远端版本和 `npm install -g @qfeius/contract-cli@<channel> --registry https://registry.npmjs.org`
-- 无新版本时输出当前版本已是最新
+- 默认输出文本提示，和飞书 `lark-cli update --check` 的手动校验体验保持一致
+- 带 `--json` 时输出顶层 `ok`、`previous_version`、`current_version`、`latest_version`、`action`、`message` 等字段
+- 有新版本时 `action=update_available`，并额外包含 `command`，值为 `npm install -g @qfeius/contract-cli@<channel> --registry https://registry.npmjs.org`
+- 无新版本时 `action=already_up_to_date`
+- 手动 `update check --json` 不注入 `_notice.update`；`_notice.update` 只用于普通 JSON 业务命令的自动提示
 - 手动执行 `update check` 会直接访问 npm registry，并把结果写入本机 update cache
 
 自动提示：
 
-- 普通命令在交互终端下会自动检查远端版本
-- 每次符合条件的普通命令都会触发一次自动检查；成功结果会写入当前配置目录的 `update-check.json`，但该缓存不再抑制后续检查
+- 普通命令会按 24 小时缓存自动检查远端版本；命中 fresh cache 时不访问 npm registry
+- 有新版本时，仅在 JSON object 输出中注入 `_notice.update`；`--raw`、yaml、table、纯文本命令不注入
+- 成功结果会写入当前配置目录的 `update-check.json`
 - 网络失败、registry 失败或当前是 dev 构建时不会阻断原命令；自动检查失败不会写入失败缓存
+- CI 环境会跳过自动远端检查
 - 设置 `CONTRACT_CLI_NO_UPDATE_CHECK=1` 可以关闭自动检查
 
 #### `contract-cli skills list`

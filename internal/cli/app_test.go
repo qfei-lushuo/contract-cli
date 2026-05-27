@@ -3,6 +3,7 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"io"
 	"net/http"
@@ -108,7 +109,7 @@ func TestVersionFlagPrintsBuildInfo(t *testing.T) {
 	}
 }
 
-func TestUpdateCheckReportsAvailableBetaVersion(t *testing.T) {
+func TestUpdateCheckDefaultReportsAvailableBetaVersionAsText(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	store := config.NewStore(t.TempDir())
@@ -136,12 +137,17 @@ func TestUpdateCheckReportsAvailableBetaVersion(t *testing.T) {
 		t.Fatalf("update check error = %v", err)
 	}
 
-	output := stdout.String()
-	if !strings.Contains(output, "A new contract-cli version is available: 0.1.0-beta.1 -> 0.1.0-beta.2") {
-		t.Fatalf("missing update notice: %s", output)
+	if strings.TrimSpace(stdout.String()) != "" {
+		t.Fatalf("default update check should not write JSON stdout, got: %s", stdout.String())
 	}
-	if !strings.Contains(output, "npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org") {
-		t.Fatalf("missing install command: %s", output)
+	stderrOutput := stderr.String()
+	for _, want := range []string{
+		"Update available: contract-cli 0.1.0-beta.1 -> 0.1.0-beta.2",
+		"Run: npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org",
+	} {
+		if !strings.Contains(stderrOutput, want) {
+			t.Fatalf("stderr missing %q: %s", want, stderrOutput)
+		}
 	}
 	cacheContent, err := os.ReadFile(filepath.Join(filepath.Dir(store.Path()), "update-check.json"))
 	if err != nil {
@@ -152,60 +158,139 @@ func TestUpdateCheckReportsAvailableBetaVersion(t *testing.T) {
 	}
 }
 
-func TestAutomaticUpdateNoticeChecksEveryRun(t *testing.T) {
+func TestUpdateCheckJSONReportsAvailableBetaVersion(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	requests := 0
+	store := config.NewStore(t.TempDir())
 
 	app := cli.New(cli.Options{
 		Stdout:               stdout,
 		Stderr:               stderr,
-		Store:                config.NewStore(t.TempDir()),
-		SkillsFS:             testSkillsFS(),
+		Store:                store,
 		UpdateRegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
 		UpdateCurrentVersion: "0.1.0-beta.1",
-		IsTerminal:           func(io.Writer) bool { return true },
 		HTTPClient: &http.Client{
-			Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-				requests++
-				return jsonResponse(`{"dist-tags":{"beta":"0.1.0-beta.2"}}`), nil
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet {
+					t.Fatalf("method = %s, want GET", req.Method)
+				}
+				if req.URL.String() != "https://registry.test/@qfeius%2fcontract-cli" {
+					t.Fatalf("unexpected update registry URL: %s", req.URL.String())
+				}
+				return jsonResponse(`{"dist-tags":{"latest":"0.1.0","beta":"0.1.0-beta.2"}}`), nil
 			}),
 		},
 	})
 
-	if err := app.Run(context.Background(), []string{"skills", "list"}); err != nil {
-		t.Fatalf("skills list error = %v", err)
+	if err := app.Run(context.Background(), []string{"update", "check", "--channel", "beta", "--json"}); err != nil {
+		t.Fatalf("update check error = %v", err)
+	}
+
+	output := decodeJSONObject(t, stdout.Bytes())
+	if output["ok"] != true {
+		t.Fatalf("ok = %v, want true: %+v", output["ok"], output)
+	}
+	if output["action"] != "update_available" {
+		t.Fatalf("action = %v, want update_available: %+v", output["action"], output)
+	}
+	if output["current_version"] != "0.1.0-beta.1" || output["latest_version"] != "0.1.0-beta.2" {
+		t.Fatalf("unexpected update output: %+v", output)
+	}
+	if output["command"] != "npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org" {
+		t.Fatalf("missing install command: %+v", output)
+	}
+	if _, ok := output["_notice"]; ok {
+		t.Fatalf("manual update check JSON should not include _notice: %+v", output)
+	}
+	cacheContent, err := os.ReadFile(filepath.Join(filepath.Dir(store.Path()), "update-check.json"))
+	if err != nil {
+		t.Fatalf("ReadFile(update cache) error = %v", err)
+	}
+	if !strings.Contains(string(cacheContent), `"latest_version": "0.1.0-beta.2"`) {
+		t.Fatalf("unexpected update cache: %s", string(cacheContent))
+	}
+}
+
+func TestAutomaticUpdateNoticeUsesJSONNoticeAndFreshCache(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	requests := 0
+	apiRequests := 0
+	store := config.NewStore(t.TempDir())
+	if err := store.UpsertProfile(uploadProfile(config.IdentityBot), true); err != nil {
+		t.Fatalf("UpsertProfile() error = %v", err)
+	}
+
+	app := cli.New(cli.Options{
+		Stdout:               stdout,
+		Stderr:               stderr,
+		Store:                store,
+		SkillsFS:             testSkillsFS(),
+		UpdateRegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
+		UpdateCurrentVersion: "0.1.0-beta.1",
+		Now:                  fixedCLINow,
+		HTTPClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.URL.Host == "registry.test" {
+					requests++
+					return jsonResponse(`{"dist-tags":{"beta":"0.1.0-beta.2"}}`), nil
+				}
+				apiRequests++
+				if req.URL.Path != "/open-apis/contract/v1/contracts/contract-1" {
+					t.Fatalf("unexpected API path: %s", req.URL.Path)
+				}
+				return jsonResponse(`{"code":0,"data":{"contract":{"contract_id":"contract-1"}}}`), nil
+			}),
+		},
+	})
+
+	if err := app.Run(context.Background(), []string{"contract", "get", "contract-1", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatalf("contract get error = %v", err)
 	}
 	if requests != 1 {
 		t.Fatalf("update requests = %d, want 1", requests)
 	}
-	if !strings.Contains(stderr.String(), "A new contract-cli version is available: 0.1.0-beta.1 -> 0.1.0-beta.2") {
-		t.Fatalf("missing automatic update notice: %s", stderr.String())
+	if strings.Contains(stderr.String(), "A new contract-cli version is available") {
+		t.Fatalf("stderr should not contain legacy update notice: %s", stderr.String())
+	}
+	first := decodeJSONObject(t, stdout.Bytes())
+	firstNotice := first["_notice"].(map[string]any)["update"].(map[string]any)
+	if firstNotice["current"] != "0.1.0-beta.1" || firstNotice["latest"] != "0.1.0-beta.2" {
+		t.Fatalf("unexpected first notice: %+v", firstNotice)
 	}
 
 	stderr.Reset()
 	stdout.Reset()
-	if err := app.Run(context.Background(), []string{"skills", "list"}); err != nil {
-		t.Fatalf("second skills list error = %v", err)
+	if err := app.Run(context.Background(), []string{"contract", "get", "contract-1", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatalf("second contract get error = %v", err)
 	}
-	if requests != 2 {
-		t.Fatalf("automatic update check requests = %d, want 2", requests)
+	if requests != 1 {
+		t.Fatalf("fresh cache should suppress second registry request, got %d", requests)
 	}
-	if !strings.Contains(stderr.String(), "A new contract-cli version is available: 0.1.0-beta.1 -> 0.1.0-beta.2") {
-		t.Fatalf("missing second automatic update notice: %s", stderr.String())
+	if apiRequests != 2 {
+		t.Fatalf("api requests = %d, want 2", apiRequests)
+	}
+	second := decodeJSONObject(t, stdout.Bytes())
+	secondNotice := second["_notice"].(map[string]any)["update"].(map[string]any)
+	if secondNotice["latest"] != "0.1.0-beta.2" {
+		t.Fatalf("unexpected second notice from cache: %+v", secondNotice)
 	}
 }
 
 func TestAutomaticUpdateNoticeCanBeDisabledByEnv(t *testing.T) {
 	requests := 0
+	stdout := &bytes.Buffer{}
+	store := config.NewStore(t.TempDir())
+	if err := store.UpsertProfile(uploadProfile(config.IdentityBot), true); err != nil {
+		t.Fatalf("UpsertProfile() error = %v", err)
+	}
 	app := cli.New(cli.Options{
-		Stdout:               &bytes.Buffer{},
+		Stdout:               stdout,
 		Stderr:               &bytes.Buffer{},
-		Store:                config.NewStore(t.TempDir()),
+		Store:                store,
 		SkillsFS:             testSkillsFS(),
 		UpdateRegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
 		UpdateCurrentVersion: "0.1.0-beta.1",
-		IsTerminal:           func(io.Writer) bool { return true },
 		LookupEnv: func(key string) (string, bool) {
 			if key == "CONTRACT_CLI_NO_UPDATE_CHECK" {
 				return "1", true
@@ -213,18 +298,24 @@ func TestAutomaticUpdateNoticeCanBeDisabledByEnv(t *testing.T) {
 			return "", false
 		},
 		HTTPClient: &http.Client{
-			Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-				requests++
-				return jsonResponse(`{"dist-tags":{"beta":"0.1.0-beta.2"}}`), nil
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.URL.Host == "registry.test" {
+					requests++
+					return jsonResponse(`{"dist-tags":{"beta":"0.1.0-beta.2"}}`), nil
+				}
+				return jsonResponse(`{"code":0,"data":{"contract":{"contract_id":"contract-1"}}}`), nil
 			}),
 		},
 	})
 
-	if err := app.Run(context.Background(), []string{"skills", "list"}); err != nil {
-		t.Fatalf("skills list error = %v", err)
+	if err := app.Run(context.Background(), []string{"contract", "get", "contract-1", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatalf("contract get error = %v", err)
 	}
 	if requests != 0 {
 		t.Fatalf("disabled update check sent %d requests, want 0", requests)
+	}
+	if strings.Contains(stdout.String(), "_notice") {
+		t.Fatalf("disabled update check should not inject notice: %s", stdout.String())
 	}
 }
 
@@ -240,7 +331,6 @@ func TestAutomaticUpdateNoticeRetriesFailureEveryRun(t *testing.T) {
 		SkillsFS:             testSkillsFS(),
 		UpdateRegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
 		UpdateCurrentVersion: "0.1.0-beta.1",
-		IsTerminal:           func(io.Writer) bool { return true },
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
 				requests++
@@ -281,11 +371,12 @@ func TestUpdateCheckUsesBuildVersionWhenNotOverridden(t *testing.T) {
 		},
 	})
 
-	if err := app.Run(context.Background(), []string{"update", "check", "--channel", "beta"}); err != nil {
+	if err := app.Run(context.Background(), []string{"update", "check", "--channel", "beta", "--json"}); err != nil {
 		t.Fatalf("update check error = %v", err)
 	}
-	if !strings.Contains(stdout.String(), "contract-cli is up to date: 0.1.0-beta.1") {
-		t.Fatalf("unexpected update output: %s", stdout.String())
+	output := decodeJSONObject(t, stdout.Bytes())
+	if output["action"] != "already_up_to_date" || output["current_version"] != "0.1.0-beta.1" {
+		t.Fatalf("unexpected update output: %+v", output)
 	}
 }
 
@@ -1262,6 +1353,19 @@ func newDiscoveryServer(t *testing.T) discoveryServer {
 	return discoveryServer{
 		protectedResourceMetadataURL: "https://example.test/.well-known/oauth-protected-resource",
 	}
+}
+
+func fixedCLINow() time.Time {
+	return time.Date(2026, 4, 20, 16, 0, 0, 0, time.FixedZone("CST", 8*60*60))
+}
+
+func decodeJSONObject(t *testing.T, data []byte) map[string]any {
+	t.Helper()
+	var value map[string]any
+	if err := json.Unmarshal(data, &value); err != nil {
+		t.Fatalf("Unmarshal(%s) error = %v", string(data), err)
+	}
+	return value
 }
 
 func jsonResponse(payload string) *http.Response {

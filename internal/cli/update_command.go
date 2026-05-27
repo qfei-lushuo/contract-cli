@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"cn.qfei/contract-cli/internal/build"
+	"cn.qfei/contract-cli/internal/output"
 	updatecheck "cn.qfei/contract-cli/internal/update"
 )
 
@@ -28,7 +29,9 @@ func (a *App) runUpdate(ctx context.Context, args []string) error {
 func (a *App) runUpdateCheck(ctx context.Context, args []string) error {
 	parsed, err := parseArgs(args, map[string]struct{}{
 		"--channel": {},
-	}, nil)
+	}, map[string]struct{}{
+		"--json": {},
+	})
 	if err != nil {
 		return err
 	}
@@ -40,27 +43,89 @@ func (a *App) runUpdateCheck(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	if result.Skipped {
-		_, _ = fmt.Fprintf(a.stdout, "Update check skipped: %s\n", result.Reason)
-		return nil
-	}
-	if err := updatecheck.SaveCache(a.updateCachePath(), updatecheck.CacheFromResult(result)); err != nil {
-		a.logger.Warn("save update check cache failed", "path", a.updateCachePath(), "error", err.Error())
+	if !result.Skipped {
+		if err := updatecheck.SaveCache(a.updateCachePath(), updatecheck.CacheFromResult(result)); err != nil {
+			a.logger.Warn("save update check cache failed", "path", a.updateCachePath(), "error", err.Error())
+		}
 	}
 
-	if result.UpdateAvailable {
-		_, _ = fmt.Fprintf(a.stdout, "A new contract-cli version is available: %s -> %s\n", result.CurrentVersion, result.LatestVersion)
-		_, _ = fmt.Fprintf(a.stdout, "Run: %s\n", result.InstallCommand)
-		return nil
+	if parsed.Bool("--json") {
+		return output.NewRenderer(a.stdout).Render(output.FormatJSON, updateCheckJSON(result))
 	}
-
-	_, _ = fmt.Fprintf(a.stdout, "contract-cli is up to date: %s (channel %s)\n", result.CurrentVersion, result.Channel)
-	return nil
+	return writeUpdateCheckText(a.stderr, result)
 }
 
-func (a *App) maybePrintUpdateNotice(ctx context.Context, args []string) {
+func updateCheckJSON(result updatecheck.Result) map[string]any {
+	action := "already_up_to_date"
+	message := fmt.Sprintf("contract-cli %s is already up to date", result.CurrentVersion)
+	if result.UpdateAvailable {
+		action = "update_available"
+		message = fmt.Sprintf("contract-cli %s -> %s available", result.CurrentVersion, result.LatestVersion)
+	}
+	if result.Skipped {
+		action = "skipped"
+		message = result.Reason
+	}
+
+	data := map[string]any{
+		"ok":               true,
+		"package":          result.PackageName,
+		"previous_version": result.CurrentVersion,
+		"current_version":  result.CurrentVersion,
+		"latest_version":   result.LatestVersion,
+		"channel":          result.Channel,
+		"action":           action,
+		"message":          message,
+	}
+	if result.UpdateAvailable {
+		data["auto_update"] = false
+		data["command"] = result.InstallCommand
+	}
+	if result.Skipped {
+		data["reason"] = result.Reason
+	}
+	return data
+}
+
+func writeUpdateCheckText(w anyWriter, result updatecheck.Result) error {
+	if result.Skipped {
+		_, err := fmt.Fprintf(w, "Update check skipped: %s\n", result.Reason)
+		return err
+	}
+	if result.UpdateAvailable {
+		if _, err := fmt.Fprintf(w, "Update available: contract-cli %s -> %s\n", result.CurrentVersion, result.LatestVersion); err != nil {
+			return err
+		}
+		_, err := fmt.Fprintf(w, "Run: %s\n", result.InstallCommand)
+		return err
+	}
+	_, err := fmt.Fprintf(w, "contract-cli %s is already up to date\n", result.CurrentVersion)
+	return err
+}
+
+type anyWriter interface {
+	Write([]byte) (int, error)
+}
+
+func (a *App) maybePrepareUpdateNotice(ctx context.Context, args []string) {
 	if !a.shouldAutoCheckUpdate(args) {
 		return
+	}
+
+	currentVersion := a.currentUpdateVersion()
+	channel := updatecheck.InferChannel(currentVersion)
+	now := a.now()
+	cache, cacheOK, err := updatecheck.LoadCache(a.updateCachePath())
+	if err != nil {
+		a.logger.Debug("load update check cache failed", "path", a.updateCachePath(), "error", err.Error())
+	}
+	if cacheOK && strings.TrimSpace(cache.Channel) == channel {
+		if notice := updatecheck.NoticeFromCache(cache, currentVersion, updatecheck.DefaultPackageName); notice != nil {
+			a.updateNotice = map[string]any{"update": notice.Map()}
+		}
+		if updatecheck.CacheFresh(cache, channel, now, updatecheck.CacheTTL) {
+			return
+		}
 	}
 
 	checkCtx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
@@ -77,12 +142,10 @@ func (a *App) maybePrintUpdateNotice(ctx context.Context, args []string) {
 	if err := updatecheck.SaveCache(a.updateCachePath(), updatecheck.CacheFromResult(result)); err != nil {
 		a.logger.Warn("save update check cache failed", "path", a.updateCachePath(), "error", err.Error())
 	}
-	if !result.UpdateAvailable {
-		return
+	a.updateNotice = nil
+	if notice := updatecheck.NoticeFromResult(result); notice != nil {
+		a.updateNotice = map[string]any{"update": notice.Map()}
 	}
-
-	_, _ = fmt.Fprintf(a.stderr, "\nA new contract-cli version is available: %s -> %s\n", result.CurrentVersion, result.LatestVersion)
-	_, _ = fmt.Fprintf(a.stderr, "Run: %s\n\n", result.InstallCommand)
 }
 
 func (a *App) shouldAutoCheckUpdate(args []string) bool {
@@ -99,7 +162,10 @@ func (a *App) shouldAutoCheckUpdate(args []string) bool {
 	if value, ok := a.lookupEnv("CONTRACT_CLI_NO_UPDATE_CHECK"); ok && truthy(value) {
 		return false
 	}
-	return a.isTerminal(a.stderr)
+	if isCIUpdateEnv(a.lookupEnv) {
+		return false
+	}
+	return true
 }
 
 func (a *App) checkUpdate(ctx context.Context, channel string) (updatecheck.Result, error) {
@@ -132,4 +198,13 @@ func truthy(value string) bool {
 	default:
 		return false
 	}
+}
+
+func isCIUpdateEnv(lookup func(string) (string, bool)) bool {
+	for _, key := range []string{"CI", "BUILD_NUMBER", "RUN_ID"} {
+		if value, ok := lookup(key); ok && strings.TrimSpace(value) != "" {
+			return true
+		}
+	}
+	return false
 }
