@@ -1,5 +1,15 @@
 # AI 变更记录
 
+- 2026-05-27
+  变更摘要：收敛 profile 和授权状态输出，避免展示开放平台与授权 endpoint 地址。
+  涉及文件/模块：`internal/cli/app.go`、`internal/cli/auth_provider.go`、CLI 测试、`docs/cli-test-plan.md`、`skills/auth`
+  关键逻辑/决策：`config add` 只输出保存成功；`auth status` 不再输出 Open Platform URL 或 bot Token Endpoint；自动打开浏览器的 user 登录成功消息不再回显授权 URL，`--no-open-browser` 仍会在等待回调前打印必要授权链接。
+
+- 2026-05-27
+  变更摘要：移除 CLI 内置 dev 环境预设，收敛正式包初始化入口到 prod。
+  涉及文件/模块：`internal/cli/app.go`、`internal/cli/help.go`、`internal/cli/auth_provider.go`、`internal/openplatform/client.go`、CLI 测试、`docs/*`、`skills/auth`
+  关键逻辑/决策：`config add --env dev` 现在本地拒绝并提示仅支持 `prod`；help、错误提示、命令文档、测试计划和 auth skill 不再引导新建 dev profile；保留既有 profile 按已保存 URL 运行的兼容性。
+
 - 2026-05-12
   变更摘要：全仓收敛旧 profile 示例名，统一使用 `--profile contract`。
   涉及文件/模块：`internal/cli/help.go`、CLI 测试、`docs/*`、`skills/contract-cli-contract`、`skills/contract-cli-shared`

@@ -121,8 +121,8 @@ bot 命令使用 `tenant_access_token`，user 命令使用 OAuth token。
 
 bot 命令依赖 profile 中的开放平台配置：
 
-- `OpenPlatformBaseURL`：业务 API 基址，dev 默认 `https://dev-open.qtech.cn`。
-- `BotTokenEndpoint`：bot 获取 `tenant_access_token` 的接口，dev 默认 `https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal`。
+- `OpenPlatformBaseURL`：业务 API 基址，prod 默认 `https://open.qfei.cn`。
+- `BotTokenEndpoint`：bot 获取 `tenant_access_token` 的接口，prod 默认 `https://open.qfei.cn/open-apis/auth/v3/tenant_access_token/internal`。
 - `default_identity`：未传 `--as` 时的默认身份。
 - `identities.bot.token`：bot 命令实际使用的 token。
 
@@ -130,7 +130,7 @@ user OAuth 与 bot token 是两套不同流程：
 
 - `auth login --as bot` 使用 `appId/appSecret` 直接换 `tenant_access_token`。
 - `auth login --as user` 使用 OAuth 授权码流程。
-- 当前 dev user OAuth 不再要求旧 Higress `resource`，resource 为空时授权 URL 和 token 请求都不发送 `resource` 参数。
+- 当前 user OAuth 不要求旧 Higress `resource`，resource 为空时授权 URL 和 token 请求都不发送 `resource` 参数。
 
 开发 bot 命令时不要复用 user OAuth 的 resource 概念，也不要把 `OpenPlatformBaseURL` 和 OAuth metadata URL 混用。
 

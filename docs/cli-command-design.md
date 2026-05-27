@@ -206,7 +206,7 @@ contract-cli api call
 #### 添加 profile
 
 ```bash
-contract-cli config add --env dev --name contract
+contract-cli config add --env prod --name contract
 ```
 
 #### 登录授权
@@ -733,7 +733,7 @@ Examples:
 ## 11. 当前推荐的用户使用路径
 
 ```bash
-contract-cli config add --env dev --name contract
+contract-cli config add --env prod --name contract
 contract-cli auth login --profile contract
 contract-cli contract template fields TMP001
 contract-cli contract create --input-file contract.json
