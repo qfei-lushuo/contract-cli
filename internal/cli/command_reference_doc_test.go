@@ -92,6 +92,7 @@ func TestCommandReferenceDocumentCoversCurrentSupportedCommands(t *testing.T) {
 		"/Users/lyy/",
 		"当前只预置 `dev`",
 		"`--env`：当前仅支持 `dev`",
+		"支持 `prod` 和 `dev`",
 		"contract-cli config add --env dev",
 	} {
 		if strings.Contains(text, forbidden) {

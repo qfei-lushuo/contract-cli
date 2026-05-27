@@ -350,8 +350,6 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	}
 
 	_, _ = fmt.Fprintf(a.stdout, "Profile %q saved for %s.\n", profileName, env)
-	_, _ = fmt.Fprintf(a.stdout, "Open Platform URL: %s\n", profile.OpenPlatformBaseURL)
-	_, _ = fmt.Fprintf(a.stdout, "Authorization endpoint: %s\n", profile.Identities.User.AuthorizationEndpoint)
 	return nil
 }
 
@@ -466,7 +464,6 @@ func (a *App) runAuthStatus(ctx context.Context, args []string) error {
 
 	_, _ = fmt.Fprintf(a.stdout, "Profile: %s\n", profile.Name)
 	_, _ = fmt.Fprintf(a.stdout, "Environment: %s\n", profile.Environment)
-	_, _ = fmt.Fprintf(a.stdout, "Open Platform URL: %s\n", emptyFallback(profile.OpenPlatformBaseURL, "<not-configured>"))
 	_, _ = fmt.Fprintf(a.stdout, "Default Identity: %s\n", defaultIdentity(profile))
 	_, _ = fmt.Fprintf(a.stdout, "Identity: %s\n", identity)
 	for _, field := range view.Fields {
@@ -557,17 +554,6 @@ func (a *App) providerFor(identity config.IdentityKind) authProvider {
 
 func resolveEnvironment(name string) (environmentPreset, error) {
 	switch name {
-	case "dev":
-		return environmentPreset{
-			OpenPlatformBaseURL:            "https://dev-open.qtech.cn",
-			BotTokenEndpoint:               "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
-			ProtectedResourceMetadataURL:   "",
-			AuthorizationServerMetadataURL: "https://dev-myaccount.qtech.cn/.well-known/oauth-authorization-server/contract",
-			RedirectURL:                    "http://127.0.0.1:8000/callback",
-			Scopes:                         []string{"cli:tools", "cli:resources"},
-			BusinessType:                   "contract",
-			ClientName:                     "contract-cli",
-		}, nil
 	case "prod":
 		return environmentPreset{
 			OpenPlatformBaseURL:            "https://open.qfei.cn",
@@ -580,7 +566,7 @@ func resolveEnvironment(name string) (environmentPreset, error) {
 			ClientName:                     "contract-cli",
 		}, nil
 	default:
-		return environmentPreset{}, fmt.Errorf("unsupported environment %q; supported environments: prod, dev", name)
+		return environmentPreset{}, fmt.Errorf("unsupported environment %q; supported environments: prod", name)
 	}
 }
 

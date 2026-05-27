@@ -254,7 +254,7 @@ func addConfigHelp(registry map[string]helpTopic) {
 		Summary: "初始化或更新 profile，并写入开放平台、user OAuth 和 bot token endpoint 配置。",
 		Usage:   []string{"contract-cli config add [flags]"},
 		Flags: []helpFlag{
-			{"--env <prod|dev>", "环境预设；默认 prod，开发/测试可显式使用 dev"},
+			{"--env <prod>", "环境预设；当前仅支持 prod，默认 prod"},
 			{"--name <profile>", "profile 名称，默认 contract"},
 			{"--resource-metadata-url <url>", "覆盖 protected resource metadata 地址"},
 			{"--redirect-url <url>", "覆盖 OAuth callback 地址"},
