@@ -18,6 +18,12 @@ type fakeAuthorizationCallback struct {
 	wait func(context.Context, string) (string, error)
 }
 
+type authRoundTripFunc func(*http.Request) (*http.Response, error)
+
+func (f authRoundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
+	return f(req)
+}
+
 func (f fakeAuthorizationCallback) Wait(ctx context.Context, state string) (string, error) {
 	return f.wait(ctx, state)
 }
@@ -91,5 +97,68 @@ func TestUserAuthLoginNoOpenBrowserPrintsAuthorizationURLBeforeWaiting(t *testin
 		if !strings.Contains(output, want) {
 			t.Fatalf("authorization URL output missing %q: %s", want, output)
 		}
+	}
+}
+
+func TestUserAuthLoginAutoOpenDoesNotReturnAuthorizationURL(t *testing.T) {
+	t.Parallel()
+
+	var openedURL string
+	provider := userAuthProvider{
+		httpClient: &http.Client{
+			Transport: authRoundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.URL.String() != "https://example.test/oauth/token/contract" {
+					t.Fatalf("unexpected token request URL: %s", req.URL.String())
+				}
+				return &http.Response{
+					StatusCode: http.StatusOK,
+					Header:     make(http.Header),
+					Body:       io.NopCloser(strings.NewReader(`{"access_token":"user-token","token_type":"Bearer","expires_in":3600}`)),
+				}, nil
+			}),
+		},
+		logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
+		openBrowser: func(url string) error {
+			openedURL = url
+			return nil
+		},
+		startCallbackServer: func(string) (authorizationCallback, error) {
+			return fakeAuthorizationCallback{
+				wait: func(context.Context, string) (string, error) {
+					return "authorization-code", nil
+				},
+			}, nil
+		},
+	}
+	profile := &config.Profile{
+		Name:         "contract",
+		ClientName:   "contract-cli",
+		BusinessType: "contract",
+		Scopes:       []string{"mcp:tools"},
+		Identities: config.Identities{
+			User: config.UserIdentity{
+				ClientID:              "client-123",
+				AuthorizationEndpoint: "https://example.test/oauth/authorize/contract",
+				TokenEndpoint:         "https://example.test/oauth/token/contract",
+				RegistrationEndpoint:  "https://example.test/oauth/register/contract",
+				RedirectURL:           "http://127.0.0.1:8000/callback",
+			},
+		},
+	}
+
+	message, err := provider.Login(context.Background(), profile, authCommandOptions{
+		Timeout: time.Second,
+	})
+	if err != nil {
+		t.Fatalf("Login() error = %v", err)
+	}
+	if !strings.Contains(openedURL, "https://example.test/oauth/authorize/contract") {
+		t.Fatalf("browser was not opened with authorization URL: %s", openedURL)
+	}
+	if !strings.Contains(message, `Authorization succeeded for profile "contract".`) {
+		t.Fatalf("unexpected login message: %s", message)
+	}
+	if strings.Contains(message, "Open this URL") || strings.Contains(message, "https://example.test/oauth/authorize/contract") {
+		t.Fatalf("login message should not expose authorization URL when browser was opened: %s", message)
 	}
 }

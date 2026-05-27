@@ -47,6 +47,9 @@ jobs:
           [ -z "${PACKAGE_NAME:-}" ] || npm pkg set "name=$PACKAGE_NAME"
           npm pkg set "version=${GITHUB_REF_NAME#v}" "config.downloadBaseURLTemplate=https://github.com/$GITHUB_REPOSITORY/releases/download/$GITHUB_REF_NAME"
 
+      - name: Build npm release assets
+        run: make release-assets
+
       - name: Publish npm package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

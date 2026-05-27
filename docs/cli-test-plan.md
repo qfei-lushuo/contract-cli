@@ -54,7 +54,7 @@ rm -rf "$CONTRACT_CLI_CONFIG_DIR"
 
 ### 2.3 测试数据清单
 
-业务命令需要准备一组 dev 环境可访问的数据：
+业务命令需要准备一组目标租户可访问的数据：
 
 | 变量 | 含义 | 示例 |
 | --- | --- | --- |
@@ -267,13 +267,13 @@ CONTRACT_CLI_NO_UPDATE_CHECK=1 contract-cli skills list
 ### 4.1 初始化 profile
 
 ```bash
-contract-cli config add --env dev --name "$PROFILE"
+contract-cli config add --env prod --name "$PROFILE"
 ```
 
 预期结果：
 
-- 写入 dev 环境配置。
-- 写入开放平台基址 `https://dev-open.qtech.cn`。
+- 写入 prod 环境配置。
+- 写入开放平台基址 `https://open.qfei.cn`。
 - 写入 user OAuth 配置。
 - 写入 bot token endpoint。
 - 当前 profile 被设置为 `$PROFILE`。
@@ -325,7 +325,7 @@ contract-cli auth login --profile "$PROFILE" --as bot --app-id "$CONTRACT_CLI_BO
 
 预期结果：
 
-- CLI 调用 `https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal`。
+- CLI 调用 `https://open.qfei.cn/open-apis/auth/v3/tenant_access_token/internal`。
 - 请求体使用 `appId/appSecret`。
 - 成功后保存 bot token。
 - 默认身份切换为 `bot`。
@@ -342,10 +342,11 @@ contract-cli auth status --profile "$PROFILE" --as bot
 ```text
 Identity: bot
 Authorization: authorized
-Token Endpoint: https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal
 Token Protocol: tenant_access_token/internal
 Expires At:
 ```
+
+状态输出不展示开放平台地址、授权端点或 bot token endpoint。
 
 ### 4.4 默认身份切换
 
@@ -410,7 +411,7 @@ Authorization: configured
 
 | 场景 | 命令 | 预期 |
 | --- | --- | --- |
-| 旧 profile 缺少 bot endpoint | `auth login --as bot` | 报错并提示重跑 `config add --env dev --name <profile>` |
+| 旧 profile 缺少 bot endpoint | `auth login --as bot` | 报错并提示重跑 `config add --env prod --name <profile>` |
 | bot appSecret 错误 | `auth login --as bot` | 保留新凭证，bot token 为空，默认身份不切到 bot |
 | user 未登录调用 user-only 命令 | `contract enum list --as user` | 报未授权或 token 不可用 |
 | bot token 已清空后调用 bot 命令 | `contract get --as bot` | 报未授权或 token 不可用 |
@@ -501,7 +502,7 @@ POST /open-apis/contract/v1/contracts/{contract_id}/text
 
 ### 5.5 创建合同
 
-创建合同是写操作，建议优先在 dev 环境使用明确可回收的测试数据。
+创建合同是写操作，建议优先在可回收的测试租户中使用明确可回收的测试数据。
 
 ```bash
 cat > /tmp/contract-create-bot.json <<'JSON'
@@ -664,7 +665,7 @@ JSON
 contract-cli contract patch "$CONTRACT_ID" --profile "$PROFILE" --as bot --input-file /tmp/contract-patch-bot.json --output json
 ```
 
-删除草稿合同是破坏性操作，只能对明确可回收的 dev 草稿合同执行：
+删除草稿合同是破坏性操作，只能对明确可回收的测试草稿合同执行：
 
 ```bash
 contract-cli contract delete "$DRAFT_CONTRACT_ID" --profile "$PROFILE" --as bot --output json
@@ -926,7 +927,7 @@ GET /open-apis/contract/v1/mcp/contracts/{contract_id}/text
 
 ### 6.5 创建合同
 
-创建合同是写操作，建议在 dev 环境使用可回收测试数据。
+创建合同是写操作，建议在可回收的测试租户中使用可回收测试数据。
 
 ```bash
 cat > /tmp/contract-create-user.json <<'JSON'
@@ -1274,10 +1275,10 @@ npm publish --dry-run --tag beta
 
 - CLI 可以通过 npm beta 包安装并执行 `contract-cli --version`。
 - `contract-cli skills list` 和 `contract-cli skills install` 成功。
-- `config add --env dev` 成功。
+- `config add --env prod` 成功。
 - user 登录、状态、切换、登出成功。
 - bot 登录、状态、切换、登出成功，且 bot logout 保留凭证。
-- bot 身份下第 5 节结构化业务命令完成正向验证，`contract upload-file` 需覆盖 user/bot 两种身份；写操作至少在 dev 环境完成一次可回收数据验证。
+- bot 身份下第 5 节结构化业务命令完成正向验证，`contract upload-file` 需覆盖 user/bot 两种身份；写操作至少在可回收测试租户完成一次可回收数据验证。
 - user 身份下第 6 节十五条结构化业务命令完成正向验证。
 - `api call` 暂未开放拦截、help 隐藏、skills 隐藏三类场景完成验证。
 - `make release-check` 通过。

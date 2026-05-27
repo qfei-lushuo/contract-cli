@@ -150,9 +150,6 @@ func (p userAuthProvider) Login(ctx context.Context, profile *config.Profile, op
 	p.logger.Info("user auth login completed", "profile", profile.Name)
 
 	var builder strings.Builder
-	if !options.NoOpenBrowser {
-		builder.WriteString(authorizationURLMessage(authURL))
-	}
 	builder.WriteString(fmt.Sprintf("Authorization succeeded for profile %q.", profile.Name))
 	if !token.Expiry.IsZero() {
 		builder.WriteString(fmt.Sprintf("\nAccess token expires at: %s", token.Expiry.Format(time.RFC3339)))
@@ -214,7 +211,7 @@ func (p botAuthProvider) Login(ctx context.Context, profile *config.Profile, opt
 		return "", err
 	}
 	if profile.BotTokenEndpoint == "" {
-		err = fmt.Errorf("bot identity is not configured; run `contract-cli config add --env %s --name %s` first", profile.Environment, profile.Name)
+		err = fmt.Errorf("bot identity is not configured; run `contract-cli config add --env prod --name %s` first", profile.Name)
 		p.logger.Error("bot auth token endpoint missing", "profile", profile.Name, "environment", profile.Environment, "error", err.Error())
 		return "", err
 	}
@@ -279,7 +276,6 @@ func (p botAuthProvider) Status(_ context.Context, profile config.Profile, optio
 		{Label: "App ID", Value: emptyFallback(credentials.appID, "<not-configured>")},
 		{Label: "App Secret", Value: secretState},
 		{Label: "Credential Source", Value: credentials.source},
-		{Label: "Token Endpoint", Value: emptyFallback(profile.BotTokenEndpoint, "<not-configured>")},
 		{Label: "Token Protocol", Value: "tenant_access_token/internal"},
 	}
 	if token := profile.Identities.Bot.Token; token != nil && !token.Expiry.IsZero() {

@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-- 当前内置 `prod` 和 `dev` 两套环境预设；正式包默认使用 `prod`：`contract-cli config add --env prod --name contract`
+- 当前仅内置 `prod` 环境预设；正式包默认使用 `prod`：`contract-cli config add --env prod --name contract`
 - `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 是当前仅有的十五个同时支持 `user` 与 `bot` 的结构化业务命令
 - `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get` 当前仅支持 `--as bot`
 - 除上述 bot 能力外，当前其他结构化业务命令仍只支持 `--as user`
@@ -136,7 +136,7 @@ contract-cli config add --env prod --name contract
 
 支持参数：
 
-- `--env`：环境预设，支持 `prod` 和 `dev`，默认 `prod`
+- `--env`：环境预设，当前仅支持 `prod`，默认 `prod`
 - `--name`：profile 名称，默认 `contract`
 - `--resource-metadata-url`：覆盖 protected resource metadata 地址
 - `--redirect-url`：覆盖 OAuth callback 地址
