@@ -134,17 +134,10 @@ function extractArchive(archivePath, tempDir) {
   execFileSync("tar", ["-xzf", archivePath, "-C", tempDir], { stdio: "ignore" });
 }
 
-function installFromDownload(downloadBaseURL) {
-  if (!downloadBaseURL) {
-    throw new Error("download base URL template not configured");
-  }
-
+function installFromArchive(archivePath) {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "contract-cli-"));
-  const archivePath = path.join(tempDir, archiveName);
-  const downloadURL = `${downloadBaseURL}/${archiveName}`;
 
   try {
-    downloadArchive(downloadURL, archivePath);
     extractArchive(archivePath, tempDir);
     const extractedBinary = path.join(tempDir, binaryName + (isWindows ? ".exe" : ""));
     if (!fs.existsSync(extractedBinary)) {
@@ -158,8 +151,40 @@ function installFromDownload(downloadBaseURL) {
   }
 }
 
+function installFromBundledArchive() {
+  const archivePath = path.join(rootDir, "dist", "release-assets", archiveName);
+  if (!fs.existsSync(archivePath)) {
+    return false;
+  }
+
+  installFromArchive(archivePath);
+  return true;
+}
+
+function installFromDownload(downloadBaseURL) {
+  if (!downloadBaseURL) {
+    throw new Error("download base URL template not configured");
+  }
+
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "contract-cli-"));
+  const archivePath = path.join(tempDir, archiveName);
+  const downloadURL = `${downloadBaseURL}/${archiveName}`;
+
+  try {
+    downloadArchive(downloadURL, archivePath);
+    installFromArchive(archivePath);
+  } finally {
+    fs.rmSync(tempDir, { recursive: true, force: true });
+  }
+}
+
 function install() {
   const downloadBaseURL = resolveDownloadBaseURL();
+
+  if (installFromBundledArchive()) {
+    console.log(`${binaryName} ${version} installed from bundled npm assets`);
+    return;
+  }
 
   if (downloadBaseURL) {
     try {
