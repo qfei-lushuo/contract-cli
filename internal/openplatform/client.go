@@ -240,8 +240,7 @@ func (ProfileAuthProvider) Resolve(profile config.Profile, identity config.Ident
 
 	if strings.TrimSpace(profile.OpenPlatformBaseURL) == "" {
 		return RequestContext{}, fmt.Errorf(
-			"open platform base url is not configured; run `contract-cli config add --env %s --name %s` first",
-			emptyFallback(profile.Environment, "dev"),
+			"open platform base url is not configured; run `contract-cli config add --env prod --name %s` first",
 			profile.Name,
 		)
 	}

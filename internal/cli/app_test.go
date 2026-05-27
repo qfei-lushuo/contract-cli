@@ -496,7 +496,7 @@ func TestConfigAddAndAuthStatus(t *testing.T) {
 	err := app.Run(context.Background(), []string{
 		"config", "add",
 		"--name", "contract",
-		"--env", "dev",
+		"--env", "prod",
 		"--resource-metadata-url", testServer.protectedResourceMetadataURL,
 		"--redirect-url", "http://127.0.0.1:19090/callback",
 	})
@@ -510,14 +510,17 @@ func TestConfigAddAndAuthStatus(t *testing.T) {
 	if strings.Contains(stdout.String(), "Server URL: ") {
 		t.Fatalf("config add output should not contain removed server url: %s", stdout.String())
 	}
+	if strings.Contains(stdout.String(), "Open Platform URL:") || strings.Contains(stdout.String(), "Authorization endpoint:") {
+		t.Fatalf("config add output should not expose endpoint URLs: %s", stdout.String())
+	}
 	savedProfile, err := store.GetProfile("contract")
 	if err != nil {
 		t.Fatalf("GetProfile() error = %v", err)
 	}
-	if savedProfile.BotTokenEndpoint != "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal" {
+	if savedProfile.BotTokenEndpoint != "https://open.qfei.cn/open-apis/auth/v3/tenant_access_token/internal" {
 		t.Fatalf("bot token endpoint = %q", savedProfile.BotTokenEndpoint)
 	}
-	if savedProfile.OpenPlatformBaseURL != "https://dev-open.qtech.cn" {
+	if savedProfile.OpenPlatformBaseURL != "https://open.qfei.cn" {
 		t.Fatalf("open platform base url = %q", savedProfile.OpenPlatformBaseURL)
 	}
 
@@ -531,9 +534,12 @@ func TestConfigAddAndAuthStatus(t *testing.T) {
 	if strings.Contains(stdout.String(), "Server URL: ") {
 		t.Fatalf("auth status output should not contain removed server url: %s", stdout.String())
 	}
+	if strings.Contains(stdout.String(), "Open Platform URL:") {
+		t.Fatalf("auth status output should not expose open platform URL: %s", stdout.String())
+	}
 }
 
-func TestConfigAddUsesPublicDevPresetByDefault(t *testing.T) {
+func TestConfigAddUsesProdPresetByDefault(t *testing.T) {
 	t.Parallel()
 
 	stdout := &bytes.Buffer{}
@@ -547,7 +553,7 @@ func TestConfigAddUsesPublicDevPresetByDefault(t *testing.T) {
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				switch req.URL.String() {
-				case "https://dev-myaccount.qtech.cn/.well-known/oauth-authorization-server/contract":
+				case "https://myaccount.qfei.cn/.well-known/oauth-authorization-server/contract":
 					return jsonResponse(`{"issuer":"common-organization-v2","authorization_endpoint":"https://example.test/oauth/authorize/contract","token_endpoint":"https://example.test/oauth/token/contract","registration_endpoint":"https://example.test/oauth/register/contract"}`), nil
 				default:
 					t.Fatalf("unexpected request url: %s", req.URL.String())
@@ -557,7 +563,7 @@ func TestConfigAddUsesPublicDevPresetByDefault(t *testing.T) {
 		},
 	})
 
-	if err := app.Run(context.Background(), []string{"config", "add", "--name", "contract", "--env", "dev"}); err != nil {
+	if err := app.Run(context.Background(), []string{"config", "add", "--name", "contract"}); err != nil {
 		t.Fatalf("config add error = %v", err)
 	}
 
@@ -568,7 +574,7 @@ func TestConfigAddUsesPublicDevPresetByDefault(t *testing.T) {
 	if savedProfile.ProtectedResourceMetadataURL != "" {
 		t.Fatalf("protected resource metadata url = %q", savedProfile.ProtectedResourceMetadataURL)
 	}
-	if savedProfile.AuthorizationServerMetadataURL != "https://dev-myaccount.qtech.cn/.well-known/oauth-authorization-server/contract" {
+	if savedProfile.AuthorizationServerMetadataURL != "https://myaccount.qfei.cn/.well-known/oauth-authorization-server/contract" {
 		t.Fatalf("authorization server metadata url = %q", savedProfile.AuthorizationServerMetadataURL)
 	}
 	if savedProfile.Resource != "" {
@@ -581,6 +587,21 @@ func TestConfigAddUsesPublicDevPresetByDefault(t *testing.T) {
 	}
 	if strings.Contains(string(configContent), "\"server_url\"") {
 		t.Fatalf("config should not persist removed server_url field: %s", string(configContent))
+	}
+}
+
+func TestConfigAddRejectsDevPreset(t *testing.T) {
+	t.Parallel()
+
+	app := cli.New(cli.Options{
+		Stdout: &bytes.Buffer{},
+		Stderr: &bytes.Buffer{},
+		Store:  config.NewStore(t.TempDir()),
+	})
+
+	err := app.Run(context.Background(), []string{"config", "add", "--name", "contract", "--env", "dev"})
+	if err == nil || !strings.Contains(err.Error(), `unsupported environment "dev"; supported environments: prod`) {
+		t.Fatalf("unexpected error: %v", err)
 	}
 }
 
@@ -876,7 +897,7 @@ func TestAuthLoginBotReturnsErrorWhenProfileMissesTokenEndpoint(t *testing.T) {
 	if err == nil {
 		t.Fatalf("expected error")
 	}
-	if !strings.Contains(err.Error(), "run `contract-cli config add --env dev --name contract` first") {
+	if !strings.Contains(err.Error(), "run `contract-cli config add --env prod --name contract` first") {
 		t.Fatalf("unexpected error: %v", err)
 	}
 }
@@ -998,9 +1019,11 @@ func TestAuthStatusBotAndAuthUse(t *testing.T) {
 	if !strings.Contains(stdout.String(), "Identity: bot") ||
 		!strings.Contains(stdout.String(), "Credential Source: secrets") ||
 		!strings.Contains(stdout.String(), "Token Protocol: tenant_access_token/internal") ||
-		!strings.Contains(stdout.String(), "Token Endpoint: https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal") ||
 		!strings.Contains(stdout.String(), "Authorization: authorized") {
 		t.Fatalf("unexpected bot status output: %s", stdout.String())
+	}
+	if strings.Contains(stdout.String(), "Open Platform URL:") || strings.Contains(stdout.String(), "Token Endpoint:") {
+		t.Fatalf("bot status output should not expose endpoint URLs: %s", stdout.String())
 	}
 
 	stdout.Reset()
@@ -1166,6 +1189,9 @@ func TestAuthStatusBotHandlesConfiguredExpiredAndUnconfigured(t *testing.T) {
 			}
 			if !strings.Contains(stdout.String(), tc.wantAuthorization) {
 				t.Fatalf("unexpected bot status output: %s", stdout.String())
+			}
+			if strings.Contains(stdout.String(), "Open Platform URL:") || strings.Contains(stdout.String(), "Token Endpoint:") {
+				t.Fatalf("bot status output should not expose endpoint URLs: %s", stdout.String())
 			}
 			for _, want := range tc.wantContains {
 				if !strings.Contains(stdout.String(), want) {

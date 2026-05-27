@@ -1,7 +1,7 @@
 ---
 name: auth
-version: 1.1.0
-description: "contract-cli 登录与身份切换技能：初始化 prod/dev profile、执行 user OAuth 登录、录入 bot 的 app_id/app_secret 并立即兑换 tenant_access_token、查看状态、切换默认身份、排查本地 config/secrets 持久化问题。当用户需要 `contract-cli config add`、`contract-cli auth login --as user|bot`、`contract-cli auth status/logout/use` 或排查登录异常时触发。"
+version: 1.1.1
+description: "contract-cli 登录与身份切换技能：初始化 prod profile、执行 user OAuth 登录、录入 bot 的 app_id/app_secret 并立即兑换 tenant_access_token、查看状态、切换默认身份、排查本地 config/secrets 持久化问题。当用户需要 `contract-cli config add`、`contract-cli auth login --as user|bot`、`contract-cli auth status/logout/use` 或排查登录异常时触发。"
 ---
 
 # contract-cli Auth
@@ -32,7 +32,7 @@ description: "contract-cli 登录与身份切换技能：初始化 prod/dev prof
 contract-cli config add --env prod --name contract
 ```
 
-当前实现内置 `prod` 和 `dev` 环境，默认环境为 `prod`，默认 profile 名为 `contract`。该命令会：
+当前实现仅内置 `prod` 环境，默认环境为 `prod`，默认 profile 名为 `contract`。该命令会：
 
 - 发现 well-known 元数据
 - 保存 MCP server / resource / OAuth server 配置
@@ -116,7 +116,7 @@ contract-cli auth status --as bot
 - 不传 `--as` 时，`auth status` 默认查看 `user`
 - `user` 显示 `authorized` 或 `unauthorized`
 - `bot` 显示 `authorized`、`expired`、`configured` 或 `unconfigured`
-- `bot` 状态会显示 `Token Endpoint`、`Token Protocol: tenant_access_token/internal` 和过期时间（若有）
+- `bot` 状态会显示 `Token Protocol: tenant_access_token/internal` 和过期时间（若有），不展示 endpoint 地址
 
 ### 退出登录
 
