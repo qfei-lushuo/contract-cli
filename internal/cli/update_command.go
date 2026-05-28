@@ -52,7 +52,7 @@ func (a *App) runUpdateCheck(ctx context.Context, args []string) error {
 	if parsed.Bool("--json") {
 		return output.NewRenderer(a.stdout).Render(output.FormatJSON, updateCheckJSON(result))
 	}
-	return writeUpdateCheckText(a.stderr, result)
+	return writeUpdateCheckText(a.stdout, result)
 }
 
 func updateCheckJSON(result updatecheck.Result) map[string]any {
@@ -120,10 +120,10 @@ func (a *App) maybePrepareUpdateNotice(ctx context.Context, args []string) {
 		a.logger.Debug("load update check cache failed", "path", a.updateCachePath(), "error", err.Error())
 	}
 	if cacheOK && strings.TrimSpace(cache.Channel) == channel {
-		if notice := updatecheck.NoticeFromCache(cache, currentVersion, updatecheck.DefaultPackageName); notice != nil {
-			a.updateNotice = map[string]any{"update": notice.Map()}
-		}
 		if updatecheck.CacheFresh(cache, channel, now, updatecheck.CacheTTL) {
+			if notice := updatecheck.NoticeFromCache(cache, currentVersion, updatecheck.DefaultPackageName); notice != nil {
+				a.updateNotice = map[string]any{"update": notice.Map()}
+			}
 			return
 		}
 	}

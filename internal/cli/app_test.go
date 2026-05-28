@@ -17,6 +17,7 @@ import (
 	"cn.qfei/contract-cli/internal/build"
 	"cn.qfei/contract-cli/internal/cli"
 	"cn.qfei/contract-cli/internal/config"
+	updatecheck "cn.qfei/contract-cli/internal/update"
 )
 
 func TestRunWithoutArgsPrintsTopLevelHelp(t *testing.T) {
@@ -137,16 +138,16 @@ func TestUpdateCheckDefaultReportsAvailableBetaVersionAsText(t *testing.T) {
 		t.Fatalf("update check error = %v", err)
 	}
 
-	if strings.TrimSpace(stdout.String()) != "" {
-		t.Fatalf("default update check should not write JSON stdout, got: %s", stdout.String())
-	}
-	stderrOutput := stderr.String()
+	output := stdout.String()
 	for _, want := range []string{
 		"Update available: contract-cli 0.1.0-beta.1 -> 0.1.0-beta.2",
 		"Run: npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org",
 	} {
-		if !strings.Contains(stderrOutput, want) {
-			t.Fatalf("stderr missing %q: %s", want, stderrOutput)
+		if !strings.Contains(output, want) {
+			t.Fatalf("stdout missing %q: %s", want, output)
+		}
+		if strings.Contains(stderr.String(), want) {
+			t.Fatalf("default update check should write normal result to stdout, not stderr: %s", stderr.String())
 		}
 	}
 	cacheContent, err := os.ReadFile(filepath.Join(filepath.Dir(store.Path()), "update-check.json"))
@@ -274,6 +275,62 @@ func TestAutomaticUpdateNoticeUsesJSONNoticeAndFreshCache(t *testing.T) {
 	secondNotice := second["_notice"].(map[string]any)["update"].(map[string]any)
 	if secondNotice["latest"] != "0.1.0-beta.2" {
 		t.Fatalf("unexpected second notice from cache: %+v", secondNotice)
+	}
+}
+
+func TestAutomaticUpdateNoticeDropsStaleCacheWhenRefreshFails(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	requests := 0
+	apiRequests := 0
+	store := config.NewStore(t.TempDir())
+	if err := store.UpsertProfile(uploadProfile(config.IdentityBot), true); err != nil {
+		t.Fatalf("UpsertProfile() error = %v", err)
+	}
+	cachePath := filepath.Join(filepath.Dir(store.Path()), "update-check.json")
+	if err := updatecheck.SaveCache(cachePath, updatecheck.Cache{
+		CheckedAt:       fixedCLINow().Add(-25 * time.Hour),
+		Channel:         "beta",
+		CurrentVersion:  "0.1.0-beta.1",
+		LatestVersion:   "0.1.0-beta.2",
+		UpdateAvailable: true,
+		InstallCommand:  "npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org",
+	}); err != nil {
+		t.Fatalf("SaveCache() error = %v", err)
+	}
+
+	app := cli.New(cli.Options{
+		Stdout:               stdout,
+		Stderr:               stderr,
+		Store:                store,
+		SkillsFS:             testSkillsFS(),
+		UpdateRegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
+		UpdateCurrentVersion: "0.1.0-beta.1",
+		Now:                  fixedCLINow,
+		HTTPClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.URL.Host == "registry.test" {
+					requests++
+					return nil, errors.New("registry unavailable")
+				}
+				apiRequests++
+				return jsonResponse(`{"code":0,"data":{"contract":{"contract_id":"contract-1"}}}`), nil
+			}),
+		},
+	})
+
+	if err := app.Run(context.Background(), []string{"contract", "get", "contract-1", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatalf("contract get error = %v", err)
+	}
+	if requests != 1 {
+		t.Fatalf("stale cache should trigger one registry refresh, got %d", requests)
+	}
+	if apiRequests != 1 {
+		t.Fatalf("api requests = %d, want 1", apiRequests)
+	}
+	output := decodeJSONObject(t, stdout.Bytes())
+	if _, ok := output["_notice"]; ok {
+		t.Fatalf("stale cache with failed refresh should not inject notice: %+v", output)
 	}
 }
 
