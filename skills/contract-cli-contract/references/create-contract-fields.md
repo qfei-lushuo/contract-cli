@@ -29,20 +29,20 @@ contract-cli contract create \
   --data '{"contract_name":"示例合同", ... }'
 ```
 
-bot 示例：
+app 示例：
 
 ```bash
 contract-cli contract create \
   --profile contract \
-  --as bot \
+  --as app \
   --data '{"contract_name":"示例合同","create_user_id":"ou_xxx", ... }'
 ```
 
 硬约束：
 
 - `--as user` 走 `/open-apis/contract/v1/mcp/contracts`
-- `--as bot` 走 `POST /open-apis/contract/v1/contracts`
-- `--as bot` 时，请求体必须自己带 `create_user_id`
+- `--as app` 走 `POST /open-apis/contract/v1/contracts`
+- `--as app` 时，请求体必须自己带 `create_user_id`
 - `--input-file` 与 `--data` 互斥
 - `--file` 不是 JSON 请求体参数；它只用于 `contract upload-file` 真实二进制上传
 - CLI 只透传请求体，不做字段级本地校验，不自动补默认值
@@ -61,7 +61,7 @@ contract-cli contract create \
 
 最小必填字段集：
 
-- `create_user_id`（仅 `--as bot` 时必填）
+- `create_user_id`（仅 `--as app` 时必填）
 - `contract_category_abbreviation`
 - `contract_name`
 - `our_party_list`
@@ -127,7 +127,7 @@ contract-cli contract create \
 
 最小必填字段集：
 
-- `create_user_id`（仅 `--as bot` 时必填）
+- `create_user_id`（仅 `--as app` 时必填）
 - `contract_category_abbreviation`
 - `contract_name`
 - `our_party_list`
@@ -191,7 +191,7 @@ contract-cli contract create \
 
 最小必填字段集：
 
-- `create_user_id`（仅 `--as bot` 时必填）
+- `create_user_id`（仅 `--as app` 时必填）
 - `business_type_code=2`
 - `previous_contract_id`
 - `change_remark`
@@ -242,7 +242,7 @@ contract-cli contract create \
 
 最小必填字段集：
 
-- `create_user_id`（仅 `--as bot` 时必填）
+- `create_user_id`（仅 `--as app` 时必填）
 - `business_type_code=3`
 - `previous_contract_id`
 - `termination_remark`

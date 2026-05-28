@@ -91,7 +91,7 @@ func TestContractSkillCommandsDoNotSuggestPatchTitleShortcut(t *testing.T) {
 	t.Parallel()
 
 	content := readTextFile(t, filepath.Join("..", "..", "skills", "contract-cli-contract", "references", "commands.md"))
-	if strings.Contains(content, `contract patch 7023646046559404327 --profile contract --as bot --data '{"title":"demo"}'`) {
+	if strings.Contains(content, `contract patch 7023646046559404327 --profile contract --as app --data '{"title":"demo"}'`) {
 		t.Fatalf("contract patch commands should not suggest title-only patch payload")
 	}
 }

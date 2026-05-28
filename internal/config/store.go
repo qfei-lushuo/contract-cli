@@ -21,10 +21,12 @@ type IdentityKind string
 
 const (
 	IdentityUser IdentityKind = "user"
-	IdentityBot  IdentityKind = "bot"
+	IdentityApp  IdentityKind = "app"
+
+	legacyIdentityBot IdentityKind = "bot"
 )
 
-const BotAuthModeAppCredentials = "app_credentials"
+const AppAuthModeAppCredentials = "app_credentials"
 
 type Token struct {
 	AccessToken  string    `json:"access_token"`
@@ -43,7 +45,7 @@ type UserIdentity struct {
 	Token                 *Token `json:"token,omitempty"`
 }
 
-type BotIdentity struct {
+type AppIdentity struct {
 	AuthMode     string    `json:"auth_mode,omitempty"`
 	AppID        string    `json:"app_id,omitempty"`
 	SecretRef    string    `json:"secret_ref,omitempty"`
@@ -53,14 +55,14 @@ type BotIdentity struct {
 
 type Identities struct {
 	User UserIdentity `json:"user"`
-	Bot  BotIdentity  `json:"bot"`
+	App  AppIdentity  `json:"app"`
 }
 
 type Profile struct {
 	Name                           string       `json:"name"`
 	Environment                    string       `json:"environment"`
 	OpenPlatformBaseURL            string       `json:"open_platform_base_url,omitempty"`
-	BotTokenEndpoint               string       `json:"bot_token_endpoint,omitempty"`
+	AppTokenEndpoint               string       `json:"app_token_endpoint,omitempty"`
 	ProtectedResourceMetadataURL   string       `json:"protected_resource_metadata_url"`
 	AuthorizationServerMetadataURL string       `json:"authorization_server_metadata_url"`
 	Resource                       string       `json:"resource"`
@@ -86,18 +88,19 @@ type rawFile struct {
 }
 
 type rawProfile struct {
-	Name                           string       `json:"name"`
-	Environment                    string       `json:"environment"`
-	OpenPlatformBaseURL            string       `json:"open_platform_base_url,omitempty"`
-	BotTokenEndpoint               string       `json:"bot_token_endpoint,omitempty"`
-	ProtectedResourceMetadataURL   string       `json:"protected_resource_metadata_url"`
-	AuthorizationServerMetadataURL string       `json:"authorization_server_metadata_url"`
-	Resource                       string       `json:"resource"`
-	Scopes                         []string     `json:"scopes"`
-	BusinessType                   string       `json:"business_type"`
-	ClientName                     string       `json:"client_name"`
-	DefaultIdentity                IdentityKind `json:"default_identity,omitempty"`
-	Identities                     Identities   `json:"identities"`
+	Name                           string        `json:"name"`
+	Environment                    string        `json:"environment"`
+	OpenPlatformBaseURL            string        `json:"open_platform_base_url,omitempty"`
+	AppTokenEndpoint               string        `json:"app_token_endpoint,omitempty"`
+	LegacyBotTokenEndpoint         string        `json:"bot_token_endpoint,omitempty"`
+	ProtectedResourceMetadataURL   string        `json:"protected_resource_metadata_url"`
+	AuthorizationServerMetadataURL string        `json:"authorization_server_metadata_url"`
+	Resource                       string        `json:"resource"`
+	Scopes                         []string      `json:"scopes"`
+	BusinessType                   string        `json:"business_type"`
+	ClientName                     string        `json:"client_name"`
+	DefaultIdentity                IdentityKind  `json:"default_identity,omitempty"`
+	Identities                     rawIdentities `json:"identities"`
 
 	// Legacy flat user-auth fields kept for backward-compatible reads.
 	AuthorizationEndpoint string `json:"authorization_endpoint,omitempty"`
@@ -106,6 +109,12 @@ type rawProfile struct {
 	RedirectURL           string `json:"redirect_url,omitempty"`
 	ClientID              string `json:"client_id,omitempty"`
 	Token                 *Token `json:"token,omitempty"`
+}
+
+type rawIdentities struct {
+	User UserIdentity `json:"user"`
+	App  AppIdentity  `json:"app"`
+	Bot  AppIdentity  `json:"bot"`
 }
 
 func NewStore(dir string) *Store {
@@ -140,8 +149,8 @@ func ParseIdentityKind(value string) (IdentityKind, error) {
 	switch IdentityKind(strings.ToLower(strings.TrimSpace(value))) {
 	case "", IdentityUser:
 		return IdentityUser, nil
-	case IdentityBot:
-		return IdentityBot, nil
+	case IdentityApp, legacyIdentityBot:
+		return IdentityApp, nil
 	default:
 		return "", fmt.Errorf("unsupported identity %q", value)
 	}
@@ -264,8 +273,8 @@ func (s *Store) SaveToken(profileName string, identity IdentityKind, token *Toke
 	switch identity {
 	case IdentityUser:
 		profile.Identities.User.Token = token
-	case IdentityBot:
-		profile.Identities.Bot.Token = token
+	case IdentityApp:
+		profile.Identities.App.Token = token
 	default:
 		return fmt.Errorf("unsupported identity %q", identity)
 	}
@@ -277,8 +286,8 @@ func (s *Store) ClearToken(profileName string, identity IdentityKind) error {
 	return s.SaveToken(profileName, identity, nil)
 }
 
-func BotSecretKey(profileName string) string {
-	return fmt.Sprintf("%s.bot.app_secret", profileName)
+func AppSecretKey(profileName string) string {
+	return fmt.Sprintf("%s.app.app_secret", profileName)
 }
 
 func decodeProfile(data []byte) (Profile, error) {
@@ -291,15 +300,24 @@ func decodeProfile(data []byte) (Profile, error) {
 		Name:                           raw.Name,
 		Environment:                    raw.Environment,
 		OpenPlatformBaseURL:            raw.OpenPlatformBaseURL,
-		BotTokenEndpoint:               raw.BotTokenEndpoint,
+		AppTokenEndpoint:               raw.AppTokenEndpoint,
 		ProtectedResourceMetadataURL:   raw.ProtectedResourceMetadataURL,
 		AuthorizationServerMetadataURL: raw.AuthorizationServerMetadataURL,
 		Resource:                       raw.Resource,
 		Scopes:                         raw.Scopes,
 		BusinessType:                   raw.BusinessType,
 		ClientName:                     raw.ClientName,
-		DefaultIdentity:                raw.DefaultIdentity,
-		Identities:                     raw.Identities,
+		DefaultIdentity:                normalizeStoredIdentity(raw.DefaultIdentity),
+		Identities: Identities{
+			User: raw.Identities.User,
+			App:  raw.Identities.App,
+		},
+	}
+	if profile.AppTokenEndpoint == "" {
+		profile.AppTokenEndpoint = raw.LegacyBotTokenEndpoint
+	}
+	if !appIdentityConfigured(profile.Identities.App) && appIdentityConfigured(raw.Identities.Bot) {
+		profile.Identities.App = raw.Identities.Bot
 	}
 
 	if profile.Identities.User.AuthorizationEndpoint == "" {
@@ -326,10 +344,26 @@ func decodeProfile(data []byte) (Profile, error) {
 }
 
 func (p *Profile) ensureDefaults() {
+	p.DefaultIdentity = normalizeStoredIdentity(p.DefaultIdentity)
 	if p.DefaultIdentity == "" {
 		p.DefaultIdentity = IdentityUser
 	}
 	if p.ClientName == "" || p.ClientName == legacyClientName {
 		p.ClientName = defaultClientName
 	}
+}
+
+func normalizeStoredIdentity(identity IdentityKind) IdentityKind {
+	if identity == legacyIdentityBot {
+		return IdentityApp
+	}
+	return identity
+}
+
+func appIdentityConfigured(identity AppIdentity) bool {
+	return identity.AuthMode != "" ||
+		identity.AppID != "" ||
+		identity.SecretRef != "" ||
+		!identity.ConfiguredAt.IsZero() ||
+		identity.Token != nil
 }

@@ -10,17 +10,17 @@
 ## 1. CLI 命令面
 
 ```bash
-contract-cli contract template list --profile contract --as bot --category-number CAT-1 --page-size 20 --user-id ou_xxx --user-id-type employee_id
-contract-cli contract template get <template-id> --profile contract --as bot --user-id ou_xxx --user-id-type employee_id
+contract-cli contract template list --profile contract --as app --category-number CAT-1 --page-size 20 --user-id ou_xxx --user-id-type employee_id
+contract-cli contract template get <template-id> --profile contract --as app --user-id ou_xxx --user-id-type employee_id
 ```
 
 硬约束：
 
 - `template list --as user` 走 `/open-apis/contract/v1/mcp/templates`
-- `template list --as bot` 走 `/open-apis/contract/v1/templates`
+- `template list --as app` 走 `/open-apis/contract/v1/templates`
 - `template get --as user` 走 `/open-apis/contract/v1/mcp/templates/{template_id}`
-- `template get --as bot` 走 `/open-apis/contract/v1/templates/{template_id}`
-- 官方 bot 文档要求 `user_id`、`user_id_type`，列表还要求 `category_number`；CLI 只透传，不做本地必填校验
+- `template get --as app` 走 `/open-apis/contract/v1/templates/{template_id}`
+- 官方 app 文档要求 `user_id`、`user_id_type`，列表还要求 `category_number`；CLI 只透传，不做本地必填校验
 
 ## 2. `template list` 查询参数
 
@@ -29,7 +29,7 @@ contract-cli contract template get <template-id> --profile contract --as bot --u
 | `--category-number` | `$query.category_number` | `string` | 合同模板二级分类编码。可先用 `contract category list` 获取二级分类 `number`。 |
 | `--page-size` | `$query.page_size` | `integer` | 分页大小，官方最大值 `100`。 |
 | `--page-token` | `$query.page_token` | `string` | 分页令牌。 |
-| `--user-id` | `$query.user_id` | `string` | bot 场景通常需要传调用人。 |
+| `--user-id` | `$query.user_id` | `string` | app 场景通常需要传调用人。 |
 | `--user-id-type` | `$query.user_id_type` | `string` | 用户 ID 类型。 |
 
 ## 3. `template list` 响应字段

@@ -15,12 +15,12 @@ import (
 	"cn.qfei/contract-cli/internal/config"
 )
 
-func TestContractBotOnlyCommandsUseExpectedEndpoints(t *testing.T) {
+func TestContractAppOnlyCommandsUseExpectedEndpoints(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
 	store := config.NewStore(dir)
-	if err := store.UpsertProfile(uploadProfile(config.IdentityBot), true); err != nil {
+	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 
@@ -111,7 +111,7 @@ func TestContractBotOnlyCommandsUseExpectedEndpoints(t *testing.T) {
 						if req.URL.Path != tc.wantPath {
 							t.Fatalf("path = %s, want %s", req.URL.Path, tc.wantPath)
 						}
-						if req.Header.Get("Authorization") != "Bearer bot-token" {
+						if req.Header.Get("Authorization") != "Bearer app-token" {
 							t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
 						}
 						if got := req.URL.Query().Get("user_id_type"); got != "user_id" {
@@ -142,13 +142,13 @@ func TestContractBotOnlyCommandsUseExpectedEndpoints(t *testing.T) {
 	}
 }
 
-func TestContractDownloadFileCommandWritesOutputFileAsBot(t *testing.T) {
+func TestContractDownloadFileCommandWritesOutputFileAsApp(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
 	outputPath := filepath.Join(dir, "contract.pdf")
 	store := config.NewStore(dir)
-	if err := store.UpsertProfile(uploadProfile(config.IdentityBot), true); err != nil {
+	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 
@@ -208,7 +208,7 @@ func TestContractDownloadFileCommandUsesSaveDialogByDefault(t *testing.T) {
 	dir := t.TempDir()
 	outputPath := filepath.Join(dir, "from-dialog.pdf")
 	store := config.NewStore(dir)
-	if err := store.UpsertProfile(uploadProfile(config.IdentityBot), true); err != nil {
+	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 
@@ -255,7 +255,7 @@ func TestContractDownloadFileCommandRawWritesStdout(t *testing.T) {
 
 	dir := t.TempDir()
 	store := config.NewStore(dir)
-	if err := store.UpsertProfile(uploadProfile(config.IdentityBot), true); err != nil {
+	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 
@@ -299,7 +299,7 @@ func TestContractDownloadFileCommandValidationAndForce(t *testing.T) {
 		t.Fatalf("WriteFile(existing) error = %v", err)
 	}
 	store := config.NewStore(dir)
-	if err := store.UpsertProfile(uploadProfile(config.IdentityBot), true); err != nil {
+	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 
@@ -354,7 +354,7 @@ func TestContractDownloadFileCommandDialogFailureDoesNotSendHTTP(t *testing.T) {
 
 	dir := t.TempDir()
 	store := config.NewStore(dir)
-	if err := store.UpsertProfile(uploadProfile(config.IdentityBot), true); err != nil {
+	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 
@@ -386,7 +386,7 @@ func TestContractDownloadFileCommandDialogFailureDoesNotSendHTTP(t *testing.T) {
 	}
 }
 
-func TestContractBotOnlyCommandsRejectUserIdentityBeforeHTTP(t *testing.T) {
+func TestContractAppOnlyCommandsRejectUserIdentityBeforeHTTP(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -431,7 +431,7 @@ func TestContractBotOnlyCommandsRejectUserIdentityBeforeHTTP(t *testing.T) {
 			})
 
 			err := app.Run(context.Background(), args)
-			if err == nil || !strings.Contains(err.Error(), "only supports --as bot") {
+			if err == nil || !strings.Contains(err.Error(), "only supports --as app") {
 				t.Fatalf("unexpected user error: %v", err)
 			}
 			if requests != 0 {
@@ -444,11 +444,11 @@ func TestContractBotOnlyCommandsRejectUserIdentityBeforeHTTP(t *testing.T) {
 	}
 }
 
-func TestContractBotOnlyCommandValidationErrors(t *testing.T) {
+func TestContractAppOnlyCommandValidationErrors(t *testing.T) {
 	t.Parallel()
 
 	store := config.NewStore(t.TempDir())
-	if err := store.UpsertProfile(uploadProfile(config.IdentityBot), true); err != nil {
+	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 

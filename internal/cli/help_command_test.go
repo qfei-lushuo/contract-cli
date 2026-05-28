@@ -46,7 +46,7 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 				"contract-cli contract upload-file --file <path> --file-type <type> [flags]",
 				"--file <path>",
 				"--file-type <type>",
-				"user/bot",
+				"user/app",
 				"200MB",
 				"不接受 --input-file / --data",
 			},
@@ -68,7 +68,7 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 				"--output-file <path>",
 				"--force",
 				"默认拉起保存文件弹窗",
-				"bot-only",
+				"app-only",
 			},
 		},
 		{
@@ -78,7 +78,7 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 				"contract patch",
 				"contract-cli contract patch <contract-id> --input-file <path>|--data <json> [flags]",
 				"PATCH /open-apis/contract/v1/contracts/{contract_id}",
-				"bot-only",
+				"app-only",
 			},
 		},
 		{
@@ -99,7 +99,7 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 				"contract search",
 				"--contract-number <number>",
 				"user: /open-apis/contract/v1/mcp/contracts/search",
-				"bot: /open-apis/contract/v1/contracts/search",
+				"app: /open-apis/contract/v1/contracts/search",
 			},
 		},
 		{

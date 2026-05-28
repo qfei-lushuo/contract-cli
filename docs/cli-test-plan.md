@@ -5,8 +5,8 @@
 ## 1. 测试目标
 
 - 验证 CLI 可以通过 npm/npx 或源码方式安装并启动。
-- 验证 profile 初始化、user OAuth、bot token、登出、默认身份切换等鉴权流程。
-- 验证 bot 身份下当前已接入的全部结构化业务命令。
+- 验证 profile 初始化、user OAuth、app token、登出、默认身份切换等鉴权流程。
+- 验证 app 身份下当前已接入的全部结构化业务命令。
 - 验证 user 身份下当前已接入的全部结构化业务命令。
 - 验证输出格式、通用 Agent skills 安装、CLI 内置 skills 兜底安装、`api call` 暂未开放拦截等补充能力。
 
@@ -62,10 +62,10 @@ rm -rf "$CONTRACT_CLI_CONFIG_DIR"
 | `TEMPLATE_ID` | 已存在模板 ID | `TMP...` |
 | `VENDOR_ID` | 已存在交易方 ID | `1063...` |
 | `LEGAL_ENTITY_ID` | 已存在法人主体 ID | `7023...` |
-| `BOT_APP_ID` | bot appId | 不写入文档 |
-| `BOT_APP_SECRET` | bot appSecret | 不写入文档 |
-| `USER_ID` | bot 接口可选透传 user_id | `ou_xxx` |
-| `USER_ID_TYPE` | bot 接口可选透传 user_id_type | `user_id` / `employee_id` |
+| `APP_ID` | appId | 不写入文档 |
+| `APP_SECRET` | appSecret | 不写入文档 |
+| `USER_ID` | app 接口可选透传 user_id | `ou_xxx` |
+| `USER_ID_TYPE` | app 接口可选透传 user_id_type | `user_id` / `employee_id` |
 
 建议在 shell 中设置：
 
@@ -78,11 +78,11 @@ export USER_ID="<user-id>"
 export USER_ID_TYPE="user_id"
 ```
 
-bot 凭证建议用环境变量传入，不要写入命令历史：
+app 凭证建议用环境变量传入，不要写入命令历史：
 
 ```bash
-export CONTRACT_CLI_BOT_APP_ID="<app-id>"
-export CONTRACT_CLI_BOT_APP_SECRET="<app-secret>"
+export CONTRACT_CLI_APP_ID="<app-id>"
+export CONTRACT_CLI_APP_SECRET="<app-secret>"
 ```
 
 ## 3. CLI 安装流程测试
@@ -275,7 +275,7 @@ contract-cli config add --env prod --name "$PROFILE"
 - 写入 prod 环境配置。
 - 写入开放平台基址 `https://open.qfei.cn`。
 - 写入 user OAuth 配置。
-- 写入 bot token endpoint。
+- 写入 app token endpoint。
 - 当前 profile 被设置为 `$PROFILE`。
 
 ### 4.2 user 登录
@@ -309,44 +309,44 @@ Identity: user
 Authorization: authorized
 ```
 
-### 4.3 bot 登录
+### 4.3 app 登录
 
 推荐使用环境变量：
 
 ```bash
-contract-cli auth login --profile "$PROFILE" --as bot
+contract-cli auth login --profile "$PROFILE" --as app
 ```
 
 也可以显式传参：
 
 ```bash
-contract-cli auth login --profile "$PROFILE" --as bot --app-id "$CONTRACT_CLI_BOT_APP_ID" --app-secret "$CONTRACT_CLI_BOT_APP_SECRET"
+contract-cli auth login --profile "$PROFILE" --as app --app-id "$CONTRACT_CLI_APP_ID" --app-secret "$CONTRACT_CLI_APP_SECRET"
 ```
 
 预期结果：
 
 - CLI 调用 `https://open.qfei.cn/open-apis/auth/v3/tenant_access_token/internal`。
 - 请求体使用 `appId/appSecret`。
-- 成功后保存 bot token。
-- 默认身份切换为 `bot`。
+- 成功后保存 app token。
+- 默认身份切换为 `app`。
 - 输出 token 过期时间。
 
 验证状态：
 
 ```bash
-contract-cli auth status --profile "$PROFILE" --as bot
+contract-cli auth status --profile "$PROFILE" --as app
 ```
 
 预期包含：
 
 ```text
-Identity: bot
+Identity: app
 Authorization: authorized
 Token Protocol: tenant_access_token/internal
 Expires At:
 ```
 
-状态输出不展示开放平台地址、授权端点或 bot token endpoint。
+状态输出不展示开放平台地址、授权端点或 app token endpoint。
 
 ### 4.4 默认身份切换
 
@@ -357,17 +357,17 @@ contract-cli auth use --profile "$PROFILE" --as user
 contract-cli auth status --profile "$PROFILE"
 ```
 
-切换到 bot：
+切换到 app：
 
 ```bash
-contract-cli auth use --profile "$PROFILE" --as bot
+contract-cli auth use --profile "$PROFILE" --as app
 contract-cli auth status --profile "$PROFILE"
 ```
 
 预期结果：
 
 - `auth use --as user` 后不显式传 `--as` 的业务命令默认走 user。
-- `auth use --as bot` 后不显式传 `--as` 的业务命令默认走 bot。
+- `auth use --as app` 后不显式传 `--as` 的业务命令默认走 app。
 
 ### 4.5 user 登出
 
@@ -384,14 +384,14 @@ Authorization: unauthorized
 
 回归点：
 
-- user logout 不应删除 bot token。
-- user logout 不应删除 bot appId/appSecret。
+- user logout 不应删除 app token。
+- user logout 不应删除 appId/appSecret。
 
-### 4.6 bot 登出
+### 4.6 app 登出
 
 ```bash
-contract-cli auth logout --profile "$PROFILE" --as bot
-contract-cli auth status --profile "$PROFILE" --as bot
+contract-cli auth logout --profile "$PROFILE" --as app
+contract-cli auth status --profile "$PROFILE" --as app
 ```
 
 预期结果：
@@ -402,34 +402,43 @@ Authorization: configured
 
 回归点：
 
-- 只清空 bot token。
+- 只清空 app token。
 - 保留 `appId/appSecret` 和 secret 引用。
-- 如果默认身份原本是 bot，登出后默认身份仍保持 bot。
-- 再次执行 `auth login --as bot` 时，可以复用已保存凭证重新换 token。
+- 如果默认身份原本是 app，登出后默认身份仍保持 app。
+- 再次执行 `auth login --as app` 时，可以复用已保存凭证重新换 token。
 
 ### 4.7 授权异常场景
 
 | 场景 | 命令 | 预期 |
 | --- | --- | --- |
-| 旧 profile 缺少 bot endpoint | `auth login --as bot` | 报错并提示重跑 `config add --env prod --name <profile>` |
-| bot appSecret 错误 | `auth login --as bot` | 保留新凭证，bot token 为空，默认身份不切到 bot |
+| 旧 profile 缺少 app endpoint | `auth login --as app` | 报错并提示重跑 `config add --env prod --name <profile>` |
+| appSecret 错误 | `auth login --as app` | 保留新凭证，app token 为空，默认身份不切到 app |
 | user 未登录调用 user-only 命令 | `contract enum list --as user` | 报未授权或 token 不可用 |
-| bot token 已清空后调用 bot 命令 | `contract get --as bot` | 报未授权或 token 不可用 |
+| app token 已清空后调用 app 命令 | `contract get --as app` | 报未授权或 token 不可用 |
 
-## 5. bot 身份业务命令测试
+## 5. app 身份业务命令测试
 
 执行本节前确保：
 
 ```bash
-contract-cli auth login --profile "$PROFILE" --as bot
-contract-cli auth status --profile "$PROFILE" --as bot
+contract-cli auth login --profile "$PROFILE" --as app
+contract-cli auth status --profile "$PROFILE" --as app
 ```
+
+兼容旧身份值：
+
+```bash
+contract-cli auth login --profile "$PROFILE" --as bot
+contract-cli contract upload-file --profile "$PROFILE" --as bot --file /tmp/contract-upload.pdf --file-type attachment --output json
+```
+
+预期：旧 `--as bot` 不报身份不支持错误，运行时按 app 身份执行；后续配置保存为 `default_identity=app` 和 `identities.app`。
 
 公共检查点：
 
 | 检查项 | 预期 |
 | --- | --- |
-| 身份 | 显式 `--as bot` 或默认身份为 bot |
+| 身份 | 显式 `--as app` 或默认身份为 app |
 | 路径 | 不走 `/open-apis/contract/v1/mcp/...`，除非命令特殊说明 |
 | 输出 | 默认 JSON，可使用 `--output json` 显式校验 |
 | 通用 query | `--user-id-type` 不传默认 `user_id`，显式传值则覆盖；`--user-id` 传了就透传，不传就不带 |
@@ -444,8 +453,8 @@ cat > /tmp/contract-search.json <<'JSON'
 }
 JSON
 
-contract-cli contract search --profile "$PROFILE" --as bot --input-file /tmp/contract-search.json --output json
-contract-cli contract search --profile "$PROFILE" --as bot --input-file /tmp/contract-search.json --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
+contract-cli contract search --profile "$PROFILE" --as app --input-file /tmp/contract-search.json --output json
+contract-cli contract search --profile "$PROFILE" --as app --input-file /tmp/contract-search.json --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
 ```
 
 预期底层接口：
@@ -463,8 +472,8 @@ POST /open-apis/contract/v1/contracts/search
 ### 5.2 合同详情
 
 ```bash
-contract-cli contract get "$CONTRACT_ID" --profile "$PROFILE" --as bot --output json
-contract-cli contract get "$CONTRACT_ID" --profile "$PROFILE" --as bot --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
+contract-cli contract get "$CONTRACT_ID" --profile "$PROFILE" --as app --output json
+contract-cli contract get "$CONTRACT_ID" --profile "$PROFILE" --as app --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
 ```
 
 预期底层接口：
@@ -476,8 +485,8 @@ GET /open-apis/contract/v1/contracts/{contract_id}
 ### 5.3 同步用户分组
 
 ```bash
-contract-cli contract sync-user-groups --profile "$PROFILE" --as bot --output json
-contract-cli contract sync-user-groups --profile "$PROFILE" --as bot --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
+contract-cli contract sync-user-groups --profile "$PROFILE" --as app --output json
+contract-cli contract sync-user-groups --profile "$PROFILE" --as app --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
 ```
 
 预期底层接口：
@@ -489,9 +498,9 @@ POST /open-apis/contract/v1/contracts/user-groups/sync
 ### 5.4 获取合同文本
 
 ```bash
-contract-cli contract text "$CONTRACT_ID" --profile "$PROFILE" --as bot --output json
-contract-cli contract text "$CONTRACT_ID" --profile "$PROFILE" --as bot --full-text --output json
-contract-cli contract text "$CONTRACT_ID" --profile "$PROFILE" --as bot --offset 0 --limit 1000 --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
+contract-cli contract text "$CONTRACT_ID" --profile "$PROFILE" --as app --output json
+contract-cli contract text "$CONTRACT_ID" --profile "$PROFILE" --as app --full-text --output json
+contract-cli contract text "$CONTRACT_ID" --profile "$PROFILE" --as app --offset 0 --limit 1000 --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
 ```
 
 预期底层接口：
@@ -505,9 +514,9 @@ POST /open-apis/contract/v1/contracts/{contract_id}/text
 创建合同是写操作，建议优先在可回收的测试租户中使用明确可回收的测试数据。
 
 ```bash
-cat > /tmp/contract-create-bot.json <<'JSON'
+cat > /tmp/contract-create-app.json <<'JSON'
 {
-  "contract_name": "contract-cli bot create smoke",
+  "contract_name": "contract-cli app create smoke",
   "create_user_id": "REPLACE_WITH_USER_ID"
 }
 JSON
@@ -516,13 +525,13 @@ JSON
 将 `REPLACE_WITH_USER_ID` 替换为真实创建人，再执行：
 
 ```bash
-contract-cli contract create --profile "$PROFILE" --as bot --input-file /tmp/contract-create-bot.json --output json
+contract-cli contract create --profile "$PROFILE" --as app --input-file /tmp/contract-create-app.json --output json
 ```
 
 也可直接传 JSON：
 
 ```bash
-contract-cli contract create --profile "$PROFILE" --as bot --data '{"contract_name":"contract-cli bot create smoke","create_user_id":"'"$USER_ID"'"}' --output json
+contract-cli contract create --profile "$PROFILE" --as app --data '{"contract_name":"contract-cli app create smoke","create_user_id":"'"$USER_ID"'"}' --output json
 ```
 
 预期底层接口：
@@ -548,8 +557,8 @@ skills/contract-cli-contract/references/create-contract-enums.md
 ### 5.6 合同分类列表
 
 ```bash
-contract-cli contract category list --profile "$PROFILE" --as bot --output json
-contract-cli contract category list --profile "$PROFILE" --as bot --lang zh-CN --output json
+contract-cli contract category list --profile "$PROFILE" --as app --output json
+contract-cli contract category list --profile "$PROFILE" --as app --lang zh-CN --output json
 ```
 
 预期底层接口：
@@ -561,9 +570,9 @@ GET /open-apis/contract/v1/contract_categorys
 ### 5.7 模板列表
 
 ```bash
-contract-cli contract template list --profile "$PROFILE" --as bot --page-size 10 --output json
-contract-cli contract template list --profile "$PROFILE" --as bot --category-number "<category-number>" --page-size 10 --page-token "<page-token>" --output json
-contract-cli contract template list --profile "$PROFILE" --as bot --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
+contract-cli contract template list --profile "$PROFILE" --as app --page-size 10 --output json
+contract-cli contract template list --profile "$PROFILE" --as app --category-number "<category-number>" --page-size 10 --page-token "<page-token>" --output json
+contract-cli contract template list --profile "$PROFILE" --as app --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
 ```
 
 预期底层接口：
@@ -575,8 +584,8 @@ GET /open-apis/contract/v1/templates
 ### 5.8 模板详情
 
 ```bash
-contract-cli contract template get "$TEMPLATE_ID" --profile "$PROFILE" --as bot --output json
-contract-cli contract template get "$TEMPLATE_ID" --profile "$PROFILE" --as bot --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
+contract-cli contract template get "$TEMPLATE_ID" --profile "$PROFILE" --as app --output json
+contract-cli contract template get "$TEMPLATE_ID" --profile "$PROFILE" --as app --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
 ```
 
 预期底层接口：
@@ -588,7 +597,7 @@ GET /open-apis/contract/v1/templates/{template_id}
 ### 5.9 创建模板实例
 
 ```bash
-cat > /tmp/template-instance-bot.json <<'JSON'
+cat > /tmp/template-instance-app.json <<'JSON'
 {
   "template_number": "REPLACE_WITH_TEMPLATE_NUMBER",
   "create_user_id": "REPLACE_WITH_USER_ID"
@@ -599,8 +608,8 @@ JSON
 将占位符替换后执行：
 
 ```bash
-contract-cli contract template instantiate --profile "$PROFILE" --as bot --input-file /tmp/template-instance-bot.json --output json
-contract-cli contract template instantiate --profile "$PROFILE" --as bot --input-file /tmp/template-instance-bot.json --user-id-type "$USER_ID_TYPE" --output json
+contract-cli contract template instantiate --profile "$PROFILE" --as app --input-file /tmp/template-instance-app.json --output json
+contract-cli contract template instantiate --profile "$PROFILE" --as app --input-file /tmp/template-instance-app.json --user-id-type "$USER_ID_TYPE" --output json
 ```
 
 预期底层接口：
@@ -625,9 +634,9 @@ printf '%s\n' '%PDF-1.4 contract-cli upload smoke' > /tmp/contract-upload.pdf
 执行：
 
 ```bash
-contract-cli contract upload-file --profile "$PROFILE" --as bot --file /tmp/contract-upload.pdf --file-type attachment --file-name contract-upload.pdf --output json
+contract-cli contract upload-file --profile "$PROFILE" --as app --file /tmp/contract-upload.pdf --file-type attachment --file-name contract-upload.pdf --output json
 contract-cli contract upload-file --profile "$PROFILE" --as user --file /tmp/contract-upload.pdf --file-type attachment --file-name contract-upload.pdf --output json
-contract-cli contract upload-file --profile "$PROFILE" --as bot --file /tmp/contract-upload.pdf --file-type attachment --raw
+contract-cli contract upload-file --profile "$PROFILE" --as app --file /tmp/contract-upload.pdf --file-type attachment --raw
 ```
 
 预期底层接口：
@@ -641,34 +650,34 @@ POST /open-apis/contract/v1/files/upload
 - 请求是 `multipart/form-data`。
 - 表单字段包含 `file_name`、`file_type`、`file`。
 - 响应 JSON 中应包含后端返回的 `data.file_id`。
-- `--as user` 与 `--as bot` 均使用同一个上传接口，Authorization 使用对应身份的 token。
+- `--as user` 与 `--as app` 均使用同一个上传接口，Authorization 使用对应身份的 token。
 - 超过 `200MB`、目录路径、文件不存在、缺少 `--file`、缺少 `--file-type` 都应报明确错误。
 
-### 5.10.1 bot-only 合同提交、重提、更新与删除
+### 5.10.1 app-only 合同提交、重提、更新与删除
 
 ```bash
-contract-cli contract submit "$CONTRACT_ID" --profile "$PROFILE" --as bot --output json
-contract-cli contract submit "$CONTRACT_ID" --profile "$PROFILE" --as bot --data '{"comment":"contract-cli smoke submit"}' --output json
-contract-cli contract resubmit "$CONTRACT_ID" --profile "$PROFILE" --as bot --output json
-contract-cli contract resubmit "$CONTRACT_ID" --profile "$PROFILE" --as bot --data '{"comment":"contract-cli smoke resubmit"}' --output json
+contract-cli contract submit "$CONTRACT_ID" --profile "$PROFILE" --as app --output json
+contract-cli contract submit "$CONTRACT_ID" --profile "$PROFILE" --as app --data '{"comment":"contract-cli smoke submit"}' --output json
+contract-cli contract resubmit "$CONTRACT_ID" --profile "$PROFILE" --as app --output json
+contract-cli contract resubmit "$CONTRACT_ID" --profile "$PROFILE" --as app --data '{"comment":"contract-cli smoke resubmit"}' --output json
 ```
 
 更新合同需要准备 JSON 请求体：
 
 ```bash
-cat > /tmp/contract-patch-bot.json <<'JSON'
+cat > /tmp/contract-patch-app.json <<'JSON'
 {
-  "contract_name": "contract-cli bot patch smoke"
+  "contract_name": "contract-cli app patch smoke"
 }
 JSON
 
-contract-cli contract patch "$CONTRACT_ID" --profile "$PROFILE" --as bot --input-file /tmp/contract-patch-bot.json --output json
+contract-cli contract patch "$CONTRACT_ID" --profile "$PROFILE" --as app --input-file /tmp/contract-patch-app.json --output json
 ```
 
 删除草稿合同是破坏性操作，只能对明确可回收的测试草稿合同执行：
 
 ```bash
-contract-cli contract delete "$DRAFT_CONTRACT_ID" --profile "$PROFILE" --as bot --output json
+contract-cli contract delete "$DRAFT_CONTRACT_ID" --profile "$PROFILE" --as app --output json
 ```
 
 预期底层接口：
@@ -682,31 +691,31 @@ DELETE /open-apis/contract/v1/contracts/{contract_id}
 
 检查点：
 
-- 四个命令当前都仅支持 bot 身份，显式 `--as user` 应在发 HTTP 前失败。
+- 四个命令当前都仅支持 app 身份，显式 `--as user` 应在发 HTTP 前失败。
 - `submit` / `resubmit` 的 `--input-file` / `--data` 可选，不传时不发送请求体。
 - `patch` 的 `--input-file` / `--data` 必须传一个且互斥。
 - `delete` 不要求 `--yes`，执行前由测试者自行确认目标是草稿合同。
 
-### 5.10.2 bot-only 下载与生成打印文件
+### 5.10.2 app-only 下载与生成打印文件
 
 下载文件建议显式指定保存路径，避免默认保存弹窗在 Agent、SSH 或 CI 环境不可用：
 
 ```bash
-contract-cli contract download-file "$FILE_ID" --profile "$PROFILE" --as bot --output-file /tmp/contract-download.pdf
-contract-cli contract download-file "$FILE_ID" --profile "$PROFILE" --as bot --output-file /tmp/contract-download.pdf --force
-contract-cli contract download-file "$FILE_ID" --profile "$PROFILE" --as bot --raw > /tmp/contract-download.raw
+contract-cli contract download-file "$FILE_ID" --profile "$PROFILE" --as app --output-file /tmp/contract-download.pdf
+contract-cli contract download-file "$FILE_ID" --profile "$PROFILE" --as app --output-file /tmp/contract-download.pdf --force
+contract-cli contract download-file "$FILE_ID" --profile "$PROFILE" --as app --raw > /tmp/contract-download.raw
 ```
 
 生成打印文件需要准备 JSON 请求体：
 
 ```bash
-cat > /tmp/contract-print-file-bot.json <<'JSON'
+cat > /tmp/contract-print-file-app.json <<'JSON'
 {
   "contract_id": "REPLACE_WITH_CONTRACT_ID"
 }
 JSON
 
-contract-cli contract print-file --profile "$PROFILE" --as bot --input-file /tmp/contract-print-file-bot.json --output json
+contract-cli contract print-file --profile "$PROFILE" --as app --input-file /tmp/contract-print-file-app.json --output json
 ```
 
 预期底层接口：
@@ -718,18 +727,18 @@ POST /open-apis/contract/v1/files
 
 检查点：
 
-- `download-file` 当前仅支持 bot 身份，不支持 `dowload-file` 拼写。
+- `download-file` 当前仅支持 app 身份，不支持 `dowload-file` 拼写。
 - 不传 `--output-file` 且不传 `--raw` 时，CLI 默认拉起保存文件弹窗。
 - 无 GUI、远程、CI、Agent 环境下，保存弹窗失败时不应发 HTTP，并提示改用 `--output-file`。
 - `--output-file` 文件已存在时默认失败，加 `--force` 才覆盖。
 - `print-file` 的 `--input-file` / `--data` 必须传一个且互斥。
 
-### 5.10.3 bot-only 分享记录与协商信息
+### 5.10.3 app-only 分享记录与协商信息
 
 ```bash
-contract-cli contract share get "$CONTRACT_ID" --profile "$PROFILE" --as bot --output json
-contract-cli contract cooperation link get "$CONTRACT_ID" --profile "$PROFILE" --as bot --output json
-contract-cli contract cooperation record get "$CONTRACT_ID" --profile "$PROFILE" --as bot --output json
+contract-cli contract share get "$CONTRACT_ID" --profile "$PROFILE" --as app --output json
+contract-cli contract cooperation link get "$CONTRACT_ID" --profile "$PROFILE" --as app --output json
+contract-cli contract cooperation record get "$CONTRACT_ID" --profile "$PROFILE" --as app --output json
 ```
 
 预期底层接口：
@@ -742,15 +751,15 @@ GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_record_info
 
 检查点：
 
-- 三个命令当前都仅支持 bot 身份。
+- 三个命令当前都仅支持 app 身份。
 - 响应保持后端 JSON envelope，不做 CLI 侧结构归一化。
 
 ### 5.11 交易方列表
 
 ```bash
-contract-cli mdm vendor list --profile "$PROFILE" --as bot --page-size 10 --output json
-contract-cli mdm vendor list --profile "$PROFILE" --as bot --name "供应商" --page-size 10 --output json
-contract-cli mdm vendor list --profile "$PROFILE" --as bot --name "供应商" --page-token "<page-token>" --output json
+contract-cli mdm vendor list --profile "$PROFILE" --as app --page-size 10 --output json
+contract-cli mdm vendor list --profile "$PROFILE" --as app --name "供应商" --page-size 10 --output json
+contract-cli mdm vendor list --profile "$PROFILE" --as app --name "供应商" --page-token "<page-token>" --output json
 ```
 
 预期底层接口：
@@ -762,8 +771,8 @@ GET /open-apis/mdm/v1/vendors
 ### 5.12 交易方详情
 
 ```bash
-contract-cli mdm vendor get "$VENDOR_ID" --profile "$PROFILE" --as bot --output json
-contract-cli mdm vendor get "$VENDOR_ID" --profile "$PROFILE" --as bot --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
+contract-cli mdm vendor get "$VENDOR_ID" --profile "$PROFILE" --as app --output json
+contract-cli mdm vendor get "$VENDOR_ID" --profile "$PROFILE" --as app --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
 ```
 
 预期底层接口：
@@ -775,9 +784,9 @@ GET /open-apis/mdm/v1/vendors/{vendor_id}
 ### 5.13 法人主体列表
 
 ```bash
-contract-cli mdm legal list --profile "$PROFILE" --as bot --page-size 10 --output json
-contract-cli mdm legal list --profile "$PROFILE" --as bot --name "主体A" --page-size 10 --output json
-contract-cli mdm legal list --profile "$PROFILE" --as bot --name "主体A" --page-token "<page-token>" --output json
+contract-cli mdm legal list --profile "$PROFILE" --as app --page-size 10 --output json
+contract-cli mdm legal list --profile "$PROFILE" --as app --name "主体A" --page-size 10 --output json
+contract-cli mdm legal list --profile "$PROFILE" --as app --name "主体A" --page-token "<page-token>" --output json
 ```
 
 预期底层接口：
@@ -789,8 +798,8 @@ GET /open-apis/mdm/v1/legal_entities/list_all
 ### 5.14 法人主体详情
 
 ```bash
-contract-cli mdm legal get "$LEGAL_ENTITY_ID" --profile "$PROFILE" --as bot --output json
-contract-cli mdm legal get "$LEGAL_ENTITY_ID" --profile "$PROFILE" --as bot --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
+contract-cli mdm legal get "$LEGAL_ENTITY_ID" --profile "$PROFILE" --as app --output json
+contract-cli mdm legal get "$LEGAL_ENTITY_ID" --profile "$PROFILE" --as app --user-id "$USER_ID" --user-id-type "$USER_ID_TYPE" --output json
 ```
 
 预期底层接口：
@@ -801,13 +810,13 @@ GET /open-apis/mdm/v1/legal_entities/{legal_entity_id}
 
 检查点：
 
-- bot 路由会同时带 path 参数和同名 query `legal_entity_id`。
+- app 路由会同时带 path 参数和同名 query `legal_entity_id`。
 
 ### 5.15 字段配置
 
 ```bash
-contract-cli mdm fields list --profile "$PROFILE" --as bot --biz-line vendor --output json
-contract-cli mdm fields list --profile "$PROFILE" --as bot --biz-line legal_entity --output json
+contract-cli mdm fields list --profile "$PROFILE" --as app --biz-line vendor --output json
+contract-cli mdm fields list --profile "$PROFILE" --as app --biz-line legal_entity --output json
 ```
 
 预期底层接口：
@@ -818,13 +827,13 @@ GET /open-apis/mdm/v1/config/config_list
 
 检查点：
 
-- `legal_entity` 会在 bot 路由下映射为 query `biz_line=legalEntity`。
-- `vendor_risk` 当前不支持 bot，执行 `--as bot --biz-line vendor_risk` 应在本地报错且不发 HTTP。
+- `legal_entity` 会在 app 路由下映射为 query `biz_line=legalEntity`。
+- `vendor_risk` 当前不支持 app，执行 `--as app --biz-line vendor_risk` 应在本地报错且不发 HTTP。
 
-### 5.16 bot 不支持命令的负向验证
+### 5.16 app 不支持命令的负向验证
 
 ```bash
-contract-cli contract enum list --profile "$PROFILE" --as bot --type contract_status
+contract-cli contract enum list --profile "$PROFILE" --as app --type contract_status
 ```
 
 预期结果：
@@ -1023,7 +1032,7 @@ GET /open-apis/contract/v1/mcp/enum_values
 说明：
 
 - 当前 `contract enum list` 是 user-only。
-- bot 身份调用应失败。
+- app 身份调用应失败。
 
 ### 6.11 交易方列表
 
@@ -1131,7 +1140,7 @@ contract-cli skills install --target "$SKILLS_TARGET"
 ### 8.1 JSON 输出
 
 ```bash
-contract-cli mdm fields list --profile "$PROFILE" --as bot --biz-line vendor --output json
+contract-cli mdm fields list --profile "$PROFILE" --as app --biz-line vendor --output json
 ```
 
 预期结果：
@@ -1141,7 +1150,7 @@ contract-cli mdm fields list --profile "$PROFILE" --as bot --biz-line vendor --o
 ### 8.2 YAML 输出
 
 ```bash
-contract-cli mdm fields list --profile "$PROFILE" --as bot --biz-line vendor --output yaml
+contract-cli mdm fields list --profile "$PROFILE" --as app --biz-line vendor --output yaml
 ```
 
 预期结果：
@@ -1151,7 +1160,7 @@ contract-cli mdm fields list --profile "$PROFILE" --as bot --biz-line vendor --o
 ### 8.3 raw 输出
 
 ```bash
-contract-cli mdm fields list --profile "$PROFILE" --as bot --biz-line vendor --output json --raw
+contract-cli mdm fields list --profile "$PROFILE" --as app --biz-line vendor --output json --raw
 ```
 
 预期结果：
@@ -1161,7 +1170,7 @@ contract-cli mdm fields list --profile "$PROFILE" --as bot --biz-line vendor --o
 ### 8.4 `--input-file` 与 `--data` 互斥
 
 ```bash
-contract-cli contract create --profile "$PROFILE" --as bot --input-file /tmp/contract-create-bot.json --data '{}'
+contract-cli contract create --profile "$PROFILE" --as app --input-file /tmp/contract-create-app.json --data '{}'
 ```
 
 预期结果：
@@ -1172,7 +1181,7 @@ contract-cli contract create --profile "$PROFILE" --as bot --input-file /tmp/con
 ### 8.5 `--file` 仅用于真实文件上传
 
 ```bash
-contract-cli contract create --profile "$PROFILE" --as bot --file /tmp/contract-create-bot.json
+contract-cli contract create --profile "$PROFILE" --as app --file /tmp/contract-create-app.json
 ```
 
 预期结果：
@@ -1228,21 +1237,21 @@ npm publish --dry-run --tag beta
 ### 10.2 每次改鉴权逻辑后必须覆盖
 
 - `auth login --as user`
-- `auth login --as bot`
+- `auth login --as app`
 - `auth status --as user`
-- `auth status --as bot`
+- `auth status --as app`
 - `auth logout --as user`
-- `auth logout --as bot`
+- `auth logout --as app`
 - `auth use --as user`
-- `auth use --as bot`
-- user logout 不影响 bot。
-- bot logout 保留 app 凭证。
-- bot token 过期状态显示 `expired`。
+- `auth use --as app`
+- user logout 不影响 app。
+- app logout 保留 app 凭证。
+- app token 过期状态显示 `expired`。
 
 ### 10.3 每次改 openplatform client 后必须覆盖
 
 - `IdentityPolicyUserOnly` 下 MCP 固定 query 不被通用 query 覆盖。
-- `IdentityPolicyAny` 下 bot/open API 仍允许通用 query 覆盖同名参数。
+- `IdentityPolicyAny` 下 app/open API 仍允许通用 query 覆盖同名参数。
 - 非 2xx 错误摘要不泄露 token。
 - 响应 raw body 截断逻辑正常。
 - 相对路径校验正常。
@@ -1263,9 +1272,9 @@ npm publish --dry-run --tag beta
 | --- | --- |
 | npm 安装报 GitHub Release 404 | 确认 GitHub Release tag 是 `v<package.version>`，附件名是 `contract-cli-<version>-<os>-<arch>.<ext>` |
 | npm 首次发布后短暂 404 | npm registry/CDN 可能有缓存，使用新 cache 或等待后重试 |
-| bot 登录失败 | 检查 `CONTRACT_CLI_BOT_APP_ID`、`CONTRACT_CLI_BOT_APP_SECRET`、`bot_token_endpoint` |
+| app 登录失败 | 检查 `CONTRACT_CLI_APP_ID`、`CONTRACT_CLI_APP_SECRET`、`app_token_endpoint` |
 | user 登录卡住 | 检查浏览器 OAuth 回调、`--timeout`、是否需要 `--no-open-browser` 手动打开 URL |
-| MCP 命令 bot 调用失败 | 预期行为，`contract/v1/mcp` 默认 user-only |
+| MCP 命令 app 调用失败 | 预期行为，`contract/v1/mcp` 默认 user-only |
 | 创建合同字段缺失 | 对照 `skills/contract-cli-contract/references/create-contract-fields.md` 补齐场景必填字段 |
 | IDE 或命令爆红 | 先确认 `go.mod` 已 reload，`go test ./...` 是否通过 |
 
@@ -1277,8 +1286,8 @@ npm publish --dry-run --tag beta
 - `contract-cli skills list` 和 `contract-cli skills install` 成功。
 - `config add --env prod` 成功。
 - user 登录、状态、切换、登出成功。
-- bot 登录、状态、切换、登出成功，且 bot logout 保留凭证。
-- bot 身份下第 5 节结构化业务命令完成正向验证，`contract upload-file` 需覆盖 user/bot 两种身份；写操作至少在可回收测试租户完成一次可回收数据验证。
+- app 登录、状态、切换、登出成功，且 app logout 保留凭证。
+- app 身份下第 5 节结构化业务命令完成正向验证，`contract upload-file` 需覆盖 user/app 两种身份；写操作至少在可回收测试租户完成一次可回收数据验证。
 - user 身份下第 6 节十五条结构化业务命令完成正向验证。
 - `api call` 暂未开放拦截、help 隐藏、skills 隐藏三类场景完成验证。
 - `make release-check` 通过。
@@ -1403,7 +1412,7 @@ contract-cli skills install --force
 
 ## 15. 文件上传命令专项测试
 
-本模块覆盖 `contract-cli contract upload-file`。当前 user/bot 身份均支持，调用同一个开放平台上传接口。
+本模块覆盖 `contract-cli contract upload-file`。当前 user/app 身份均支持，调用同一个开放平台上传接口。
 
 ### 15.1 正向上传
 
@@ -1416,9 +1425,9 @@ printf '%s\n' '%PDF-1.4 contract-cli upload smoke' > /tmp/contract-upload.pdf
 执行：
 
 ```bash
-contract-cli contract upload-file --profile "$PROFILE" --as bot --file /tmp/contract-upload.pdf --file-type attachment --file-name contract-upload.pdf --output json
+contract-cli contract upload-file --profile "$PROFILE" --as app --file /tmp/contract-upload.pdf --file-type attachment --file-name contract-upload.pdf --output json
 contract-cli contract upload-file --profile "$PROFILE" --as user --file /tmp/contract-upload.pdf --file-type attachment --file-name contract-upload.pdf --output json
-contract-cli contract upload-file --profile "$PROFILE" --as bot --file /tmp/contract-upload.pdf --file-type attachment --raw
+contract-cli contract upload-file --profile "$PROFILE" --as app --file /tmp/contract-upload.pdf --file-type attachment --raw
 ```
 
 预期底层接口：
@@ -1429,7 +1438,7 @@ POST /open-apis/contract/v1/files/upload
 
 预期请求：
 
-- 使用 `Authorization: Bearer <user-token>` 或 `Authorization: Bearer <bot-token>`，取决于 `--as` 或 profile 默认身份。
+- 使用 `Authorization: Bearer <user-token>` 或 `Authorization: Bearer <app-token>`，取决于 `--as` 或 profile 默认身份。
 - 使用 `multipart/form-data`。
 - 表单字段包含 `file_name`、`file_type`、`file`。
 - `--file-name` 不传时默认使用 `filepath.Base(--file)`。
@@ -1443,10 +1452,10 @@ POST /open-apis/contract/v1/files/upload
 ### 15.2 参数负向测试
 
 ```bash
-contract-cli contract upload-file --profile "$PROFILE" --as bot --file /tmp/contract-upload.pdf
-contract-cli contract upload-file --profile "$PROFILE" --as bot --file-type attachment
-contract-cli contract upload-file --profile "$PROFILE" --as bot --file /tmp --file-type attachment
-contract-cli contract upload-file --profile "$PROFILE" --as bot --file /tmp/contract-upload.pdf --file-type attachment --input-file body.json
+contract-cli contract upload-file --profile "$PROFILE" --as app --file /tmp/contract-upload.pdf
+contract-cli contract upload-file --profile "$PROFILE" --as app --file-type attachment
+contract-cli contract upload-file --profile "$PROFILE" --as app --file /tmp --file-type attachment
+contract-cli contract upload-file --profile "$PROFILE" --as app --file /tmp/contract-upload.pdf --file-type attachment --input-file body.json
 ```
 
 预期结果：

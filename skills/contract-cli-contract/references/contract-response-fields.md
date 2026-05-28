@@ -10,8 +10,8 @@
 ## 1. CLI 命令面
 
 ```bash
-contract-cli contract get <contract-id> --profile contract --as bot --output json
-contract-cli contract search --profile contract --as bot --input-file contract-search.json --output json
+contract-cli contract get <contract-id> --profile contract --as app --output json
+contract-cli contract search --profile contract --as app --input-file contract-search.json --output json
 ```
 
 读取路径：

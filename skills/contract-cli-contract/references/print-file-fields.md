@@ -7,12 +7,12 @@
 ## 1. CLI 命令面与硬约束
 
 ```bash
-contract-cli contract print-file --profile contract --as bot --input-file print-file.json
+contract-cli contract print-file --profile contract --as app --input-file print-file.json
 ```
 
 硬约束：
 
-- 当前仅支持 `--as bot`
+- 当前仅支持 `--as app`
 - 走 `POST /open-apis/contract/v1/files`
 - `--input-file` 与 `--data` 必须传一个且互斥
 - 返回的是平台文件 id，不是文件二进制；下载文件需要再用 `contract download-file <file-id>`
@@ -42,7 +42,7 @@ contract-cli contract print-file --profile contract --as bot --input-file print-
 命令：
 
 ```bash
-contract-cli contract print-file --profile contract --as bot --data '{"contract_id":"7160880468122992647","operate_type":0}'
+contract-cli contract print-file --profile contract --as app --data '{"contract_id":"7160880468122992647","operate_type":0}'
 ```
 
 ## 4. 响应读取
@@ -62,6 +62,6 @@ contract-cli contract print-file --profile contract --as bot --data '{"contract_
 生成后下载：
 
 ```bash
-contract-cli contract download-file 7107133499601535020 --profile contract --as bot --output-file ./contract.pdf
+contract-cli contract download-file 7107133499601535020 --profile contract --as app --output-file ./contract.pdf
 ```
 

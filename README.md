@@ -2,7 +2,7 @@
 
 `contract-cli` 是合同开放平台的命令行工具，支持：
 
-- profile 配置与 OAuth / bot 双身份登录
+- profile 配置与 OAuth / app 双身份登录
 - 合同与 MDM 结构化命令
 - Agent skills 通用安装与 CLI 内置兜底安装
 - 版本检查与升级提示
@@ -116,7 +116,7 @@ contract-cli --help
 contract-cli help contract upload-file
 contract-cli config add --env prod --name contract
 contract-cli auth login --profile contract --as user
-contract-cli auth login --profile contract --as bot --app-id <id> --app-secret <secret>
+contract-cli auth login --profile contract --as app --app-id <id> --app-secret <secret>
 contract-cli update check --channel latest
 npx skills add qfeius/contract-cli -y -g
 contract-cli skills list
@@ -127,6 +127,8 @@ contract-cli mdm vendor list --profile contract --as user
 contract-cli mdm legal get <legal-entity-id> --profile contract --as user
 contract-cli mdm fields list --biz-line vendor --profile contract --as user
 ```
+
+新脚本请使用 `--as app` 表示应用身份；旧脚本中的 `--as bot` 会继续兼容并按 app 身份执行。
 
 所有已支持命令都可以通过 `--help` 查看本地帮助，例如 `contract-cli contract search --help`。帮助只渲染本地命令说明，不读取 profile、不发 HTTP，也不会触发自动版本检查。
 
@@ -149,7 +151,7 @@ CLI 会为符合条件的普通命令按 24 小时缓存检查 npm 远端版本�
 - `cmd/contract-cli`：CLI 入口
 - `internal/cli`：命令解析与交互
 - `internal/openplatform`：开放平台统一 client 和领域 service
-- `internal/oauth`：user / bot 鉴权逻辑
+- `internal/oauth`：user / app 鉴权逻辑
 - `internal/build`：版本与构建元信息
 - `skills`：随 CLI 分发并可由通用 installer 安装的 Agent skills
 - `scripts`：npm 安装与运行脚本

@@ -10,14 +10,14 @@
 ## 1. CLI 命令面
 
 ```bash
-contract-cli contract share get <contract-id> --profile contract --as bot
-contract-cli contract cooperation link get <contract-id> --profile contract --as bot
-contract-cli contract cooperation record get <contract-id> --profile contract --as bot
+contract-cli contract share get <contract-id> --profile contract --as app
+contract-cli contract cooperation link get <contract-id> --profile contract --as app
+contract-cli contract cooperation record get <contract-id> --profile contract --as app
 ```
 
 硬约束：
 
-- 当前三条命令都仅支持 `--as bot`
+- 当前三条命令都仅支持 `--as app`
 - 三条命令都以 `<contract-id>` 作为 path 参数
 - `--user-id-type` / `--user-id` 按共享规则透传
 - 分享或协商记录为空时，只要响应 `code=0`，命令仍可视为可用
