@@ -112,30 +112,6 @@ func TestCompareSemanticVersionsWithPrerelease(t *testing.T) {
 	}
 }
 
-func TestCacheFreshOnlyWithinIntervalForSameVersionAndChannel(t *testing.T) {
-	t.Parallel()
-
-	cache := Cache{
-		CheckedAt:      fixedNow().Add(-29 * time.Minute),
-		Channel:        "beta",
-		CurrentVersion: "0.1.0-beta.1",
-		LatestVersion:  "0.1.0-beta.1",
-	}
-
-	if !CacheFresh(cache, fixedNow(), 30*time.Minute, "0.1.0-beta.1", "beta") {
-		t.Fatalf("CacheFresh() = false, want true")
-	}
-	if CacheFresh(cache, fixedNow().Add(2*time.Minute), 30*time.Minute, "0.1.0-beta.1", "beta") {
-		t.Fatalf("CacheFresh() after interval = true, want false")
-	}
-	if CacheFresh(cache, fixedNow(), 30*time.Minute, "0.1.0-beta.2", "beta") {
-		t.Fatalf("CacheFresh() with different current version = true, want false")
-	}
-	if CacheFresh(cache, fixedNow(), 30*time.Minute, "0.1.0-beta.1", "latest") {
-		t.Fatalf("CacheFresh() with different channel = true, want false")
-	}
-}
-
 func TestCacheRoundTrip(t *testing.T) {
 	t.Parallel()
 
@@ -169,6 +145,57 @@ func TestCacheRoundTrip(t *testing.T) {
 	}
 	if _, _, err := LoadCache(path); err == nil {
 		t.Fatalf("LoadCache() with bad json error = nil, want error")
+	}
+}
+
+func TestCacheFreshnessUsesChannelAndTTL(t *testing.T) {
+	t.Parallel()
+
+	cache := Cache{
+		CheckedAt: fixedNow().Add(-23 * time.Hour),
+		Channel:   "beta",
+	}
+	if !CacheFresh(cache, "beta", fixedNow(), CacheTTL) {
+		t.Fatal("CacheFresh() = false for matching fresh cache, want true")
+	}
+	if CacheFresh(cache, "latest", fixedNow(), CacheTTL) {
+		t.Fatal("CacheFresh() = true for mismatched channel, want false")
+	}
+	if CacheFresh(Cache{CheckedAt: fixedNow().Add(-25 * time.Hour), Channel: "beta"}, "beta", fixedNow(), CacheTTL) {
+		t.Fatal("CacheFresh() = true for stale cache, want false")
+	}
+}
+
+func TestNoticeFromCacheComparesLatestAgainstCurrent(t *testing.T) {
+	t.Parallel()
+
+	cache := Cache{
+		Channel:         "beta",
+		CurrentVersion:  "0.1.0-beta.1",
+		LatestVersion:   "0.1.0-beta.2",
+		UpdateAvailable: true,
+		InstallCommand:  "npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org",
+	}
+
+	notice := NoticeFromCache(cache, "0.1.0-beta.1", DefaultPackageName)
+	if notice == nil {
+		t.Fatal("NoticeFromCache() = nil, want notice")
+	}
+	if notice.Current != "0.1.0-beta.1" || notice.Latest != "0.1.0-beta.2" {
+		t.Fatalf("notice versions = %+v", notice)
+	}
+	if !strings.Contains(notice.Message, "contract-cli 0.1.0-beta.2 available") {
+		t.Fatalf("notice message = %q", notice.Message)
+	}
+	if notice.Command != cache.InstallCommand {
+		t.Fatalf("notice command = %q, want %q", notice.Command, cache.InstallCommand)
+	}
+
+	if notice := NoticeFromCache(cache, "0.1.0-beta.2", DefaultPackageName); notice != nil {
+		t.Fatalf("NoticeFromCache() for current latest = %+v, want nil", notice)
+	}
+	if notice := NoticeFromCache(cache, "dev", DefaultPackageName); notice != nil {
+		t.Fatalf("NoticeFromCache() for dev = %+v, want nil", notice)
 	}
 }
 

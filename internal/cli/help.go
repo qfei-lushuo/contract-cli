@@ -391,13 +391,14 @@ func addUpdateHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli update check [flags]"},
 		Flags: []helpFlag{
 			{"--channel <latest|beta>", "npm dist-tag；正式版通常使用 latest，不传时根据当前版本推断"},
+			{"--json", "输出飞书式结构化 JSON；默认输出文本提示"},
 		},
 		Examples: []string{
 			"contract-cli update check",
-			"contract-cli update check --channel latest",
+			"contract-cli update check --channel latest --json",
 		},
 		Notes: []string{
-			"交互终端下普通命令最多每 30 分钟自动检查一次。",
+			"普通命令按 24 小时缓存自动检查远端版本，并在 JSON object 输出中注入 _notice.update。",
 			"可设置 CONTRACT_CLI_NO_UPDATE_CHECK=1 关闭自动检查。",
 		},
 	}

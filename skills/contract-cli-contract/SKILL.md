@@ -1,7 +1,7 @@
 ---
 name: contract-cli-contract
 version: 1.0.2
-description: "contract-cli 合同命令技能：支持 user/bot 双身份下的合同详情、合同搜索、合同创建、同步用户组、读取合同文本、查询合同分类、列出模板、查看模板详情、创建模板实例、文件上传，bot 身份下的提交/重提/更新/删除合同、下载/生成文件、分享记录、协商信息查询和审批管理，以及 user 身份下的枚举查询。当用户要使用 `contract-cli contract ...` 操作合同能力时触发。"
+description: "contract-cli 合同命令技能：支持 user/bot 双身份下的合同详情、合同搜索、合同创建、同步用户组、读取合同文本、查询合同分类、列出模板、查看模板详情、创建模板实例、文件上传，bot 身份下的提交/重提/更新/删除合同、下载/生成文件、分享记录、协商信息查询和审批管理，以及 user 身份下的枚举查询。内含合同搜索、详情响应、模板、打印文件、分类、分享协商等字段参考。当用户要使用 `contract-cli contract ...` 操作合同能力时触发。"
 ---
 
 # contract-cli Contract
@@ -50,6 +50,20 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - 若需求是付款：读 [../contract-cli-payment/SKILL.md](../contract-cli-payment/SKILL.md)
 - 若需求是授权：当前 skill 不覆盖，别伪造命令
 
+## 字段文档导航
+
+- 合同搜索请求体：读 [references/search-contract-fields.md](references/search-contract-fields.md)
+- 合同详情和搜索响应字段：读 [references/contract-response-fields.md](references/contract-response-fields.md)
+- 合同创建请求体：读 [references/create-contract-fields.md](references/create-contract-fields.md)、[references/create-contract-field-tree.md](references/create-contract-field-tree.md)、[references/create-contract-enums.md](references/create-contract-enums.md)
+- 合同更新文件/归档字段：读 [references/patch-contract-fields.md](references/patch-contract-fields.md)
+- 模板列表和模板详情字段：读 [references/template-fields.md](references/template-fields.md)
+- 模板实例请求体：读 [references/template-instance-fields.md](references/template-instance-fields.md)
+- 生成打印文件：读 [references/print-file-fields.md](references/print-file-fields.md)
+- 合同分类树：读 [references/category-fields.md](references/category-fields.md)
+- 分享和协商响应：读 [references/share-cooperation-fields.md](references/share-cooperation-fields.md)
+- 上传、下载、提交、重提、删除等轻量动作：读 [references/contract-actions-fields.md](references/contract-actions-fields.md)
+- `contract sync-user-groups`、`contract text`、`contract enum list` 当前只补命令级约束；本技能未找到可补到 `contract create` 级别的官方字段页
+
 ## 关键规则
 
 - `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file` 同时支持 `--as user` 和 `--as bot`
@@ -73,7 +87,7 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - `contract search` 会把 `--contract-number`、`--page-size`、`--page-token` 合并进 `--input-file/--data` 里的 JSON 对象
 - `contract search --as bot` 走开放平台标准接口 `/open-apis/contract/v1/contracts/search`
 - `contract sync-user-groups --as bot` 走 `/open-apis/contract/v1/contracts/user-groups/sync`
-- `contract text --as bot` 走 `POST /open-apis/contract/v1/contracts/{contract_id}/text`
+- `contract text --as bot` 走 `GET /open-apis/contract/v1/contracts/{contract_id}/text`
 - `contract category list --as bot` 走 `/open-apis/contract/v1/contract_categorys`
 - `contract template list --as bot` 走 `/open-apis/contract/v1/templates`
 - 按生产文档，`contract template list --as bot` 的 `category_number`、`user_id`、`user_id_type` 都属于 query 参数；CLI 仍只透传，不做本地必填校验
@@ -108,9 +122,18 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - [internal/cli/contract_command.go](../../internal/cli/contract_command.go)
 - [internal/openplatform/contract/service.go](../../internal/openplatform/contract/service.go)
 - [references/commands.md](references/commands.md)
+- [references/search-contract-fields.md](references/search-contract-fields.md)
+- [references/contract-response-fields.md](references/contract-response-fields.md)
 - [references/create-contract-fields.md](references/create-contract-fields.md)
 - [references/create-contract-field-tree.md](references/create-contract-field-tree.md)
 - [references/create-contract-enums.md](references/create-contract-enums.md)
+- [references/patch-contract-fields.md](references/patch-contract-fields.md)
+- [references/template-fields.md](references/template-fields.md)
+- [references/template-instance-fields.md](references/template-instance-fields.md)
+- [references/print-file-fields.md](references/print-file-fields.md)
+- [references/category-fields.md](references/category-fields.md)
+- [references/share-cooperation-fields.md](references/share-cooperation-fields.md)
+- [references/contract-actions-fields.md](references/contract-actions-fields.md)
 
 ## 操作建议
 

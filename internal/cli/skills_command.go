@@ -11,6 +11,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"cn.qfei/contract-cli/internal/build"
 )
 
 type skillMetadata struct {
@@ -54,8 +56,9 @@ func (a *App) runSkillsList(args []string) error {
 	}
 
 	_, _ = fmt.Fprintln(a.stdout, "Built-in skills:")
+	cliVersion := build.Current().Version
 	for _, skill := range skills {
-		_, _ = fmt.Fprintf(a.stdout, "%s\t%s\t%s\n", skill.Name, skill.Version, skill.Description)
+		_, _ = fmt.Fprintf(a.stdout, "%s\t%s\t%s\n", skill.Name, cliVersion, skill.Description)
 	}
 	return nil
 }

@@ -17,7 +17,6 @@ import (
 	"cn.qfei/contract-cli/internal/build"
 	"cn.qfei/contract-cli/internal/config"
 	"cn.qfei/contract-cli/internal/oauth"
-	updatecheck "cn.qfei/contract-cli/internal/update"
 	contractskills "cn.qfei/contract-cli/skills"
 )
 
@@ -39,9 +38,7 @@ type Options struct {
 
 	UpdateRegistryURL    string
 	UpdateCurrentVersion string
-	UpdateCheckInterval  time.Duration
 	Now                  func() time.Time
-	IsTerminal           func(io.Writer) bool
 }
 
 type App struct {
@@ -57,9 +54,8 @@ type App struct {
 	skillsFS       fs.FS
 	updateURL      string
 	updateVersion  string
-	updateInterval time.Duration
+	updateNotice   map[string]any
 	now            func() time.Time
-	isTerminal     func(io.Writer) bool
 	userProvider   authProvider
 	botProvider    authProvider
 }
@@ -127,17 +123,9 @@ func New(options Options) *App {
 	if skillsFS == nil {
 		skillsFS = contractskills.FS
 	}
-	updateInterval := options.UpdateCheckInterval
-	if updateInterval == 0 {
-		updateInterval = updatecheck.DefaultCheckInterval
-	}
 	now := options.Now
 	if now == nil {
 		now = time.Now
-	}
-	isTerminal := options.IsTerminal
-	if isTerminal == nil {
-		isTerminal = defaultIsTerminal
 	}
 
 	app := &App{
@@ -153,9 +141,7 @@ func New(options Options) *App {
 		skillsFS:       skillsFS,
 		updateURL:      options.UpdateRegistryURL,
 		updateVersion:  options.UpdateCurrentVersion,
-		updateInterval: updateInterval,
 		now:            now,
-		isTerminal:     isTerminal,
 	}
 	app.userProvider = userAuthProvider{
 		httpClient:             httpClient,
@@ -176,6 +162,7 @@ func New(options Options) *App {
 }
 
 func (a *App) Run(ctx context.Context, args []string) error {
+	a.updateNotice = nil
 	if len(args) == 0 {
 		a.printUsage()
 		return nil
@@ -200,7 +187,7 @@ func (a *App) Run(ctx context.Context, args []string) error {
 	}
 
 	a.logger.Info("run command", "args", strings.Join(args, " "))
-	a.maybePrintUpdateNotice(ctx, args)
+	a.maybePrepareUpdateNotice(ctx, args)
 
 	switch args[0] {
 	case "config":
@@ -230,15 +217,6 @@ func (a *App) printUsage() {
 
 func (a *App) printVersion() {
 	_, _ = fmt.Fprintln(a.stdout, build.Current().String())
-}
-
-func defaultIsTerminal(writer io.Writer) bool {
-	file, ok := writer.(*os.File)
-	if !ok {
-		return false
-	}
-	info, err := file.Stat()
-	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
 
 func (a *App) updateCachePath() string {

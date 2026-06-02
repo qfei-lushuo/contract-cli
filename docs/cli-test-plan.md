@@ -226,28 +226,30 @@ contract-cli skills install --target "$SKILLS_TARGET" --force
 
 ```bash
 contract-cli update check --channel beta
+contract-cli update check --channel beta --json
 ```
 
 预期结果：
 
 | 场景 | 预期 |
 | --- | --- |
-| 远端 beta 比本地新 | 输出 `A new contract-cli version is available` 和 `npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org` |
-| 远端 beta 与本地一致 | 输出 `contract-cli is up to date` |
-| 本地是源码 `dev` 或 git hash 构建 | 输出 `Update check skipped` |
+| 远端 beta 比本地新 | 默认输出文本；带 `--json` 时 `action=update_available`，并带 `command` |
+| 远端 beta 与本地一致 | 默认输出文本；带 `--json` 时 `action=already_up_to_date`，不带 `_notice.update` |
+| 本地是源码 `dev` 或 git hash 构建 | 默认输出跳过文本；带 `--json` 时 `action=skipped`，不访问 npm registry |
 
 自动提示检查：
 
 ```bash
-contract-cli skills list
-contract-cli skills list
+contract-cli contract get <contract-id> --profile "$PROFILE" --output json
+contract-cli contract get <contract-id> --profile "$PROFILE" --output json
 ```
 
 预期结果：
 
-- 在交互终端下，第一次普通命令最多触发一次远端版本检查。
-- 第二次普通命令如果距离上次检查未超过 30 分钟，不应再次访问远端，也不应重复提示。
-- 网络失败时原命令仍然继续执行，不应因为版本检查失败而退出；失败检查也应按 30 分钟缓存，避免每条命令都重试。
+- 第一次符合条件的普通命令会触发远端版本检查，并把结果写入 `update-check.json`。
+- 发现新版本时，JSON object 输出包含 `_notice.update`，stderr 不输出旧版升级文本。
+- 24 小时内第二次普通命令命中 fresh cache，不再次请求 npm registry，但 JSON object 仍可从缓存注入 `_notice.update`。
+- 网络失败时原命令仍然继续执行，不应因为版本检查失败而退出；连续两次普通命令应各自尝试一次远端检查。
 
 关闭自动检查：
 
@@ -1291,32 +1293,39 @@ npm publish --dry-run --tag beta
 contract-cli update check
 contract-cli update check --channel beta
 contract-cli update check --channel latest
+contract-cli update check --channel latest --json
 ```
 
 预期结果：
 
 - 当前版本是预发布版本时，不传 `--channel` 默认检查 npm `beta` dist-tag。
 - 当前版本是稳定版本时，不传 `--channel` 默认检查 npm `latest` dist-tag。
-- 远端版本更新时，输出 `A new contract-cli version is available`。
-- 输出升级命令：`npm install -g @qfeius/contract-cli@<channel> --registry https://registry.npmjs.org`。
-- 远端版本未更新时，输出 `contract-cli is up to date`。
-- 本地是 `dev`、`unknown` 或非语义化版本时，输出 `Update check skipped`。
+- 不带 `--json` 时输出文本提示，和飞书 `lark-cli update --check` 保持一致。
+- 带 `--json` 时输出飞书式顶层字段：`ok`、`previous_version`、`current_version`、`latest_version`、`action`、`message`。
+- 远端版本更新时，`action=update_available`，并带 `command`。
+- `command` 为 `npm install -g @qfeius/contract-cli@<channel> --registry https://registry.npmjs.org`。
+- 远端版本未更新时，`action=already_up_to_date`。
+- 本地是 `dev`、`unknown` 或非语义化版本时，`action=skipped`。
+- 手动 `update check --json` 不注入 `_notice.update`。
 
 ### 13.2 自动升级提示
 
-在交互终端下执行任意普通命令：
+执行会返回 JSON object 的普通命令：
 
 ```bash
-contract-cli skills list
-contract-cli auth status --profile "$PROFILE"
+contract-cli contract get <contract-id> --profile "$PROFILE" --output json
+contract-cli contract search --profile "$PROFILE" --data '{}'
 ```
 
 预期结果：
 
-- 普通命令执行前最多触发一次自动版本检查。
-- 自动检查间隔为 `30` 分钟，同版本同 channel 在缓存有效期内不重复请求 npm registry。
-- 检查失败不阻断原命令；失败结果也会缓存，避免每条命令都重试。
+- cache 缺失、channel 不匹配或超过 24 小时时，会触发一次远端版本检查。
+- fresh cache 24 小时内不再请求 npm registry。
+- 发现新版本时，JSON object 输出注入 `_notice.update`；stderr 不输出旧版升级文本。
+- `--raw`、yaml、table、纯文本命令不注入 `_notice.update`。
+- 检查失败不阻断原命令；失败结果不写入缓存，下一次普通命令会再次尝试检查。
 - `contract-cli version`、`contract-cli update check` 自身不触发自动检查。
+- CI 环境跳过自动远端检查。
 
 关闭自动检查：
 
