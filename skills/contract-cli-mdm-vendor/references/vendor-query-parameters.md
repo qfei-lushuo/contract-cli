@@ -69,4 +69,4 @@ mdm vendor get
 - 先 `list` 拿候选，再 `get` 看详情，是最稳的两步走方式
 - 如果只是创建合同前选对方主体，优先保存交易方 id，后面再传给合同请求体
 - 这组命令只做查询，不做本地字段裁剪或结构转换
-- `mdm vendor list/get` 现在都支持按身份自动路由；`mdm legal` 和 `mdm fields` 仍保持 user-only
+- `mdm vendor list/get`、`mdm legal list/get` 和 `mdm fields list` 现在都支持按身份自动路由；其中 `mdm fields list --as app` 仅支持 `vendor` / `legal_entity`，`vendor_risk` 走 user/MCP 路径

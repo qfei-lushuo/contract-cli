@@ -69,4 +69,4 @@ mdm legal get
 - 先 `list` 拿候选，再 `get` 看详情，是最稳的两步走方式
 - 如果只是为合同选择我方主体，优先记住法人实体 id
 - 这组命令只做查询，不做本地字段裁剪或结构转换
-- `mdm legal list/get` 现在都支持按身份自动路由；`mdm fields` 仍保持 user-only
+- `mdm legal list/get`、`mdm vendor list/get` 和 `mdm fields list` 现在都支持按身份自动路由；其中 `mdm fields list --as app` 仅支持 `vendor` / `legal_entity`，`vendor_risk` 走 user/MCP 路径

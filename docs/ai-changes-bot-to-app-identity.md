@@ -19,3 +19,16 @@
 
 - 新增和更新测试覆盖身份解析、`--as bot` 旧别名、旧配置迁移、app 登录、旧环境变量 fallback、app-only 拦截和文档口径。
 - 运行 `go test ./...` 验证整体回归。
+
+## 追加：MDM skill agent 身份口径对齐
+
+### 变更摘要
+
+- 修复 MDM 内置 skill 的 `agents/openai.yaml` 仍使用 `user-only` / `user-authorized` 旧描述的问题。
+- 将 `contract-cli-mdm-vendor`、`contract-cli-mdm-legal` 的 agent 元信息改为 user/app 双身份查询口径。
+- 将 `contract-cli-mdm-fields` 的 agent 元信息改为 user/app 字段查询口径，并明确 app 当前只覆盖 `vendor` / `legal_entity`，`vendor_risk` 仍走 user/MCP。
+- 同步清理 MDM 参数参考中关于 `mdm fields` 仍保持 user-only 的过期描述。
+
+### 验证
+
+- 新增静态测试覆盖 MDM agent metadata 和 reference 文档，不允许残留过期身份口径。
