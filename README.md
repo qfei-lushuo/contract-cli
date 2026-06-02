@@ -323,7 +323,8 @@ contract-cli update check --channel beta --json
 
 自动提示：
 
-- 普通命令会按 24 小时缓存检查 npm 远端版本。
+- 普通命令会同步读取本地 `update-check.json`，有可升级缓存时在 JSON object 输出中注入 `_notice.update`。
+- CLI 会在后台按 24 小时 TTL 刷新远端版本缓存；cache fresh 时不会立即发现刚发布的新包。
 - 有新版本时，仅在 JSON object 输出中注入 `_notice.update`。
 - `--raw`、yaml、table、纯文本命令不注入 `_notice.update`。
 - 设置 `CONTRACT_CLI_NO_UPDATE_CHECK=1` 可以关闭自动检查。

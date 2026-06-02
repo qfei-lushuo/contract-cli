@@ -246,10 +246,10 @@ contract-cli contract get <contract-id> --profile "$PROFILE" --output json
 
 预期结果：
 
-- 第一次符合条件的普通命令会触发远端版本检查，并把结果写入 `update-check.json`。
-- 发现新版本时，JSON object 输出包含 `_notice.update`，stderr 不输出旧版升级文本。
-- 24 小时内第二次普通命令命中 fresh cache，不再次请求 npm registry，但 JSON object 仍可从缓存注入 `_notice.update`。
-- 网络失败时原命令仍然继续执行，不应因为版本检查失败而退出；连续两次普通命令应各自尝试一次远端检查。
+- 普通命令先同步读取 `update-check.json`，缓存中有可升级版本时，JSON object 输出包含 `_notice.update`，stderr 不输出旧版升级文本。
+- 缓存缺失或缓存里无可升级版本时，当前命令不注入 `_notice.update`。
+- 自动远端检查在后台执行；cache 缺失、channel 不匹配或超过 24 小时时，会刷新并写入 `update-check.json`。
+- 网络失败时原命令仍然继续执行，不应因为后台版本刷新失败而退出；失败结果不写入缓存。
 
 关闭自动检查：
 
@@ -1328,11 +1328,11 @@ contract-cli contract search --profile "$PROFILE" --data '{}'
 
 预期结果：
 
-- cache 缺失、channel 不匹配或超过 24 小时时，会触发一次远端版本检查。
-- fresh cache 24 小时内不再请求 npm registry。
-- 发现新版本时，JSON object 输出注入 `_notice.update`；stderr 不输出旧版升级文本。
+- 业务命令同步读取本地 cache 注入 `_notice.update`；后台按 24 小时 TTL 刷新 cache。
+- fresh cache 24 小时内不再请求 npm registry，因此刚发布的新包可能要等缓存过期并完成后台刷新后，下一次命令才提示。
+- 发现缓存中有新版本时，JSON object 输出注入 `_notice.update`；stderr 不输出旧版升级文本。
 - `--raw`、yaml、table、纯文本命令不注入 `_notice.update`。
-- 检查失败不阻断原命令；失败结果不写入缓存，下一次普通命令会再次尝试检查。
+- 后台刷新失败不阻断原命令；失败结果不写入缓存。
 - `contract-cli version`、`contract-cli update check` 自身不触发自动检查。
 - CI 环境跳过自动远端检查。
 

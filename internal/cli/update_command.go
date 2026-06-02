@@ -113,39 +113,25 @@ func (a *App) maybePrepareUpdateNotice(ctx context.Context, args []string) {
 	}
 
 	currentVersion := a.currentUpdateVersion()
-	channel := updatecheck.InferChannel(currentVersion)
-	now := a.now()
-	cache, cacheOK, err := updatecheck.LoadCache(a.updateCachePath())
-	if err != nil {
-		a.logger.Debug("load update check cache failed", "path", a.updateCachePath(), "error", err.Error())
-	}
-	if cacheOK && strings.TrimSpace(cache.Channel) == channel {
-		if updatecheck.CacheFresh(cache, channel, now, updatecheck.CacheTTL) {
-			if notice := updatecheck.NoticeFromCache(cache, currentVersion, updatecheck.DefaultPackageName); notice != nil {
-				a.updateNotice = map[string]any{"update": notice.Map()}
-			}
-			return
-		}
-	}
-
-	checkCtx, cancel := context.WithTimeout(ctx, 1500*time.Millisecond)
-	defer cancel()
-
-	result, err := a.checkUpdateWithLogger(checkCtx, "", nil)
-	if err != nil {
-		a.logger.Debug("automatic update check failed", "error", err.Error())
-		return
-	}
-	if result.Skipped {
-		return
-	}
-	if err := updatecheck.SaveCache(a.updateCachePath(), updatecheck.CacheFromResult(result)); err != nil {
-		a.logger.Warn("save update check cache failed", "path", a.updateCachePath(), "error", err.Error())
-	}
-	a.updateNotice = nil
-	if notice := updatecheck.NoticeFromResult(result); notice != nil {
+	cachePath := a.updateCachePath()
+	if notice := updatecheck.CheckCached(cachePath, currentVersion, updatecheck.DefaultPackageName); notice != nil {
 		a.updateNotice = map[string]any{"update": notice.Map()}
 	}
+
+	go func() {
+		checkCtx, cancel := context.WithTimeout(context.Background(), 1500*time.Millisecond)
+		defer cancel()
+		if err := updatecheck.RefreshCache(checkCtx, cachePath, updatecheck.Options{
+			HTTPClient:     a.httpClient,
+			Logger:         nil,
+			RegistryURL:    a.updateURL,
+			PackageName:    updatecheck.DefaultPackageName,
+			CurrentVersion: currentVersion,
+			Now:            a.now,
+		}); err != nil {
+			a.logger.Debug("automatic update refresh failed", "error", err.Error())
+		}
+	}()
 }
 
 func (a *App) shouldAutoCheckUpdate(args []string) bool {

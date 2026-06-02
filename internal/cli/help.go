@@ -397,7 +397,7 @@ func addUpdateHelp(registry map[string]helpTopic) {
 			"contract-cli update check --channel latest --json",
 		},
 		Notes: []string{
-			"普通命令按 24 小时缓存自动检查远端版本，并在 JSON object 输出中注入 _notice.update。",
+			"普通命令同步读取更新缓存注入 _notice.update，并在后台按 24 小时 TTL 刷新缓存。",
 			"可设置 CONTRACT_CLI_NO_UPDATE_CHECK=1 关闭自动检查。",
 		},
 	}
