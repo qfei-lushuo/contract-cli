@@ -406,8 +406,8 @@ references/<domain>-enums.md
 `SKILL.md` 头部的 `version` 字段保留为 skill 文档自身的内部元数据：
 
 - `skills list` 不再把该字段作为展示版本。
-- `skills install` 仍原样复制 `SKILL.md`，不动态改写 front matter。
-- 新增 skill 可继续使用 `1.0.0` 作为内部文档版本；用户看到的版本由 CLI 发布版本决定。
+- `skills install` 会在安装到目标目录时，把 `SKILL.md` front matter 的 `version` 改写为当前 CLI 运行时版本。
+- 新增 skill 可继续在仓库源文件中使用 `1.0.0` 作为内部文档版本；用户和 agent 在 `skills list` 及已安装文件中看到的版本由 CLI 发布版本决定。
 
 ## 9. 开发步骤模板
 

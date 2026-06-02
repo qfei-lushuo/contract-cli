@@ -521,7 +521,9 @@ func TestSkillsListDisplaysCurrentCLIVersion(t *testing.T) {
 }
 
 func TestSkillsInstallCopiesBundledSkillsAndSkipsExisting(t *testing.T) {
-	t.Parallel()
+	originalVersion := build.Version
+	build.Version = "1.2.3"
+	t.Cleanup(func() { build.Version = originalVersion })
 
 	target := filepath.Join(t.TempDir(), "skills")
 	stdout := &bytes.Buffer{}
@@ -535,7 +537,7 @@ func TestSkillsInstallCopiesBundledSkillsAndSkipsExisting(t *testing.T) {
 	if err := app.Run(context.Background(), []string{"skills", "install", "--target", target}); err != nil {
 		t.Fatalf("skills install error = %v", err)
 	}
-	assertFileContent(t, filepath.Join(target, "auth", "SKILL.md"), testAuthSkill)
+	assertFileContent(t, filepath.Join(target, "auth", "SKILL.md"), skillWithVersion(testAuthSkill, "1.2.3"))
 	assertFileContent(t, filepath.Join(target, "auth", "agents", "openai.yaml"), "name: auth\n")
 	assertFileContent(t, filepath.Join(target, "contract-cli-contract", "references", "commands.md"), "# Commands\n")
 	if _, err := os.Stat(filepath.Join(target, "contract-cli-api-call")); !errors.Is(err, os.ErrNotExist) {
@@ -556,7 +558,9 @@ func TestSkillsInstallCopiesBundledSkillsAndSkipsExisting(t *testing.T) {
 }
 
 func TestSkillsInstallForceOverwritesExistingSkill(t *testing.T) {
-	t.Parallel()
+	originalVersion := build.Version
+	build.Version = "1.2.3"
+	t.Cleanup(func() { build.Version = originalVersion })
 
 	target := filepath.Join(t.TempDir(), "skills")
 	if err := os.MkdirAll(filepath.Join(target, "auth"), 0o755); err != nil {
@@ -576,11 +580,13 @@ func TestSkillsInstallForceOverwritesExistingSkill(t *testing.T) {
 	if err := app.Run(context.Background(), []string{"skills", "install", "--target", target, "--force"}); err != nil {
 		t.Fatalf("skills install --force error = %v", err)
 	}
-	assertFileContent(t, filepath.Join(target, "auth", "SKILL.md"), testAuthSkill)
+	assertFileContent(t, filepath.Join(target, "auth", "SKILL.md"), skillWithVersion(testAuthSkill, "1.2.3"))
 }
 
 func TestSkillsInstallDefaultsToCodexHome(t *testing.T) {
-	t.Parallel()
+	originalVersion := build.Version
+	build.Version = "1.2.3"
+	t.Cleanup(func() { build.Version = originalVersion })
 
 	codexHome := t.TempDir()
 	app := cli.New(cli.Options{
@@ -599,7 +605,18 @@ func TestSkillsInstallDefaultsToCodexHome(t *testing.T) {
 	if err := app.Run(context.Background(), []string{"skills", "install"}); err != nil {
 		t.Fatalf("skills install error = %v", err)
 	}
-	assertFileContent(t, filepath.Join(codexHome, "skills", "auth", "SKILL.md"), testAuthSkill)
+	assertFileContent(t, filepath.Join(codexHome, "skills", "auth", "SKILL.md"), skillWithVersion(testAuthSkill, "1.2.3"))
+}
+
+func skillWithVersion(content string, version string) string {
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		if strings.HasPrefix(line, "version: ") {
+			lines[i] = "version: " + version
+			break
+		}
+	}
+	return strings.Join(lines, "\n")
 }
 
 func assertFileContent(t *testing.T, path, want string) {
