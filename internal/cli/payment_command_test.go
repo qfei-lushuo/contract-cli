@@ -16,7 +16,7 @@ func TestPaymentCommandsUseExpectedEndpoints(t *testing.T) {
 	t.Parallel()
 
 	store := config.NewStore(t.TempDir())
-	if err := store.UpsertProfile(uploadProfile(config.IdentityBot), true); err != nil {
+	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 
@@ -140,7 +140,7 @@ func TestPaymentCommandsUseExpectedEndpoints(t *testing.T) {
 								t.Fatalf("query %s = %q, want %q", key, got, want)
 							}
 						}
-						if req.Header.Get("Authorization") != "Bearer bot-token" {
+						if req.Header.Get("Authorization") != "Bearer app-token" {
 							t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
 						}
 						body, err := io.ReadAll(req.Body)
@@ -205,7 +205,7 @@ func TestPaymentCommandsRejectUserIdentityBeforeHTTP(t *testing.T) {
 			})
 
 			err := app.Run(context.Background(), args)
-			if err == nil || !strings.Contains(err.Error(), "only supports --as bot") {
+			if err == nil || !strings.Contains(err.Error(), "only supports --as app") {
 				t.Fatalf("unexpected user error: %v", err)
 			}
 			if requests != 0 {
@@ -219,7 +219,7 @@ func TestPaymentCommandValidationErrors(t *testing.T) {
 	t.Parallel()
 
 	store := config.NewStore(t.TempDir())
-	if err := store.UpsertProfile(uploadProfile(config.IdentityBot), true); err != nil {
+	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 

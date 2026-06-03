@@ -254,7 +254,7 @@ func TestContractApprovalCommandsUseExpectedEndpoints(t *testing.T) {
 	t.Parallel()
 
 	store := config.NewStore(t.TempDir())
-	if err := store.UpsertProfile(uploadProfile(config.IdentityBot), true); err != nil {
+	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 
@@ -309,7 +309,7 @@ func TestContractApprovalCommandsUseExpectedEndpoints(t *testing.T) {
 								t.Fatalf("query %s = %q, want %q", key, got, want)
 							}
 						}
-						if req.Header.Get("Authorization") != "Bearer bot-token" {
+						if req.Header.Get("Authorization") != "Bearer app-token" {
 							t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
 						}
 						body, err := io.ReadAll(req.Body)
