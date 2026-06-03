@@ -8,7 +8,7 @@
 
 - `internal/cli/skills_command.go`
 - `internal/cli/app_test.go`
-- `docs/bot-command-development-guide.md`
+- `docs/app-command-development-guide.md`
 
 关键逻辑/决策：
 

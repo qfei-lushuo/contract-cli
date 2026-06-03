@@ -3,10 +3,10 @@
 ## 付款申请
 
 ```bash
-contract-cli payment create --contract 7023646046559404327 --profile contract --as bot --input-file payment.json
-contract-cli payment update payment_123 --contract 7023646046559404327 --profile contract --as bot --input-file payment-update.json
-contract-cli payment get payment_123 --contract 7023646046559404327 --profile contract --as bot
-contract-cli payment list --contract 7023646046559404327 --profile contract --as bot --page-size 10 --page-token next
+contract-cli payment create --contract 7023646046559404327 --profile contract --as app --input-file payment.json
+contract-cli payment update payment_123 --contract 7023646046559404327 --profile contract --as app --input-file payment-update.json
+contract-cli payment get payment_123 --contract 7023646046559404327 --profile contract --as app
+contract-cli payment list --contract 7023646046559404327 --profile contract --as app --page-size 10 --page-token next
 ```
 
 接口路径：
@@ -19,8 +19,8 @@ contract-cli payment list --contract 7023646046559404327 --profile contract --as
 ## 付款计划
 
 ```bash
-contract-cli payment plan notify --profile contract --as bot --input-file notify.json
-contract-cli payment plan search --profile contract --as bot --input-file payment-plan-search.json
+contract-cli payment plan notify --profile contract --as app --input-file notify.json
+contract-cli payment plan search --profile contract --as app --input-file payment-plan-search.json
 ```
 
 接口路径：
@@ -31,10 +31,10 @@ contract-cli payment plan search --profile contract --as bot --input-file paymen
 ## 付款记录
 
 ```bash
-contract-cli payment record create --contract 7023646046559404327 --payment payment_123 --profile contract --as bot --input-file payment-record.json
-contract-cli payment record update record_123 --contract 7023646046559404327 --payment payment_123 --profile contract --as bot --input-file payment-record-update.json
-contract-cli payment record get record_123 --contract 7023646046559404327 --payment payment_123 --profile contract --as bot
-contract-cli payment record list --plan payment_plan_uuid_123 --profile contract --as bot
+contract-cli payment record create --contract 7023646046559404327 --payment payment_123 --profile contract --as app --input-file payment-record.json
+contract-cli payment record update record_123 --contract 7023646046559404327 --payment payment_123 --profile contract --as app --input-file payment-record-update.json
+contract-cli payment record get record_123 --contract 7023646046559404327 --payment payment_123 --profile contract --as app
+contract-cli payment record list --plan payment_plan_uuid_123 --profile contract --as app
 ```
 
 接口路径：

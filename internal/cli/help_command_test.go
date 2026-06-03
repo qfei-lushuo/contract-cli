@@ -34,6 +34,8 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 				"Commands:",
 				"contract-cli contract <subcommand> [flags]",
 				"contract-cli mdm vendor <subcommand> [flags]",
+				"contract-cli event outbound-ip list [flags]",
+				"contract-cli rule table <subcommand> [flags]",
 			},
 		},
 		{
@@ -109,6 +111,66 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 				"contract enum list",
 				"--type <enum-type>",
 				"仅支持 --as user",
+			},
+		},
+		{
+			name: "contract search v2 app only",
+			args: []string{"contract", "search-v2", "--help"},
+			contains: []string{
+				"contract search-v2",
+				"POST /open-apis/contract/v1/contracts/searchV2",
+				"app-only",
+				"--input-file <path>",
+			},
+		},
+		{
+			name: "contract sign url get help",
+			args: []string{"contract", "sign-url", "get", "--help"},
+			contains: []string{
+				"contract sign-url get",
+				"GET /open-apis/contract/v1/contracts/{contract_id}/sign_url",
+				"app-only",
+				"不接受 --input-file / --data",
+			},
+		},
+		{
+			name: "contract cooperation search help",
+			args: []string{"contract", "cooperation", "search", "--help"},
+			contains: []string{
+				"contract cooperation search",
+				"POST /open-apis/contract/v1/cooperation/search",
+				"--input-file <path>",
+				"app-only",
+			},
+		},
+		{
+			name: "mdm fixed exchange rate help",
+			args: []string{"mdm", "fixed-exchange-rate", "get", "--help"},
+			contains: []string{
+				"mdm fixed-exchange-rate get",
+				"--source-currency <code>",
+				"GET /open-apis/mdm/v1/fixed_exchange_rate",
+				"app-only",
+			},
+		},
+		{
+			name: "event outbound ip help",
+			args: []string{"event", "outbound-ip", "list", "--help"},
+			contains: []string{
+				"event outbound-ip list",
+				"GET /open-apis/event/v1/outbound_ip",
+				"--page-size <n>",
+				"app-only",
+			},
+		},
+		{
+			name: "rule table row create help",
+			args: []string{"rule", "table", "row", "create", "--help"},
+			contains: []string{
+				"rule table row create",
+				"--product-id <id>",
+				"--table-id <id>",
+				"POST /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/table_rows",
 			},
 		},
 		{

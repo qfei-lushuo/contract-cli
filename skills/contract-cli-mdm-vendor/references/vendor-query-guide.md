@@ -13,11 +13,15 @@
 
 ## 1. 命令面与硬约束
 
-当前结构化命令只有两类：
+当前结构化命令分为查询和 app-only 写入：
 
 ```bash
 contract-cli mdm vendor list --profile contract --name "供应商A"
 contract-cli mdm vendor get 1063197165850985296 --profile contract
+contract-cli mdm vendor create --profile contract --as app --input-file vendor-create.json
+contract-cli mdm vendor update 7003410079584092448 --profile contract --as app --input-file vendor-update.json
+contract-cli mdm vendor list-all --profile contract --as app --page-size 20
+contract-cli mdm vendor query-by-cert --profile contract --as app --certification-id 91110105 --ad-country CN
 ```
 
 硬约束：
@@ -27,7 +31,9 @@ contract-cli mdm vendor get 1063197165850985296 --profile contract
 - 如果要排障或确认原始响应，建议加 `--raw`
 - `mdm vendor list` 同时支持 `user` 和 `app`
 - `mdm vendor get` 也同时支持 `user` 和 `app`
+- `mdm vendor create/update/list-all/query-by-cert` 当前仅支持 `app`
 - `--user-id-type` / `--user-id` 继续按共享约定透传，不做本地校验
+- 创建/更新请求体直接透传，字段是否必填以 `mdm fields list --biz-line vendor` 和后端配置为准
 
 ## 2. 场景配方
 
@@ -106,8 +112,53 @@ contract-cli mdm vendor get 7003410079584092448 --profile contract --as app --us
 - 生产文档里 app 详情接口只显式列出了 `user_id_type` 查询参数，没看到 `user_id`
 - CLI 仍按共享约定统一透传 `--user-id-type` / `--user-id`，不做本地校验
 
+### 2.4 创建或更新交易方
+
+适用场景：
+
+- 需要把外部供应商同步到合同主数据
+- 已知交易方 id，需要修改交易方字段
+
+最小命令：
+
+```bash
+contract-cli mdm vendor create --profile contract --as app --input-file vendor-create.json
+contract-cli mdm vendor update 7003410079584092448 --profile contract --as app --input-file vendor-update.json
+```
+
+自动化样例里出现过的基础字段：
+
+```json
+{
+  "vendor": "V00000001",
+  "vendor_text": "供应商A",
+  "certification_type": "统一社会信用代码",
+  "status": 1,
+  "ad_country": "CN",
+  "address": "北京市朝阳区"
+}
+```
+
+补充说明：
+
+- `create` 走 `POST /open-apis/mdm/v1/vendors`
+- `update` 走 `PUT /open-apis/mdm/v1/vendors/{vendor_id}`
+- 字段配置是动态的，不要只凭样例判断必填；先查 `mdm fields list --biz-line vendor`
+
+### 2.5 全量分页或按证件查询
+
+```bash
+contract-cli mdm vendor list-all --profile contract --as app --page-size 20 --page-token next
+contract-cli mdm vendor query-by-cert --profile contract --as app --certification-id 91110105 --ad-country CN
+```
+
+补充说明：
+
+- `list-all` 走 `GET /open-apis/mdm/v1/vendors/list_all`
+- `query-by-cert` 走 `GET /open-apis/mdm/v1/vendors/query_vendors`
+- `query-by-cert` 必须传 `--certification-id` 和 `--ad-country`
+
 ## 3. 什么时候不要走这里
 
-- 想创建或更新交易方：当前结构化命令未实现，明确说明暂未覆盖；不要退回 `api call`
 - 想先确认交易方字段定义：改看 [../../contract-cli-mdm-fields/SKILL.md](../../contract-cli-mdm-fields/SKILL.md)
 - 想查合同主体选择逻辑：回到 [../../contract-cli-contract/SKILL.md](../../contract-cli-contract/SKILL.md)

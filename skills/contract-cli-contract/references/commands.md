@@ -24,8 +24,8 @@ contract-cli contract print-file --profile contract --as app --input-file print-
 contract-cli contract share get 7023646046559404327 --profile contract --as app
 contract-cli contract cooperation link get 7023646046559404327 --profile contract --as app
 contract-cli contract cooperation record get 7023646046559404327 --profile contract --as app
-contract-cli contract approval start process_123 --profile contract --as bot --input-file approval.json
-contract-cli contract approval get process_123 --profile contract --as bot
+contract-cli contract approval start process_123 --profile contract --as app --input-file approval.json
+contract-cli contract approval get process_123 --profile contract --as app
 contract-cli contract category list --profile contract --as app --lang zh-CN
 contract-cli contract template list --profile contract --as app --category-number CAT-1 --page-size 20 --user-id ou_xxx --user-id-type employee_id
 contract-cli contract template get tpl_123 --profile contract --as app --user-id ou_xxx --user-id-type employee_id

@@ -33,7 +33,7 @@ func (s *Service) Create(ctx context.Context, requestContext openplatform.Reques
 		Method:         http.MethodPost,
 		Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID) + "/payments",
 		Body:           body,
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -46,7 +46,7 @@ func (s *Service) Update(ctx context.Context, requestContext openplatform.Reques
 		Method:         http.MethodPatch,
 		Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID) + "/payments/" + url.PathEscape(paymentID),
 		Body:           body,
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -58,7 +58,7 @@ func (s *Service) Get(ctx context.Context, requestContext openplatform.RequestCo
 	return s.client.Do(ctx, requestContext, openplatform.Request{
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID) + "/payments/" + url.PathEscape(paymentID),
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -78,7 +78,7 @@ func (s *Service) List(ctx context.Context, requestContext openplatform.RequestC
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID) + "/payments",
 		Query:          query,
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -87,7 +87,7 @@ func (s *Service) NotifyPlan(ctx context.Context, requestContext openplatform.Re
 		Method:         http.MethodPost,
 		Path:           "/open-apis/contract/v1/payment/notify",
 		Body:           body,
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -96,7 +96,7 @@ func (s *Service) SearchPlans(ctx context.Context, requestContext openplatform.R
 		Method:         http.MethodPost,
 		Path:           "/open-apis/contract/v1/payments/search",
 		Body:           body,
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -109,7 +109,7 @@ func (s *Service) CreateRecord(ctx context.Context, requestContext openplatform.
 		Method:         http.MethodPost,
 		Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID) + "/payments/" + url.PathEscape(paymentID) + "/payment_records",
 		Body:           body,
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -122,7 +122,7 @@ func (s *Service) UpdateRecord(ctx context.Context, requestContext openplatform.
 		Method:         http.MethodPatch,
 		Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID) + "/payments/" + url.PathEscape(paymentID) + "/payment_records/" + url.PathEscape(paymentRecordID),
 		Body:           body,
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -134,7 +134,7 @@ func (s *Service) GetRecord(ctx context.Context, requestContext openplatform.Req
 	return s.client.Do(ctx, requestContext, openplatform.Request{
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID) + "/payments/" + url.PathEscape(paymentID) + "/payment_records/" + url.PathEscape(paymentRecordID),
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -146,7 +146,7 @@ func (s *Service) ListRecordsByPlan(ctx context.Context, requestContext openplat
 	return s.client.Do(ctx, requestContext, openplatform.Request{
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/contracts/payments/" + url.PathEscape(paymentPlanUUID) + "/payment_records",
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 

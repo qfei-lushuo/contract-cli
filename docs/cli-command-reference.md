@@ -48,7 +48,7 @@ contract-cli contract get <contract-id> --help
 - 为兼容老用户脚本，旧身份值 `--as bot` 仍可使用，运行时等价于 `--as app`；新文档和示例统一使用 `app`
 - `contract ...`、`mdm ...` 结构化命令大多默认只支持 `--as user`
 - `/open-apis/contract/v1/mcp/...` 路径大多仍只支持 `--as user`
-- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`、`contract approval start/get` 和 `payment *` 当前仅支持 `--as app`
+- `contract search-v2`、`contract field update`、`contract sign switch-to-paper`、`contract sign-url get`、`contract form attribute list`、`contract authorization grant`、`contract esign *`、`contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get/batch-create`、`contract cooperation link/record/search/file`、`contract approval start/get`、`payment *`、新增写入和扩展查询型 `mdm *`、`event outbound-ip list` 和 `rule table *` 当前仅支持 `--as app`
 - `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 是例外：
   - `contract get --as user` 走 MCP 路径 `/open-apis/contract/v1/mcp/contracts/{contract_id}`
   - `contract get --as app` 走开放平台路径 `/open-apis/contract/v1/contracts/{contract_id}`
@@ -418,6 +418,22 @@ contract-cli contract search --profile contract --as app --input-file search.jso
   - 若 profile 默认身份是 `app`，则会直接走 app 搜索路由
   - 若 profile 默认身份是 `user`，则走 user 搜索路由
 
+#### `contract-cli contract search-v2`
+
+用途：app 身份搜索合同 V2，复杂条件直接透传 JSON body。
+
+命令：
+
+```bash
+contract-cli contract search-v2 --profile contract --as app --input-file search-v2.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `POST /open-apis/contract/v1/contracts/searchV2`。
+- `--input-file` / `--data` 必须传一个且互斥。
+
 #### `contract-cli contract get`
 
 用途：获取合同详情。
@@ -535,6 +551,118 @@ contract-cli contract create --profile contract --as app --data '{"contract_name
 - [create-contract-fields.md](../skills/contract-cli-contract/references/create-contract-fields.md)
 - [create-contract-field-tree.md](../skills/contract-cli-contract/references/create-contract-field-tree.md)
 - [create-contract-enums.md](../skills/contract-cli-contract/references/create-contract-enums.md)
+
+#### `contract-cli contract field update`
+
+用途：app 身份更新合同字段信息，目前主要用于修改下拉列表选项范围。
+
+命令：
+
+```bash
+contract-cli contract field update --profile contract --as app --input-file field-update.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `PUT /open-apis/contract/v1/attribute_definition`。
+- 最小 body 通常包含 `module_name`、`attribute_name`、`value_scopes`。
+
+#### `contract-cli contract sign switch-to-paper`
+
+用途：app 身份将电子签合同转为纸质签。
+
+命令：
+
+```bash
+contract-cli contract sign switch-to-paper --profile contract --as app --business-id <contract-id> --business-type-code 0
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `POST /open-apis/contract/v1/contracts/signType/switchToPaper`。
+- `--business-id` 和 `--business-type-code` 必填，不接受 `--input-file` / `--data`。
+
+#### `contract-cli contract sign-url get`
+
+用途：app 身份获取合同签署链接。
+
+命令：
+
+```bash
+contract-cli contract sign-url get <contract-id> --profile contract --as app
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `GET /open-apis/contract/v1/contracts/{contract_id}/sign_url`。
+- 不接受 `--input-file` / `--data`。
+
+#### `contract-cli contract form attribute list`
+
+用途：app 身份按合同类型和流程类型获取合同流程字段。
+
+命令：
+
+```bash
+contract-cli contract form attribute list --profile contract --as app --category-id <category-id> --business-type-code 0
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `GET /open-apis/contract/v1/form_definition/attribute`。
+- `--business-type-code`：0 申请、1 变更、2 终止、3 合同组申请。
+
+#### `contract-cli contract authorization grant`
+
+用途：app 身份授予合同权限。
+
+命令：
+
+```bash
+contract-cli contract authorization grant --profile contract --as app --input-file authorization.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `POST /open-apis/contract/v1/authorizations`。
+- 最小 body 通常包含 `business_id`、`authorized_user_id`、`start_time`、`end_time`。
+
+#### `contract-cli contract esign personal-auth-url`
+
+用途：app 身份获取个人认证和授权页面链接。
+
+命令：
+
+```bash
+contract-cli contract esign personal-auth-url --profile contract --as app --input-file psn-auth-url.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `POST /open-apis/esign/auth/psnAuthUrl`。
+- 最小 body 需要包含 `psnAuthConfig`。
+
+#### `contract-cli contract esign org-auth-url`
+
+用途：app 身份获取机构认证和授权页面链接。
+
+命令：
+
+```bash
+contract-cli contract esign org-auth-url --profile contract --as app --input-file org-auth-url.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `POST /open-apis/esign/auth/orgAuthUrl`。
+- 最小 body 需要包含 `orgAuthConfig`。
 
 #### `contract-cli contract upload-file`
 
@@ -736,6 +864,22 @@ contract-cli contract share get <contract-id> --profile contract --as app
 - 当前仅支持 `--as app`。
 - 走 `GET /open-apis/contract/v1/contracts/{contract_id}/share_records`。
 
+#### `contract-cli contract share batch-create`
+
+用途：app 身份批量分享合同。
+
+命令：
+
+```bash
+contract-cli contract share batch-create --profile contract --as app --input-file batch-share.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `POST /open-apis/contract/v1/contracts/contract/batch_share`。
+- 最小 body 通常包含 `contract_id` 和 `user_ids`。
+
 #### `contract-cli contract cooperation link get`
 
 用途：app 身份查询合同协商邀请链接。
@@ -766,14 +910,62 @@ contract-cli contract cooperation record get <contract-id> --profile contract --
 - 当前仅支持 `--as app`。
 - 走 `GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_record_info`。
 
-#### `contract-cli contract approval start`
+#### `contract-cli contract cooperation search`
 
-用途：bot 身份发起流程审批。
+用途：app 身份查询协商列表。
 
 命令：
 
 ```bash
-contract-cli contract approval start <process-instance-id> --profile contract --as bot --input-file approval.json
+contract-cli contract cooperation search --profile contract --as app --input-file cooperation-search.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `POST /open-apis/contract/v1/cooperation/search`。
+- 最小 body 需要包含 `user_id`，分页可放在 body 的 `page_size` / `page_token`。
+
+#### `contract-cli contract cooperation file get`
+
+用途：app 身份查询合同协商文件信息。
+
+命令：
+
+```bash
+contract-cli contract cooperation file get <contract-id> --profile contract --as app
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `GET /open-apis/contract/v1/contracts/{contract_id}/cooperation/file_info`。
+
+#### `contract-cli contract cooperation file download`
+
+用途：app 身份下载合同协商文件。
+
+命令：
+
+```bash
+contract-cli contract cooperation file download <file-id> --profile contract --as app --output-file ./cooperation.docx
+contract-cli contract cooperation file download <file-id> --profile contract --as app --raw > cooperation.docx
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `GET /open-apis/contract/v1/contracts/cooperation/{file_id}/download_file`。
+- `--raw` 会把二进制内容写到 stdout，不打印额外提示。
+
+#### `contract-cli contract approval start`
+
+用途：app 身份发起流程审批。
+
+命令：
+
+```bash
+contract-cli contract approval start <process-instance-id> --profile contract --as app --input-file approval.json
 ```
 
 支持参数：
@@ -785,19 +977,19 @@ contract-cli contract approval start <process-instance-id> --profile contract --
 
 身份规则：
 
-- 当前仅支持 `--as bot`。
+- 当前仅支持 `--as app`。
 - 走 `POST /open-apis/contract/v1/process_instances/{process_instance_id}/task_approval`。
 - `--input-file` / `--data` 必须传一个且互斥。
 
 #### `contract-cli contract approval get`
 
-用途：bot 身份查询审批实例详情。
+用途：app 身份查询审批实例详情。
 
 命令：
 
 ```bash
-contract-cli contract approval get <process-instance-id> --profile contract --as bot
-contract-cli contract approval get <process-instance-id> --profile contract --as bot --notice-filter notice_filter --task-instance-filter task_instance_filter
+contract-cli contract approval get <process-instance-id> --profile contract --as app
+contract-cli contract approval get <process-instance-id> --profile contract --as app --notice-filter notice_filter --task-instance-filter task_instance_filter
 ```
 
 支持参数：
@@ -809,7 +1001,7 @@ contract-cli contract approval get <process-instance-id> --profile contract --as
 
 身份规则：
 
-- 当前仅支持 `--as bot`。
+- 当前仅支持 `--as app`。
 - 走 `GET /open-apis/contract/v1/process_instances/{process_instance_id}`。
 - 不接受 `--input-file` / `--data`。
 
@@ -922,7 +1114,7 @@ contract-cli contract enum list --profile contract --type contract_status
 
 ### 5. 付款命令
 
-`payment` 这一组命令当前全部仅支持 `--as bot`。命令参数采用“主操作对象 ID 用位置参数，父资源 ID 用 flag”的方式。
+`payment` 这一组命令当前全部仅支持 `--as app`。命令参数采用“主操作对象 ID 用位置参数，父资源 ID 用 flag”的方式。
 
 #### `contract-cli payment create`
 
@@ -931,12 +1123,12 @@ contract-cli contract enum list --profile contract --type contract_status
 命令：
 
 ```bash
-contract-cli payment create --contract <contract-id> --profile contract --as bot --input-file payment.json
+contract-cli payment create --contract <contract-id> --profile contract --as app --input-file payment.json
 ```
 
 身份规则：
 
-- 当前仅支持 `--as bot`。
+- 当前仅支持 `--as app`。
 - 走 `POST /open-apis/contract/v1/contracts/{contract_id}/payments`。
 - `--contract` 必填。
 - `--input-file` / `--data` 必填且互斥。
@@ -948,12 +1140,12 @@ contract-cli payment create --contract <contract-id> --profile contract --as bot
 命令：
 
 ```bash
-contract-cli payment update <payment-id> --contract <contract-id> --profile contract --as bot --input-file payment-update.json
+contract-cli payment update <payment-id> --contract <contract-id> --profile contract --as app --input-file payment-update.json
 ```
 
 身份规则：
 
-- 当前仅支持 `--as bot`。
+- 当前仅支持 `--as app`。
 - 走 `PATCH /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}`。
 - `--contract` 必填。
 - `--input-file` / `--data` 必填且互斥。
@@ -965,12 +1157,12 @@ contract-cli payment update <payment-id> --contract <contract-id> --profile cont
 命令：
 
 ```bash
-contract-cli payment get <payment-id> --contract <contract-id> --profile contract --as bot
+contract-cli payment get <payment-id> --contract <contract-id> --profile contract --as app
 ```
 
 身份规则：
 
-- 当前仅支持 `--as bot`。
+- 当前仅支持 `--as app`。
 - 走 `GET /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}`。
 - `--contract` 必填。
 - 不接受 `--input-file` / `--data`。
@@ -982,13 +1174,13 @@ contract-cli payment get <payment-id> --contract <contract-id> --profile contrac
 命令：
 
 ```bash
-contract-cli payment list --contract <contract-id> --profile contract --as bot
-contract-cli payment list --contract <contract-id> --profile contract --as bot --page-size 10 --page-token next
+contract-cli payment list --contract <contract-id> --profile contract --as app
+contract-cli payment list --contract <contract-id> --profile contract --as app --page-size 10 --page-token next
 ```
 
 身份规则：
 
-- 当前仅支持 `--as bot`。
+- 当前仅支持 `--as app`。
 - 走 `GET /open-apis/contract/v1/contracts/{contract_id}/payments`。
 - `--contract` 必填。
 - `--page-size` / `--page-token` 可选。
@@ -1001,12 +1193,12 @@ contract-cli payment list --contract <contract-id> --profile contract --as bot -
 命令：
 
 ```bash
-contract-cli payment plan notify --profile contract --as bot --input-file notify.json
+contract-cli payment plan notify --profile contract --as app --input-file notify.json
 ```
 
 身份规则：
 
-- 当前仅支持 `--as bot`。
+- 当前仅支持 `--as app`。
 - 走 `POST /open-apis/contract/v1/payment/notify`。
 - `--input-file` / `--data` 必填且互斥。
 
@@ -1017,12 +1209,12 @@ contract-cli payment plan notify --profile contract --as bot --input-file notify
 命令：
 
 ```bash
-contract-cli payment plan search --profile contract --as bot --input-file payment-plan-search.json
+contract-cli payment plan search --profile contract --as app --input-file payment-plan-search.json
 ```
 
 身份规则：
 
-- 当前仅支持 `--as bot`。
+- 当前仅支持 `--as app`。
 - 走 `POST /open-apis/contract/v1/payments/search`。
 - `--input-file` / `--data` 必填且互斥。
 
@@ -1033,12 +1225,12 @@ contract-cli payment plan search --profile contract --as bot --input-file paymen
 命令：
 
 ```bash
-contract-cli payment record create --contract <contract-id> --payment <payment-id> --profile contract --as bot --input-file payment-record.json
+contract-cli payment record create --contract <contract-id> --payment <payment-id> --profile contract --as app --input-file payment-record.json
 ```
 
 身份规则：
 
-- 当前仅支持 `--as bot`。
+- 当前仅支持 `--as app`。
 - 走 `POST /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}/payment_records`。
 - `--contract` / `--payment` 必填。
 - `--input-file` / `--data` 必填且互斥。
@@ -1050,12 +1242,12 @@ contract-cli payment record create --contract <contract-id> --payment <payment-i
 命令：
 
 ```bash
-contract-cli payment record update <payment-record-id> --contract <contract-id> --payment <payment-id> --profile contract --as bot --input-file payment-record-update.json
+contract-cli payment record update <payment-record-id> --contract <contract-id> --payment <payment-id> --profile contract --as app --input-file payment-record-update.json
 ```
 
 身份规则：
 
-- 当前仅支持 `--as bot`。
+- 当前仅支持 `--as app`。
 - 走 `PATCH /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}/payment_records/{payment_record_id}`。
 - `--contract` / `--payment` 必填。
 - `--input-file` / `--data` 必填且互斥。
@@ -1067,12 +1259,12 @@ contract-cli payment record update <payment-record-id> --contract <contract-id> 
 命令：
 
 ```bash
-contract-cli payment record get <payment-record-id> --contract <contract-id> --payment <payment-id> --profile contract --as bot
+contract-cli payment record get <payment-record-id> --contract <contract-id> --payment <payment-id> --profile contract --as app
 ```
 
 身份规则：
 
-- 当前仅支持 `--as bot`。
+- 当前仅支持 `--as app`。
 - 走 `GET /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}/payment_records/{payment_record_id}`。
 - `--contract` / `--payment` 必填。
 - 不接受 `--input-file` / `--data`。
@@ -1084,12 +1276,12 @@ contract-cli payment record get <payment-record-id> --contract <contract-id> --p
 命令：
 
 ```bash
-contract-cli payment record list --plan <payment-plan-uuid> --profile contract --as bot
+contract-cli payment record list --plan <payment-plan-uuid> --profile contract --as app
 ```
 
 身份规则：
 
-- 当前仅支持 `--as bot`。
+- 当前仅支持 `--as app`。
 - 走 `GET /open-apis/contract/v1/contracts/payments/{payment_plan_uuid}/payment_records`。
 - `--plan` 必填。
 - 不接受 `--input-file` / `--data`。
@@ -1183,16 +1375,26 @@ contract-cli mdm legal list --profile contract --name 主体A --page-size 10
 
 ```bash
 contract-cli mdm legal get <legal-entity-id> --profile contract
+contract-cli mdm legal get --profile contract --as app --code L0001 --page-size 10
 ```
+
+支持参数：
+
+- `<legal-entity-id>`：按 ID 查询详情
+- `--code`：按法人实体编码查询，映射到底层 query `legalEntity`
+- `--page-size`：仅 `--code` 模式可用
+- `--page-token`：仅 `--code` 模式可用
 
 身份规则：
 
 - `--as user`
   - 走 `/open-apis/contract/v1/mcp/legal_entities/{legal_entity_id}`
 - `--as app`
-  - 走 `/open-apis/mdm/v1/legal_entities/{legal_entity_id}`
+  - 按 ID 查询走 `/open-apis/mdm/v1/legal_entities/{legal_entity_id}`
   - 按这次确认方案，除了 path 参数外，还会额外拼接同名 query `legal_entity_id`
   - 文档里把 `legal_entity_id` 放在查询参数表里，因此 CLI 按“path + query 双带”的方式实现
+  - 传 `--code` 时走 `GET /open-apis/mdm/v1/legal_entities`
+  - `--code` 模式不同于 `mdm legal list --as app` 的 `/open-apis/mdm/v1/legal_entities/list_all`
 
 #### `contract-cli mdm fields list`
 
@@ -1225,6 +1427,194 @@ contract-cli mdm fields list --profile contract --biz-line vendor
   - 后端当前只接受 `vendor` 或 `legalEntity`
   - CLI 允许继续传 `legal_entity`，并在 app 路由下自动映射为 `legalEntity`
   - `vendor_risk` 在 app 身份下会被本地拒绝，不再发送请求
+
+#### `contract-cli mdm vendor create`
+
+用途：app 身份创建交易方。
+
+命令：
+
+```bash
+contract-cli mdm vendor create --profile contract --as app --input-file vendor-create.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `POST /open-apis/mdm/v1/vendors`。
+- 字段是否必填受后台动态配置影响，可先查 `mdm fields list --biz-line vendor`。
+
+#### `contract-cli mdm vendor update`
+
+用途：app 身份按 ID 更新交易方。
+
+命令：
+
+```bash
+contract-cli mdm vendor update <vendor-id> --profile contract --as app --input-file vendor-update.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `PUT /open-apis/mdm/v1/vendors/{vendor_id}`。
+- 请求体直接透传，不在 CLI 本地补动态字段。
+
+#### `contract-cli mdm vendor list-all`
+
+用途：app 身份分页查询交易方全量数据。
+
+命令：
+
+```bash
+contract-cli mdm vendor list-all --profile contract --as app --page-size 10 --page-token next
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `GET /open-apis/mdm/v1/vendors/list_all`。
+- 不接受 `--input-file` / `--data`。
+
+#### `contract-cli mdm vendor query-by-cert`
+
+用途：app 身份根据证件 ID 和国家地区精确查询交易方。
+
+命令：
+
+```bash
+contract-cli mdm vendor query-by-cert --profile contract --as app --certification-id 91110105 --ad-country CN
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `GET /open-apis/mdm/v1/vendors/query_vendors`。
+- `--certification-id` 和 `--ad-country` 必填。
+
+#### `contract-cli mdm legal create`
+
+用途：app 身份创建法人主体。
+
+命令：
+
+```bash
+contract-cli mdm legal create --profile contract --as app --input-file legal-create.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `POST /open-apis/mdm/v1/legal_entities`。
+- 字段是否必填受后台动态配置影响，可先查 `mdm fields list --biz-line legal_entity`。
+
+#### `contract-cli mdm legal update`
+
+用途：app 身份按 ID 更新法人主体。
+
+命令：
+
+```bash
+contract-cli mdm legal update <legal-entity-id> --profile contract --as app --input-file legal-update.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `PUT /open-apis/mdm/v1/legal_entities/{legal_entity_id}`。
+- 请求体直接透传，不在 CLI 本地补动态字段。
+
+#### `contract-cli mdm fixed-exchange-rate get`
+
+用途：app 身份查询固定汇率。
+
+命令：
+
+```bash
+contract-cli mdm fixed-exchange-rate get --profile contract --as app --source-currency CNY --target-currency USD --effective-date 2026-06-01
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `GET /open-apis/mdm/v1/fixed_exchange_rate`。
+- 不接受 `--input-file` / `--data`。
+
+#### `contract-cli mdm fixed-exchange-rate update`
+
+用途：app 身份新增或更新固定汇率。
+
+命令：
+
+```bash
+contract-cli mdm fixed-exchange-rate update --profile contract --as app --input-file fixed-exchange-rate.json
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `PUT /open-apis/mdm/v1/fixed_exchange_rate`。
+- 请求体直接透传。
+
+#### `contract-cli mdm file download`
+
+用途：app 身份下载主数据附件。
+
+命令：
+
+```bash
+contract-cli mdm file download <file-id> --profile contract --as app --output-file ./attachment.bin
+contract-cli mdm file download <file-id> --profile contract --as app --raw > attachment.bin
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `GET /open-apis/mdm/v1/file/download/{file_id}`。
+- `--raw` 会把二进制内容写到 stdout，不打印额外提示。
+
+### 7. 事件命令
+
+#### `contract-cli event outbound-ip list`
+
+用途：app 身份分页查询开放平台事件出口 IP。
+
+命令：
+
+```bash
+contract-cli event outbound-ip list --profile contract --as app --page-size 10 --page-token next
+```
+
+身份规则：
+
+- 当前仅支持 `--as app`。
+- 走 `GET /open-apis/event/v1/outbound_ip`。
+- 不接受 `--input-file` / `--data`。
+
+### 8. 审批矩阵规则表命令
+
+这一组命令当前全部仅支持 `--as app`，公共定位参数是 `--product-id`、`--group-id`，涉及单表时再传 `--table-id`。
+
+| 命令 | 方法与路径 | 请求体 |
+| --- | --- | --- |
+| `rule table list` | `GET /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables` | 不接受 |
+| `rule table pre-release` | `PATCH /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/pre_release` | 可选 |
+| `rule table release` | `PATCH /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/release` | 可选 |
+| `rule table column-headers list` | `GET /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/table_columns/column_headers` | 不接受 |
+| `rule table row create` | `POST /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/table_rows` | 必填 |
+| `rule table row get` | `GET /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/table_rows/{table_row_id}` | 不接受 |
+| `rule table row list` | `GET /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/table_rows` | 不接受 |
+| `rule table row search` | `POST /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/table_rows/search` | 必填 |
+| `rule table row update` | `PUT /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/table_rows/{table_row_id}` | 必填 |
+| `rule table row delete` | `DELETE /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/table_rows/{table_row_id}` | 不接受 |
+
+示例：
+
+```bash
+contract-cli rule table list --profile contract --as app --product-id <product-id> --group-id <group-id> --page-size 10
+contract-cli rule table row create --profile contract --as app --product-id <product-id> --group-id <group-id> --table-id <table-id> --input-file row.json
+contract-cli rule table row delete <row-id> --profile contract --as app --product-id <product-id> --group-id <group-id> --table-id <table-id>
+```
 
 ## 后续扩展 app 接口时的建议落点
 

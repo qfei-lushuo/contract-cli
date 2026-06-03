@@ -66,6 +66,14 @@ func TestContractSkillFieldReferencesCoverDocumentedCommands(t *testing.T) {
 			"contract-cli contract download-file",
 			"process_instance_id",
 		},
+		"openapi-gap-commands.md": {
+			"contract-cli contract search-v2",
+			"contract-cli contract field update",
+			"contract-cli contract sign-url get",
+			"contract-cli contract cooperation search",
+			"contract-cli contract esign personal-auth-url",
+			"contract-cli contract cooperation file download",
+		},
 	}
 
 	for name, fragments := range referenceFragments {

@@ -206,6 +206,10 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return a.runPayment(ctx, args[1:])
 	case "mdm":
 		return a.runMDM(ctx, args[1:])
+	case "event":
+		return a.runEvent(ctx, args[1:])
+	case "rule":
+		return a.runRule(ctx, args[1:])
 	default:
 		return fmt.Errorf("unknown command %q", args[0])
 	}

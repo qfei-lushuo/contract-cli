@@ -121,7 +121,7 @@ func TestServicePaymentEndpoints(t *testing.T) {
 						if got != tc.want {
 							t.Fatalf("request = %q, want %q", got, tc.want)
 						}
-						if req.Header.Get("Authorization") != "Bearer bot-token" {
+						if req.Header.Get("Authorization") != "Bearer app-token" {
 							t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
 						}
 						body, err := io.ReadAll(req.Body)
@@ -139,7 +139,7 @@ func TestServicePaymentEndpoints(t *testing.T) {
 				},
 				Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 			})
-			requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+			requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 			if err != nil {
 				t.Fatalf("RequestContext() error = %v", err)
 			}
@@ -169,7 +169,7 @@ func TestServicePaymentEndpointsEscapePathValues(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -191,7 +191,7 @@ func TestServicePaymentEndpointsRejectMissingIDs(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -263,24 +263,24 @@ func TestServicePaymentEndpointsRejectUserIdentityBeforeHTTP(t *testing.T) {
 	}
 
 	_, err = payment.NewService(client).Create(context.Background(), requestContext, "contract-1", []byte(`{}`))
-	if err == nil || !strings.Contains(err.Error(), "only supports --as bot") {
+	if err == nil || !strings.Contains(err.Error(), "only supports --as app") {
 		t.Fatalf("unexpected user error: %v", err)
 	}
 	if transportUsed {
-		t.Fatalf("request transport should not be used for rejected bot-only action")
+		t.Fatalf("request transport should not be used for rejected app-only action")
 	}
 }
 
-func profileWithBotToken() config.Profile {
+func profileWithAppToken() config.Profile {
 	return config.Profile{
 		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
-		DefaultIdentity:     config.IdentityBot,
+		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
-			Bot: config.BotIdentity{
+			App: config.AppIdentity{
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 					TokenType:   "Bearer",
 					Expiry:      time.Now().Add(time.Hour),
 				},

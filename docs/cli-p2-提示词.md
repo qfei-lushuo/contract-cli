@@ -9,7 +9,7 @@
 3. 遵守仓库 AGENTS.md：TDD 先行，先写失败测试，再做最小实现。
 4. 每次代码生成或修改后，必须追加记录到 `docs/ai-changes.md`。
 5. 请求体统一使用 `--input-file` 或 `--data`，不把复杂 JSON 字段展开成 CLI flags。
-6. 新增命令默认按 bot 身份开放；如文档明确支持 user 或已有 MCP 路由，再按现有身份分流方式实现。
+6. 新增命令默认按 app 身份开放；如文档明确支持 user 或已有 MCP 路由，再按现有身份分流方式实现。
 7. 开放平台通用 query 保持现有规则：默认 `user_id_type=user_id`，支持 `--user-id-type` / `--user-id` 透传。
 8. URL 中的 `{contract_id}`、`{payment_id}`、`{payment_record_id}`、`{payment_plan_uuid}`、`{process_instance_id}` 是路径占位符，参考仓库已有实现用位置参数或 flag 获取实际值后拼接，并做 `url.PathEscape`。
 
@@ -110,6 +110,6 @@ https://docs.qfei.cn/367595371e0
 2. CLI 测试覆盖每个命令的 method、path、body、query、Authorization。
 3. 覆盖缺少 `--contract`、`--payment`、`--plan`、位置 ID、body 时的本地校验。
 4. 覆盖 POST/PATCH 缺少 body 时不发 HTTP。
-5. 覆盖 `--as user` 如果当前按 bot-only 实现，应本地拒绝且不发 HTTP。
+5. 覆盖 `--as user` 如果当前按 app-only 实现，应本地拒绝且不发 HTTP。
 6. 覆盖 help topic。
 7. 运行 `go test ./...`。

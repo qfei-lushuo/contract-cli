@@ -1,7 +1,7 @@
 interface:
   display_name: "Contract CLI Contract"
   short_description: "Run contract commands with field references"
-  default_prompt: "Use $contract-cli-contract to run contract search/get/create/template/file/action commands and assemble request JSON from the bundled field references."
+  default_prompt: "Use $contract-cli-contract to run contract search/get/create/template/file/action/esign/authorization/cooperation commands and assemble request JSON from bundled references."
 
 policy:
   allow_implicit_invocation: true
