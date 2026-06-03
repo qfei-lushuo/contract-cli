@@ -1,5 +1,10 @@
 # AI 变更记录
 
+- 2026-06-03
+  变更摘要：修复 P2 分支在 app 身份改名后的编译失败。
+  涉及文件/模块：`internal/cli/payment_command.go`、`internal/cli/contract_command.go`、`internal/openplatform/payment/service.go`、`internal/openplatform/contract/service.go`、相关 CLI/service 测试
+  关键逻辑/决策：将付款和审批命令残留的 `IdentityPolicyBotOnly` / `IdentityBot` fixture 迁移为现有 `IdentityPolicyAppOnly` / `IdentityApp`，保持 app-only 身份限制语义并恢复生产入口编译。
+
 - 2026-05-27
   变更摘要：收敛 profile 和授权状态输出，避免展示开放平台与授权 endpoint 地址。
   涉及文件/模块：`internal/cli/app.go`、`internal/cli/auth_provider.go`、CLI 测试、`docs/cli-test-plan.md`、`skills/auth`

@@ -394,7 +394,7 @@ func (s *Service) StartApproval(ctx context.Context, requestContext openplatform
 		Method:         http.MethodPost,
 		Path:           "/open-apis/contract/v1/process_instances/" + url.PathEscape(processInstanceID) + "/task_approval",
 		Body:           body,
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -414,7 +414,7 @@ func (s *Service) GetProcessInstance(ctx context.Context, requestContext openpla
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/process_instances/" + url.PathEscape(processInstanceID),
 		Query:          query,
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 

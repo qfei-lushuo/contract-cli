@@ -538,7 +538,7 @@ func (a *App) runContractApprovalStart(ctx context.Context, args []string) error
 	}
 
 	processInstanceID := parsed.positionals[0]
-	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/process_instances/"+processInstanceID+"/task_approval", openplatform.IdentityPolicyBotOnly)
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/process_instances/"+processInstanceID+"/task_approval", openplatform.IdentityPolicyAppOnly)
 	if err != nil {
 		return err
 	}
@@ -563,7 +563,7 @@ func (a *App) runContractApprovalGet(ctx context.Context, args []string) error {
 	}
 
 	processInstanceID := parsed.positionals[0]
-	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/process_instances/"+processInstanceID, openplatform.IdentityPolicyBotOnly)
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/process_instances/"+processInstanceID, openplatform.IdentityPolicyAppOnly)
 	if err != nil {
 		return err
 	}
