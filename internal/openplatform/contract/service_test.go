@@ -56,7 +56,7 @@ func TestServiceSearchUsesUserSearchEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceSearchUsesBotSearchEndpoint(t *testing.T) {
+func TestServiceSearchUsesAppSearchEndpoint(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -80,7 +80,7 @@ func TestServiceSearchUsesBotSearchEndpoint(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -129,7 +129,7 @@ func TestServiceGetTextUsesContractTextEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceGetTextUsesBotTextEndpointWithoutUserQuery(t *testing.T) {
+func TestServiceGetTextUsesAppTextEndpointWithoutUserQuery(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -146,7 +146,7 @@ func TestServiceGetTextUsesBotTextEndpointWithoutUserQuery(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -183,7 +183,7 @@ func TestServiceGetTextDefaultsToFullTextWhenNoPagingIsProvided(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -198,7 +198,7 @@ func TestServiceGetTextDefaultsToFullTextWhenNoPagingIsProvided(t *testing.T) {
 	}
 }
 
-func TestServiceGetUsesBotGetEndpoint(t *testing.T) {
+func TestServiceGetUsesAppGetEndpoint(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -215,7 +215,7 @@ func TestServiceGetUsesBotGetEndpoint(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -230,7 +230,7 @@ func TestServiceGetUsesBotGetEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceSyncUserGroupsUsesBotEndpointWithoutUserQuery(t *testing.T) {
+func TestServiceSyncUserGroupsUsesAppEndpointWithoutUserQuery(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -247,7 +247,7 @@ func TestServiceSyncUserGroupsUsesBotEndpointWithoutUserQuery(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -262,7 +262,7 @@ func TestServiceSyncUserGroupsUsesBotEndpointWithoutUserQuery(t *testing.T) {
 	}
 }
 
-func TestServiceCreateUsesBotEndpoint(t *testing.T) {
+func TestServiceCreateUsesAppEndpoint(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -286,7 +286,7 @@ func TestServiceCreateUsesBotEndpoint(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -301,7 +301,7 @@ func TestServiceCreateUsesBotEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceListCategoriesUsesBotEndpoint(t *testing.T) {
+func TestServiceListCategoriesUsesAppEndpoint(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -318,7 +318,7 @@ func TestServiceListCategoriesUsesBotEndpoint(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -333,7 +333,7 @@ func TestServiceListCategoriesUsesBotEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceListTemplatesUsesBotEndpoint(t *testing.T) {
+func TestServiceListTemplatesUsesAppEndpoint(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -350,7 +350,7 @@ func TestServiceListTemplatesUsesBotEndpoint(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -369,7 +369,7 @@ func TestServiceListTemplatesUsesBotEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceGetTemplateUsesBotEndpoint(t *testing.T) {
+func TestServiceGetTemplateUsesAppEndpoint(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -386,7 +386,7 @@ func TestServiceGetTemplateUsesBotEndpoint(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -401,7 +401,7 @@ func TestServiceGetTemplateUsesBotEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceInstantiateTemplateUsesBotEndpoint(t *testing.T) {
+func TestServiceInstantiateTemplateUsesAppEndpoint(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -425,7 +425,7 @@ func TestServiceInstantiateTemplateUsesBotEndpoint(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -440,7 +440,7 @@ func TestServiceInstantiateTemplateUsesBotEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceUploadFileUsesBotMultipartEndpoint(t *testing.T) {
+func TestServiceUploadFileUsesAppMultipartEndpoint(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -452,7 +452,7 @@ func TestServiceUploadFileUsesBotMultipartEndpoint(t *testing.T) {
 				if req.URL.String() != "https://dev-open.qtech.cn/open-apis/contract/v1/files/upload" {
 					t.Fatalf("url = %q", req.URL.String())
 				}
-				if req.Header.Get("Authorization") != "Bearer bot-token" {
+				if req.Header.Get("Authorization") != "Bearer app-token" {
 					t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
 				}
 				if got := req.Header.Get("Content-Type"); !strings.HasPrefix(got, "multipart/form-data; boundary=") {
@@ -491,7 +491,7 @@ func TestServiceUploadFileUsesBotMultipartEndpoint(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -564,7 +564,7 @@ func TestServiceUploadFileUsesUserMultipartEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceBotOnlyContractActionEndpoints(t *testing.T) {
+func TestServiceAppOnlyContractActionEndpoints(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
@@ -671,7 +671,7 @@ func TestServiceBotOnlyContractActionEndpoints(t *testing.T) {
 						if got != tc.want {
 							t.Fatalf("request = %q, want %q", got, tc.want)
 						}
-						if req.Header.Get("Authorization") != "Bearer bot-token" {
+						if req.Header.Get("Authorization") != "Bearer app-token" {
 							t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
 						}
 						body, err := io.ReadAll(req.Body)
@@ -689,7 +689,7 @@ func TestServiceBotOnlyContractActionEndpoints(t *testing.T) {
 				},
 				Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 			})
-			requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+			requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 			if err != nil {
 				t.Fatalf("RequestContext() error = %v", err)
 			}
@@ -705,7 +705,7 @@ func TestServiceBotOnlyContractActionEndpoints(t *testing.T) {
 	}
 }
 
-func TestServiceDownloadFileStreamsBotEndpoint(t *testing.T) {
+func TestServiceDownloadFileStreamsAppEndpoint(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -717,7 +717,7 @@ func TestServiceDownloadFileStreamsBotEndpoint(t *testing.T) {
 				if req.URL.String() != "https://dev-open.qtech.cn/open-apis/contract/v1/files/file%20123" {
 					t.Fatalf("url = %q", req.URL.String())
 				}
-				if req.Header.Get("Authorization") != "Bearer bot-token" {
+				if req.Header.Get("Authorization") != "Bearer app-token" {
 					t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
 				}
 				return &http.Response{
@@ -731,7 +731,7 @@ func TestServiceDownloadFileStreamsBotEndpoint(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -749,7 +749,7 @@ func TestServiceDownloadFileStreamsBotEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceBotOnlyContractActionsRejectUserIdentityBeforeHTTP(t *testing.T) {
+func TestServiceAppOnlyContractActionsRejectUserIdentityBeforeHTTP(t *testing.T) {
 	t.Parallel()
 
 	transportUsed := false
@@ -768,11 +768,11 @@ func TestServiceBotOnlyContractActionsRejectUserIdentityBeforeHTTP(t *testing.T)
 	}
 
 	_, err = contract.NewService(client).Submit(context.Background(), requestContext, "contract-1", nil)
-	if err == nil || !strings.Contains(err.Error(), "only supports --as bot") {
+	if err == nil || !strings.Contains(err.Error(), "only supports --as app") {
 		t.Fatalf("unexpected user error: %v", err)
 	}
 	if transportUsed {
-		t.Fatalf("request transport should not be used for rejected bot-only action")
+		t.Fatalf("request transport should not be used for rejected app-only action")
 	}
 }
 
@@ -886,16 +886,16 @@ func profileWithUserToken() config.Profile {
 	}
 }
 
-func profileWithBotToken() config.Profile {
+func profileWithAppToken() config.Profile {
 	return config.Profile{
 		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
-		DefaultIdentity:     config.IdentityBot,
+		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
-			Bot: config.BotIdentity{
+			App: config.AppIdentity{
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 					TokenType:   "Bearer",
 					Expiry:      time.Now().Add(time.Hour),
 				},

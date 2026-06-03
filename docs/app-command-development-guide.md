@@ -1,37 +1,37 @@
-# bot 命令开发指南
+# app 命令开发指南
 
 ## 1. 目标
 
-这份文档用于后续继续开发 `contract-cli` 的 bot 身份业务命令，覆盖两部分工作：
+这份文档用于后续继续开发 `contract-cli` 的 app 身份业务命令，覆盖两部分工作：
 
 - 功能开发：CLI handler、domain service、开放平台请求、测试。
 - Skill 编写：`skills/` 下的模块文档、参数说明、命令示例和排障说明。
 
-默认原则是：命令名保持业务语义不变，代码层根据当前身份 `user` / `bot` 自动路由到底层不同接口。
+默认原则是：命令名保持业务语义不变，代码层根据当前身份 `user` / `app` 自动路由到底层不同接口。
 
 示例：
 
 ```bash
 contract-cli contract search --profile contract --as user ...
-contract-cli contract search --profile contract --as bot ...
+contract-cli contract search --profile contract --as app ...
 ```
 
-同一个 `contract search` 命令，`user` 和 `bot` 可以走不同后端路径。
+同一个 `contract search` 命令，`user` 和 `app` 可以走不同后端路径。
 
 ## 2. 开发前必须确认的信息
 
-每个新 bot 命令开始前，先把下面信息补齐：
+每个新 app 命令开始前，先把下面信息补齐：
 
 | 项目 | 必填 | 说明 |
 | --- | --- | --- |
 | CLI 命令名 | 是 | 例如 `contract submit <contract-id>`、`mdm vendor create` |
 | user 是否已有实现 | 是 | 如果已有 user/MCP 命令，优先保持命令面不变 |
-| bot 接口方法 | 是 | `GET` / `POST` / `PUT` / `DELETE` |
-| bot 接口路径 | 是 | 必须是相对路径 `/open-apis/...` |
+| app 接口方法 | 是 | `GET` / `POST` / `PUT` / `DELETE` |
+| app 接口路径 | 是 | 必须是相对路径 `/open-apis/...` |
 | query 参数 | 是 | 区分 CLI 显式 flag、通用 query、固定 query |
 | body 参数 | 视接口 | 简单参数用 flag，复杂结构用 `--input-file` / `--data` |
 | path 参数 | 视接口 | ID 类参数优先使用位置参数，并做 `url.PathEscape` |
-| 身份限制 | 是 | `any`、`user_only`、`bot_only` |
+| 身份限制 | 是 | `any`、`user_only`、`app_only` |
 | 示例响应 | 是 | 至少覆盖成功响应，最好补一个业务失败响应 |
 | 生产文档疑点 | 视接口 | 如果文档路径、方法、字段名互相矛盾，先和接口方确认 |
 
@@ -61,7 +61,7 @@ HTTP 细节必须放到 `internal/openplatform` 或 domain service。
 
 ### 3.2 domain service 负责身份路由
 
-有 user/bot 双身份的命令，在 domain service 中按 `requestContext.Identity` 分流。
+有 user/app 双身份的命令，在 domain service 中按 `requestContext.Identity` 分流。
 
 推荐模式：
 
@@ -69,7 +69,7 @@ HTTP 细节必须放到 `internal/openplatform` 或 domain service。
 switch requestContext.Identity {
 case config.IdentityUser:
     return s.do(ctx, requestContext, "mcp-tool-name", replacements, query, body)
-case config.IdentityBot:
+case config.IdentityApp:
     return s.client.Do(ctx, requestContext, openplatform.Request{
         Method:         http.MethodPost,
         Path:           "/open-apis/contract/v1/...",
@@ -82,10 +82,10 @@ default:
 }
 ```
 
-如果命令只支持 bot，例如合同提交、删除等操作，使用：
+如果命令只支持 app，例如合同提交、删除等操作，使用：
 
 ```go
-IdentityPolicy: openplatform.IdentityPolicyBotOnly
+IdentityPolicy: openplatform.IdentityPolicyAppOnly
 ```
 
 如果命令仍然只支持 user/MCP，继续使用 MCP spec 的 `IdentityPolicyUserOnly`。
@@ -111,36 +111,38 @@ IdentityPolicy: openplatform.IdentityPolicyBotOnly
 
 命令身份解析优先级：
 
-1. 显式 `--as user|bot`
+1. 显式 `--as user|app`
 2. profile 的 `default_identity`
 3. user-only 路径默认强制 user
 
-bot 命令使用 `tenant_access_token`，user 命令使用 OAuth token。
+app 命令使用 `tenant_access_token`，user 命令使用 OAuth token。
+
+为兼容老用户脚本，旧身份值 `--as bot` 仍按 app 身份解析；新增文档、测试命名和示例统一使用 `app`。
 
 ### 4.2 配置与鉴权上下文
 
-bot 命令依赖 profile 中的开放平台配置：
+app 命令依赖 profile 中的开放平台配置：
 
 - `OpenPlatformBaseURL`：业务 API 基址，prod 默认 `https://open.qfei.cn`。
-- `BotTokenEndpoint`：bot 获取 `tenant_access_token` 的接口，prod 默认 `https://open.qfei.cn/open-apis/auth/v3/tenant_access_token/internal`。
+- `AppTokenEndpoint`：app 获取 `tenant_access_token` 的接口，prod 默认 `https://open.qfei.cn/open-apis/auth/v3/tenant_access_token/internal`。
 - `default_identity`：未传 `--as` 时的默认身份。
-- `identities.bot.token`：bot 命令实际使用的 token。
+- `identities.app.token`：app 命令实际使用的 token。
 
-user OAuth 与 bot token 是两套不同流程：
+user OAuth 与 app token 是两套不同流程：
 
-- `auth login --as bot` 使用 `appId/appSecret` 直接换 `tenant_access_token`。
+- `auth login --as app` 使用 `appId/appSecret` 直接换 `tenant_access_token`。
 - `auth login --as user` 使用 OAuth 授权码流程。
 - 当前 user OAuth 不要求旧 Higress `resource`，resource 为空时授权 URL 和 token 请求都不发送 `resource` 参数。
 
-开发 bot 命令时不要复用 user OAuth 的 resource 概念，也不要把 `OpenPlatformBaseURL` 和 OAuth metadata URL 混用。
+开发 app 命令时不要复用 user OAuth 的 resource 概念，也不要把 `OpenPlatformBaseURL` 和 OAuth metadata URL 混用。
 
 ### 4.3 MCP 路径约束
 
 `/open-apis/contract/v1/mcp/` 默认是 user-only。
 
-除非明确已经为该命令做了 bot 标准接口路由，否则 bot 不应该继续走 MCP 路径。
+除非明确已经为该命令做了 app 标准接口路由，否则 app 不应该继续走 MCP 路径。
 
-user 侧已有 MCP 工具时，优先保留原有 `s.do(...)` 实现，bot 侧新增标准开放平台路径。
+user 侧已有 MCP 工具时，优先保留原有 `s.do(...)` 实现，app 侧新增标准开放平台路径。
 
 ### 4.4 通用 query 参数
 
@@ -156,7 +158,7 @@ user 侧已有 MCP 工具时，优先保留原有 `s.do(...)` 实现，bot 侧�
 - 不传 `--user-id-type` 时，底层默认拼 `user_id_type=user_id`。
 - 显式传 `--user-id-type employee_id` 时，覆盖默认值。
 - `--user-id` 传了就拼 `user_id=<id>`，不传就不带。
-- 不区分 `user` / `bot`。
+- 不区分 `user` / `app`。
 - 不做命令级必填校验，除非后续产品明确要求。
 
 MCP user-only 请求的固定 query 优先级更高。即使用户传 `--user-id-type employee_id`，MCP spec 固定的 `user_id_type=user_id` 也不能被覆盖。
@@ -209,7 +211,7 @@ MCP user-only 请求的固定 query 优先级更高。即使用户传 `--user-id
 
 ```bash
 contract-cli contract upload-file --as user --file ./合同.docx --file-type text
-contract-cli contract upload-file --as bot --file ./合同.docx --file-type text
+contract-cli contract upload-file --as app --file ./合同.docx --file-type text
 ```
 
 上传命令必须：
@@ -260,7 +262,7 @@ CLI 只做稳定、不容易和后端漂移的校验：
 --raw
 ```
 
-当前不强制把 user/bot 响应归一化。原因是 bot 标准接口和 user MCP 接口响应结构可能不同，贸然归一化容易隐藏后端真实差异。
+当前不强制把 user/app 响应归一化。原因是 app 标准接口和 user MCP 接口响应结构可能不同，贸然归一化容易隐藏后端真实差异。
 
 如果某个接口 HTTP 200 但 body 中 `code != 0`，当前多数命令仍按响应 body 输出，不在 client 层统一转 error。后续是否统一业务错误处理，需要单独决策。
 
@@ -270,10 +272,10 @@ CLI 只做稳定、不容易和后端漂移的校验：
 
 ### 7.1 domain service 测试
 
-每个新增 bot 路由至少覆盖：
+每个新增 app 路由至少覆盖：
 
 - `user` 仍命中原 MCP 路径。
-- `bot` 命中新开放平台标准路径。
+- `app` 命中新开放平台标准路径。
 - method 正确。
 - path 参数转义正确。
 - query 参数正确。
@@ -285,8 +287,8 @@ CLI 只做稳定、不容易和后端漂移的校验：
 
 每个命令至少覆盖：
 
-- 显式 `--as bot`。
-- profile 默认身份为 bot，未传 `--as`。
+- 显式 `--as app`。
+- profile 默认身份为 app，未传 `--as`。
 - 显式 `--as user` 仍走 user 路由。
 - `--user-id-type` 默认 `user_id`。
 - 显式 `--user-id-type employee_id` 覆盖默认值。
@@ -299,7 +301,7 @@ CLI 只做稳定、不容易和后端漂移的校验：
 
 涉及通用能力时补 client 测试：
 
-- `IdentityPolicyBotOnly` 在 user 身份下失败且不发 HTTP。
+- `IdentityPolicyAppOnly` 在 user 身份下失败且不发 HTTP。
 - `IdentityPolicyUserOnly` 保护 request 固定 query，不被 CommonQuery 覆盖。
 - `IdentityPolicyAny` 保持 CommonQuery 可覆盖同名 request query。
 - `BodyReader` 不被自动设置为 JSON。
@@ -350,7 +352,7 @@ description: "..."
 
 - 适用命令。
 - 身份限制。
-- user/bot 路由差异。
+- user/app 路由差异。
 - 关键参数规则。
 - 常用示例。
 - 什么时候转去读 shared 或 api-call。
@@ -378,7 +380,7 @@ references/<domain>-enums.md
 
 ### 8.4 skill 内容必须和实现同步
 
-每次新增或调整 bot 命令，至少检查：
+每次新增或调整 app 命令，至少检查：
 
 - `skills/contract-cli-shared/SKILL.md`
 - 对应模块 `SKILL.md`
@@ -389,8 +391,8 @@ references/<domain>-enums.md
 
 重点同步：
 
-- 是否支持 bot。
-- bot 路径。
+- 是否支持 app。
+- app 路径。
 - 是否仍支持 user。
 - `--user-id-type` 默认 `user_id`。
 - `--user-id` 是否只是透传。
@@ -404,16 +406,16 @@ references/<domain>-enums.md
 `SKILL.md` 头部的 `version` 字段保留为 skill 文档自身的内部元数据：
 
 - `skills list` 不再把该字段作为展示版本。
-- `skills install` 仍原样复制 `SKILL.md`，不动态改写 front matter。
-- 新增 skill 可继续使用 `1.0.0` 作为内部文档版本；用户看到的版本由 CLI 发布版本决定。
+- `skills install` 会在安装到目标目录时，把 `SKILL.md` front matter 的 `version` 改写为当前 CLI 运行时版本。
+- 新增 skill 可继续在仓库源文件中使用 `1.0.0` 作为内部文档版本；用户和 agent 在 `skills list` 及已安装文件中看到的版本由 CLI 发布版本决定。
 
 ## 9. 开发步骤模板
 
 ### 9.1 功能开发
 
 1. 阅读生产接口文档，整理 method/path/query/body/response。
-2. 如果命令已有 user 实现，确认命令名不变，只新增 bot 路由。
-3. 先写 domain service 测试，锁定 bot method/path/query/body。
+2. 如果命令已有 user 实现，确认命令名不变，只新增 app 路由。
+3. 先写 domain service 测试，锁定 app method/path/query/body。
 4. 写 CLI 测试，覆盖身份解析、默认 query、输入、输出。
 5. 在 domain service 中按 `requestContext.Identity` 分流。
 6. 在 CLI handler 中补必要 flag 和参数解析。
@@ -427,18 +429,18 @@ references/<domain>-enums.md
 
 1. 先更新 shared 的能力清单和共享约束。
 2. 更新模块 `SKILL.md` 的适用命令和身份说明。
-3. 更新 `references/commands.md` 的 user/bot 示例。
+3. 更新 `references/commands.md` 的 user/app 示例。
 4. 如果新增复杂请求体，新增参数或字段说明文档。
 5. 检查所有示例命令是否和 `--help` 一致。
 6. 检查是否还保留“未实现”“user-only”等过期描述。
 
 ## 10. Definition of Done
 
-一个 bot 命令完成必须满足：
+一个 app 命令完成必须满足：
 
 - 命令名与 user 侧保持一致，除非产品明确要求新命名。
-- bot 路由不走 MCP 路径，除非接口明确要求。
-- `--as bot` 和默认 bot 身份都可用。
+- app 路由不走 MCP 路径，除非接口明确要求。
+- `--as app` 和默认 app 身份都可用。
 - user 侧旧行为不回归。
 - `--user-id-type` 默认 `user_id`，显式传值可覆盖。
 - `--user-id` 仅在传入时拼接。
@@ -452,12 +454,12 @@ references/<domain>-enums.md
 
 ## 11. 需要提前对齐的补充项
 
-下面这些点建议在继续大规模扩 bot 命令前统一确认：
+下面这些点建议在继续大规模扩 app 命令前统一确认：
 
 - skill 版本策略：继续独立版本，还是跟随 npm/CLI 版本。
 - 业务错误策略：HTTP 200 但 `code != 0` 时，CLI 是否仍原样输出，还是统一返回 error exit code。
-- `user_id` 必填策略：当前不做命令级校验；如果某些 bot 接口实际强依赖 `user_id`，是否要对具体命令加本地必填。
-- 输出归一化策略：user/MCP 和 bot/open API 响应结构是否需要统一为领域 DTO。
+- `user_id` 必填策略：当前不做命令级校验；如果某些 app 接口实际强依赖 `user_id`，是否要对具体命令加本地必填。
+- 输出归一化策略：user/MCP 和 app/open API 响应结构是否需要统一为领域 DTO。
 - table 输出策略：哪些命令需要稳定 table，哪些只保证 JSON/raw。
 - 文档来源策略：生产文档和实际接口不一致时，以接口实测、后端确认还是文档为准。
-- 发版策略：bot 命令开发完成后是否必须同步发布 beta 包和更新 skill 安装验证。
+- 发版策略：app 命令开发完成后是否必须同步发布 beta 包和更新 skill 安装验证。

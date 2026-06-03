@@ -57,7 +57,7 @@ func (s *Service) Search(ctx context.Context, requestContext openplatform.Reques
 	switch requestContext.Identity {
 	case config.IdentityUser:
 		return s.do(ctx, requestContext, "search-contracts", nil, nil, input.Body)
-	case config.IdentityBot:
+	case config.IdentityApp:
 		return s.client.Do(ctx, requestContext, openplatform.Request{
 			Method:         http.MethodPost,
 			Path:           "/open-apis/contract/v1/contracts/search",
@@ -77,7 +77,7 @@ func (s *Service) Get(ctx context.Context, requestContext openplatform.RequestCo
 	switch requestContext.Identity {
 	case config.IdentityUser:
 		return s.do(ctx, requestContext, "get-contract-detail", map[string]string{"{contractId}": url.PathEscape(contractID)}, nil, nil)
-	case config.IdentityBot:
+	case config.IdentityApp:
 		return s.client.Do(ctx, requestContext, openplatform.Request{
 			Method:         http.MethodGet,
 			Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID),
@@ -92,7 +92,7 @@ func (s *Service) SyncUserGroups(ctx context.Context, requestContext openplatfor
 	switch requestContext.Identity {
 	case config.IdentityUser:
 		return s.do(ctx, requestContext, "sync-user-groups", nil, nil, nil)
-	case config.IdentityBot:
+	case config.IdentityApp:
 		return s.client.Do(ctx, requestContext, openplatform.Request{
 			Method:         http.MethodPost,
 			Path:           "/open-apis/contract/v1/contracts/user-groups/sync",
@@ -120,7 +120,7 @@ func (s *Service) GetText(ctx context.Context, requestContext openplatform.Reque
 	switch requestContext.Identity {
 	case config.IdentityUser:
 		return s.do(ctx, requestContext, "get-contract-text", map[string]string{"{contractId}": url.PathEscape(contractID)}, query, nil)
-	case config.IdentityBot:
+	case config.IdentityApp:
 		return s.client.Do(ctx, requestContext, openplatform.Request{
 			Method:         http.MethodGet,
 			Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID) + "/text",
@@ -147,7 +147,7 @@ func (s *Service) ListCategories(ctx context.Context, requestContext openplatfor
 	switch requestContext.Identity {
 	case config.IdentityUser:
 		return s.do(ctx, requestContext, "contract_category.list", nil, query, nil)
-	case config.IdentityBot:
+	case config.IdentityApp:
 		return s.client.Do(ctx, requestContext, openplatform.Request{
 			Method:         http.MethodGet,
 			Path:           "/open-apis/contract/v1/contract_categorys",
@@ -163,7 +163,7 @@ func (s *Service) Create(ctx context.Context, requestContext openplatform.Reques
 	switch requestContext.Identity {
 	case config.IdentityUser:
 		return s.do(ctx, requestContext, "create-contracts", nil, nil, body)
-	case config.IdentityBot:
+	case config.IdentityApp:
 		return s.client.Do(ctx, requestContext, openplatform.Request{
 			Method:         http.MethodPost,
 			Path:           "/open-apis/contract/v1/contracts",
@@ -189,7 +189,7 @@ func (s *Service) ListTemplates(ctx context.Context, requestContext openplatform
 	switch requestContext.Identity {
 	case config.IdentityUser:
 		return s.do(ctx, requestContext, "list-templates", nil, query, nil)
-	case config.IdentityBot:
+	case config.IdentityApp:
 		return s.client.Do(ctx, requestContext, openplatform.Request{
 			Method:         http.MethodGet,
 			Path:           "/open-apis/contract/v1/templates",
@@ -209,7 +209,7 @@ func (s *Service) GetTemplate(ctx context.Context, requestContext openplatform.R
 	switch requestContext.Identity {
 	case config.IdentityUser:
 		return s.do(ctx, requestContext, "get-template-detail", map[string]string{"{template_id}": url.PathEscape(templateID)}, nil, nil)
-	case config.IdentityBot:
+	case config.IdentityApp:
 		return s.client.Do(ctx, requestContext, openplatform.Request{
 			Method:         http.MethodGet,
 			Path:           "/open-apis/contract/v1/templates/" + url.PathEscape(templateID),
@@ -224,7 +224,7 @@ func (s *Service) InstantiateTemplate(ctx context.Context, requestContext openpl
 	switch requestContext.Identity {
 	case config.IdentityUser:
 		return s.do(ctx, requestContext, "create-template-instance", nil, nil, body)
-	case config.IdentityBot:
+	case config.IdentityApp:
 		return s.client.Do(ctx, requestContext, openplatform.Request{
 			Method:         http.MethodPost,
 			Path:           "/open-apis/contract/v1/template_instances",
@@ -283,7 +283,7 @@ func (s *Service) Submit(ctx context.Context, requestContext openplatform.Reques
 		Method:         http.MethodPost,
 		Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID) + "/submit",
 		Body:           body,
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -296,7 +296,7 @@ func (s *Service) Resubmit(ctx context.Context, requestContext openplatform.Requ
 		Method:         http.MethodPost,
 		Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID) + "/resubmit",
 		Body:           body,
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -309,7 +309,7 @@ func (s *Service) Patch(ctx context.Context, requestContext openplatform.Request
 		Method:         http.MethodPatch,
 		Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID),
 		Body:           body,
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -324,7 +324,7 @@ func (s *Service) DownloadFile(ctx context.Context, requestContext openplatform.
 	return s.client.DoStream(ctx, requestContext, openplatform.Request{
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/files/" + url.PathEscape(fileID),
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	}, writer)
 }
 
@@ -336,7 +336,7 @@ func (s *Service) Delete(ctx context.Context, requestContext openplatform.Reques
 	return s.client.Do(ctx, requestContext, openplatform.Request{
 		Method:         http.MethodDelete,
 		Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID),
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -345,7 +345,7 @@ func (s *Service) PrintFile(ctx context.Context, requestContext openplatform.Req
 		Method:         http.MethodPost,
 		Path:           "/open-apis/contract/v1/files",
 		Body:           body,
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -357,7 +357,7 @@ func (s *Service) GetShareRecords(ctx context.Context, requestContext openplatfo
 	return s.client.Do(ctx, requestContext, openplatform.Request{
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID) + "/share_records",
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -369,7 +369,7 @@ func (s *Service) GetCooperationLink(ctx context.Context, requestContext openpla
 	return s.client.Do(ctx, requestContext, openplatform.Request{
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID) + "/cooperation_link",
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 
@@ -381,7 +381,7 @@ func (s *Service) GetCooperationRecordInfo(ctx context.Context, requestContext o
 	return s.client.Do(ctx, requestContext, openplatform.Request{
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID) + "/cooperation_record_info",
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
 

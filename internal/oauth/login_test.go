@@ -163,10 +163,10 @@ func TestExchangeTenantAccessToken(t *testing.T) {
 		if err := json.Unmarshal(body, &payload); err != nil {
 			t.Fatalf("Unmarshal() error = %v", err)
 		}
-		if payload["appId"] != "cli_bot_123" {
+		if payload["appId"] != "cli_app_123" {
 			t.Fatalf("appId = %q", payload["appId"])
 		}
-		if payload["appSecret"] != "bot-secret" {
+		if payload["appSecret"] != "app-secret" {
 			t.Fatalf("appSecret = %q", payload["appSecret"])
 		}
 
@@ -178,8 +178,8 @@ func TestExchangeTenantAccessToken(t *testing.T) {
 		client,
 		nil,
 		"https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
-		"cli_bot_123",
-		"bot-secret",
+		"cli_app_123",
+		"app-secret",
 	)
 	if err != nil {
 		t.Fatalf("ExchangeTenantAccessToken() error = %v", err)
@@ -238,8 +238,8 @@ func TestExchangeTenantAccessTokenReturnsErrors(t *testing.T) {
 				client,
 				nil,
 				"https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
-				"cli_bot_123",
-				"bot-secret",
+				"cli_app_123",
+				"app-secret",
 			)
 			if err == nil {
 				t.Fatalf("expected error")

@@ -23,9 +23,9 @@ contract-cli mdm fields list --profile contract --biz-line vendor
 
 - `--biz-line` 必填
 - 这条命令只查字段配置，不负责本地校验、字段清洗或自动组装写请求
-- `mdm fields list` 同时支持 `user` 和 `bot`
-- bot 后端当前只接受 `vendor` / `legalEntity`；CLI 会把 bot 下的 `legal_entity` 自动映射为 `legalEntity`
-- `vendor_risk` 仅适用于 user/MCP 路径，bot 身份下会本地报错
+- `mdm fields list` 同时支持 `user` 和 `app`
+- app 后端当前只接受 `vendor` / `legalEntity`；CLI 会把 app 下的 `legal_entity` 自动映射为 `legalEntity`
+- `vendor_risk` 仅适用于 user/MCP 路径，app 身份下会本地报错
 - `--user-id-type` / `--user-id` 继续按共享约定透传，不做本地校验
 
 ## 2. 场景配方
@@ -42,10 +42,10 @@ contract-cli mdm fields list --profile contract --biz-line vendor
 contract-cli mdm fields list --profile contract --biz-line vendor
 ```
 
-bot 示例：
+app 示例：
 
 ```bash
-contract-cli mdm fields list --profile contract --as bot --biz-line vendor --user-id-type employee_id
+contract-cli mdm fields list --profile contract --as app --biz-line vendor --user-id-type employee_id
 ```
 
 ### 2.2 查法人实体字段定义
@@ -60,10 +60,10 @@ contract-cli mdm fields list --profile contract --as bot --biz-line vendor --use
 contract-cli mdm fields list --profile contract --biz-line legal_entity
 ```
 
-bot 示例：
+app 示例：
 
 ```bash
-contract-cli mdm fields list --profile contract --as bot --biz-line legal_entity
+contract-cli mdm fields list --profile contract --as app --biz-line legal_entity
 ```
 
 ### 2.3 查交易方风险字段定义
@@ -78,14 +78,14 @@ contract-cli mdm fields list --profile contract --as bot --biz-line legal_entity
 contract-cli mdm fields list --profile contract --as user --biz-line vendor_risk
 ```
 
-注意：`vendor_risk` 当前不支持 bot 身份。
+注意：`vendor_risk` 当前不支持 app 身份。
 
 补充说明：
 
 - user 路由走 `/open-apis/contract/v1/mcp/config/config_list`
-- bot 路由走 `/open-apis/mdm/v1/config/config_list`
-- 文档显示文本使用这条 bot 路径，但超链接目标误指到了 `vendors`
-- bot 下 `legal_entity` 会映射为后端实际取值 `legalEntity`
+- app 路由走 `/open-apis/mdm/v1/config/config_list`
+- 文档显示文本使用这条 app 路径，但超链接目标误指到了 `vendors`
+- app 下 `legal_entity` 会映射为后端实际取值 `legalEntity`
 
 ## 3. 什么时候不要走这里
 

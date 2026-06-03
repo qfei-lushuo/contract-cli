@@ -1,7 +1,7 @@
 ---
 name: contract-cli-mdm-fields
 version: 1.0.0
-description: "contract-cli 字段配置查询技能：查询 vendor、legal_entity、vendor_risk 的字段配置定义。当用户要使用 `contract-cli mdm fields list` 确认主数据字段结构时触发。bot 身份当前只支持 vendor/legalEntity。"
+description: "contract-cli 字段配置查询技能：查询 vendor、legal_entity、vendor_risk 的字段配置定义。当用户要使用 `contract-cli mdm fields list` 确认主数据字段结构时触发。app 身份当前只支持 vendor/legalEntity。"
 ---
 
 # contract-cli MDM Fields
@@ -23,9 +23,9 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 
 - `--biz-line` 必填
 - `mdm fields list --as user` 走 `/open-apis/contract/v1/mcp/config/config_list`
-- `mdm fields list --as bot` 走 `/open-apis/mdm/v1/config/config_list`
-- bot 后端当前只接受 `vendor` / `legalEntity`；CLI 会把 bot 下的 `legal_entity` 自动映射为 `legalEntity`
-- `vendor_risk` 在 bot 身份下不支持，会在本地报错
+- `mdm fields list --as app` 走 `/open-apis/mdm/v1/config/config_list`
+- app 后端当前只接受 `vendor` / `legalEntity`；CLI 会把 app 下的 `legal_entity` 自动映射为 `legalEntity`
+- `vendor_risk` 在 app 身份下不支持，会在本地报错
 - `--user-id-type` / `--user-id` 仍按共享规则透传，不做本地校验
 - 当前只封装字段配置查询，不负责本地校验和字段转换
 - 推荐阅读顺序是：

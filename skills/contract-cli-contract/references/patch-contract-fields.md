@@ -7,12 +7,12 @@
 ## 1. CLI 命令面与硬约束
 
 ```bash
-contract-cli contract patch <contract-id> --profile contract --as bot --input-file contract-patch.json
+contract-cli contract patch <contract-id> --profile contract --as app --input-file contract-patch.json
 ```
 
 硬约束：
 
-- 当前仅支持 `--as bot`
+- 当前仅支持 `--as app`
 - 走 `PATCH /open-apis/contract/v1/contracts/{contract_id}`
 - `--input-file` 与 `--data` 必须传一个且互斥
 - 官方字段均是文件 id 或文件 id 映射，文件 id 需要先通过 `contract upload-file` 获取
@@ -70,4 +70,3 @@ contract-cli contract patch <contract-id> --profile contract --as bot --input-fi
 - 不要用 `{"title":"demo"}`、`{"contract_name":"demo"}` 这类基础字段 payload 当作已确认能力
 - 不要传本地文件路径；这里的值都应该是平台 `file_id`
 - 不要对非专用测试数据执行 patch 验收
-

@@ -38,15 +38,15 @@ func (s *Service) Fields(ctx context.Context, requestContext openplatform.Reques
 			Query:          spec.Query(url.Values{"biz_line": {bizLine}}),
 			IdentityPolicy: spec.IdentityPolicy,
 		})
-	case config.IdentityBot:
-		botBizLine, err := normalizeBotBizLine(bizLine)
+	case config.IdentityApp:
+		appBizLine, err := normalizeAppBizLine(bizLine)
 		if err != nil {
 			return openplatform.Response{}, err
 		}
 		return s.client.Do(ctx, requestContext, openplatform.Request{
 			Method:         http.MethodGet,
 			Path:           "/open-apis/mdm/v1/config/config_list",
-			Query:          url.Values{"biz_line": {botBizLine}},
+			Query:          url.Values{"biz_line": {appBizLine}},
 			IdentityPolicy: openplatform.IdentityPolicyAny,
 		})
 	default:
@@ -54,13 +54,13 @@ func (s *Service) Fields(ctx context.Context, requestContext openplatform.Reques
 	}
 }
 
-func normalizeBotBizLine(bizLine string) (string, error) {
+func normalizeAppBizLine(bizLine string) (string, error) {
 	switch bizLine {
 	case "vendor":
 		return "vendor", nil
 	case "legalEntity", "legal_entity":
 		return "legalEntity", nil
 	default:
-		return "", fmt.Errorf("biz line %q is not supported for bot identity; supported values: vendor, legalEntity", bizLine)
+		return "", fmt.Errorf("biz line %q is not supported for app identity; supported values: vendor, legalEntity", bizLine)
 	}
 }
