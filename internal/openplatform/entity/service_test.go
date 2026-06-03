@@ -56,7 +56,7 @@ func TestServiceListAndGetUseLegalEntityEndpoints(t *testing.T) {
 	}
 }
 
-func TestServiceListUsesBotLegalEntityEndpoint(t *testing.T) {
+func TestServiceListUsesAppLegalEntityEndpoint(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -83,7 +83,7 @@ func TestServiceListUsesBotLegalEntityEndpoint(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -103,7 +103,7 @@ func TestServiceListUsesBotLegalEntityEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceGetUsesBotLegalEntityEndpoint(t *testing.T) {
+func TestServiceGetUsesAppLegalEntityEndpoint(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -124,7 +124,7 @@ func TestServiceGetUsesBotLegalEntityEndpoint(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -170,16 +170,16 @@ func profileWithUserToken() config.Profile {
 	}
 }
 
-func profileWithBotToken() config.Profile {
+func profileWithAppToken() config.Profile {
 	return config.Profile{
 		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
-		DefaultIdentity:     config.IdentityBot,
+		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
-			Bot: config.BotIdentity{
+			App: config.AppIdentity{
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 					TokenType:   "Bearer",
 					Expiry:      time.Now().Add(time.Hour),
 				},

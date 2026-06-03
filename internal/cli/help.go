@@ -190,7 +190,7 @@ func renderHelpFlags(writer io.Writer, flags []helpFlag) error {
 func helpRegistry() map[string]helpTopic {
 	topCommands := []helpCommand{
 		{"contract-cli config add [flags]", "初始化或更新 profile"},
-		{"contract-cli auth login [flags]", "登录 user 或 bot 身份"},
+		{"contract-cli auth login [flags]", "登录 user 或 app 身份"},
 		{"contract-cli auth status [flags]", "查看授权状态"},
 		{"contract-cli auth logout [flags]", "登出指定身份"},
 		{"contract-cli auth use [flags]", "切换默认业务身份"},
@@ -249,7 +249,7 @@ func addConfigHelp(registry map[string]helpTopic) {
 	}
 	registry["config add"] = helpTopic{
 		Name:    "config add",
-		Summary: "初始化或更新 profile，并写入开放平台、user OAuth 和 bot token endpoint 配置。",
+		Summary: "初始化或更新 profile，并写入开放平台、user OAuth 和 app token endpoint 配置。",
 		Usage:   []string{"contract-cli config add [flags]"},
 		Flags: []helpFlag{
 			{"--env <prod>", "环境预设；当前仅支持 prod，默认 prod"},
@@ -269,7 +269,7 @@ func addAuthHelp(registry map[string]helpTopic) {
 		Name:  "auth",
 		Usage: []string{"contract-cli auth <subcommand> [flags]"},
 		Commands: []helpCommand{
-			{"contract-cli auth login [flags]", "登录 user 或 bot 身份"},
+			{"contract-cli auth login [flags]", "登录 user 或 app 身份"},
 			{"contract-cli auth status [flags]", "查看授权状态"},
 			{"contract-cli auth logout [flags]", "登出指定身份"},
 			{"contract-cli auth use [flags]", "切换默认业务身份"},
@@ -277,36 +277,37 @@ func addAuthHelp(registry map[string]helpTopic) {
 	}
 	registry["auth login"] = helpTopic{
 		Name:    "auth login",
-		Summary: "登录 user 或 bot 身份。user 走 OAuth 授权，bot 使用 appId/appSecret 换取 tenant_access_token。",
+		Summary: "登录 user 或 app 身份。user 走 OAuth 授权，app 使用 appId/appSecret 换取 tenant_access_token。",
 		Usage:   []string{"contract-cli auth login [flags]"},
 		Flags: []helpFlag{
 			{"--profile <name>", "profile 名称；不传使用当前 profile"},
-			{"--as <user|bot>", "登录身份，默认 user"},
+			{"--as <user|app>", "登录身份，默认 user"},
 			{"--timeout <duration>", "user OAuth 等待时间，默认 3m"},
 			{"--no-open-browser", "只打印授权 URL，不自动打开浏览器"},
-			{"--app-id <id>", "bot app id；bot 登录时可通过 flag/env/secrets 提供"},
-			{"--app-secret <secret>", "bot app secret；不会输出到日志"},
+			{"--app-id <id>", "app id；app 登录时可通过 flag/env/secrets 提供"},
+			{"--app-secret <secret>", "app secret；不会输出到日志"},
 		},
 		Examples: []string{
 			"contract-cli auth login --profile contract --as user",
-			"contract-cli auth login --profile contract --as bot --app-id <id> --app-secret <secret>",
+			"contract-cli auth login --profile contract --as app --app-id <id> --app-secret <secret>",
 		},
 		Notes: []string{
-			"bot 凭证优先级：flag > env > 已保存 secrets。",
-			"bot 登录成功后保存 token，并把 default_identity 切到 bot。",
+			"app 凭证优先级：flag > env > 已保存 secrets。",
+			"app 登录成功后保存 token，并把 default_identity 切到 app。",
+			"兼容旧身份值 --as bot，运行时按 app 处理；新脚本建议使用 --as app。",
 		},
 	}
 	registry["auth status"] = helpTopic{
 		Name:    "auth status",
-		Summary: "查看某个 profile 的 user 或 bot 身份状态。",
+		Summary: "查看某个 profile 的 user 或 app 身份状态。",
 		Usage:   []string{"contract-cli auth status [flags]"},
 		Flags: []helpFlag{
 			{"--profile <name>", "profile 名称；不传使用当前 profile"},
-			{"--as <user|bot>", "查看身份，默认 user"},
+			{"--as <user|app>", "查看身份，默认 user"},
 		},
 		Examples: []string{
 			"contract-cli auth status --profile contract --as user",
-			"contract-cli auth status --profile contract --as bot",
+			"contract-cli auth status --profile contract --as app",
 		},
 	}
 	registry["auth logout"] = helpTopic{
@@ -315,14 +316,14 @@ func addAuthHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli auth logout [flags]"},
 		Flags: []helpFlag{
 			{"--profile <name>", "profile 名称；不传使用当前 profile"},
-			{"--as <user|bot>", "登出身份，默认 user"},
+			{"--as <user|app>", "登出身份，默认 user"},
 		},
 		Examples: []string{
 			"contract-cli auth logout --profile contract --as user",
-			"contract-cli auth logout --profile contract --as bot",
+			"contract-cli auth logout --profile contract --as app",
 		},
 		Notes: []string{
-			"bot logout 只清空 bot token，保留 appId/appSecret。",
+			"app logout 只清空 app token，保留 appId/appSecret。",
 		},
 	}
 	registry["auth use"] = helpTopic{
@@ -331,10 +332,10 @@ func addAuthHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli auth use [flags]"},
 		Flags: []helpFlag{
 			{"--profile <name>", "profile 名称；不传使用当前 profile"},
-			{"--as <user|bot>", "默认业务身份，默认 user"},
+			{"--as <user|app>", "默认业务身份，默认 user"},
 		},
 		Examples: []string{
-			"contract-cli auth use --profile contract --as bot",
+			"contract-cli auth use --profile contract --as app",
 		},
 	}
 }
@@ -389,13 +390,14 @@ func addUpdateHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli update check [flags]"},
 		Flags: []helpFlag{
 			{"--channel <latest|beta>", "npm dist-tag；正式版通常使用 latest，不传时根据当前版本推断"},
+			{"--json", "输出飞书式结构化 JSON；默认输出文本提示"},
 		},
 		Examples: []string{
 			"contract-cli update check",
-			"contract-cli update check --channel latest",
+			"contract-cli update check --channel latest --json",
 		},
 		Notes: []string{
-			"交互终端下普通命令最多每 30 分钟自动检查一次。",
+			"普通命令按 24 小时缓存检查远端版本，并在 JSON object 输出中注入 _notice.update。",
 			"可设置 CONTRACT_CLI_NO_UPDATE_CHECK=1 关闭自动检查。",
 		},
 	}
@@ -418,11 +420,11 @@ func addAPIHelp(registry map[string]helpTopic) {
 		}),
 		Examples: []string{
 			"contract-cli api call GET /open-apis/contract/v1/mcp/config/config_list --profile contract --as user",
-			"contract-cli api call POST /open-apis/mdm/v1/vendors --profile contract --as bot --data '{\"foo\":\"bar\"}'",
+			"contract-cli api call POST /open-apis/mdm/v1/vendors --profile contract --as app --data '{\"foo\":\"bar\"}'",
 		},
 		Notes: []string{
 			"PATH 必须是相对路径，且以 /open-apis/ 开头。",
-			"/open-apis/contract/v1/mcp/... 会被视为 user-only，显式 --as bot 会报错。",
+			"/open-apis/contract/v1/mcp/... 会被视为 user-only，显式 --as app 会报错。",
 		},
 	}
 }
@@ -438,14 +440,14 @@ func addContractHelp(registry map[string]helpTopic) {
 			{"contract-cli contract text <contract-id> [flags]", "获取合同文本"},
 			{"contract-cli contract create [flags]", "创建合同"},
 			{"contract-cli contract upload-file [flags]", "上传合同文件"},
-			{"contract-cli contract submit <contract-id> [flags]", "bot 身份提交合同"},
-			{"contract-cli contract resubmit <contract-id> [flags]", "bot 身份重新提交合同"},
-			{"contract-cli contract patch <contract-id> [flags]", "bot 身份更新合同"},
-			{"contract-cli contract download-file <file-id> [flags]", "bot 身份下载合同相关文件"},
-			{"contract-cli contract delete <contract-id> [flags]", "bot 身份删除草稿合同"},
-			{"contract-cli contract print-file [flags]", "bot 身份生成合同打印文件"},
-			{"contract-cli contract share <subcommand> [flags]", "bot 身份查询合同分享记录"},
-			{"contract-cli contract cooperation <resource> <subcommand> [flags]", "bot 身份查询合同协商信息"},
+			{"contract-cli contract submit <contract-id> [flags]", "app 身份提交合同"},
+			{"contract-cli contract resubmit <contract-id> [flags]", "app 身份重新提交合同"},
+			{"contract-cli contract patch <contract-id> [flags]", "app 身份更新合同"},
+			{"contract-cli contract download-file <file-id> [flags]", "app 身份下载合同相关文件"},
+			{"contract-cli contract delete <contract-id> [flags]", "app 身份删除草稿合同"},
+			{"contract-cli contract print-file [flags]", "app 身份生成合同打印文件"},
+			{"contract-cli contract share <subcommand> [flags]", "app 身份查询合同分享记录"},
+			{"contract-cli contract cooperation <resource> <subcommand> [flags]", "app 身份查询合同协商信息"},
 			{"contract-cli contract category list [flags]", "列出合同分类"},
 			{"contract-cli contract template <subcommand> [flags]", "模板相关命令"},
 			{"contract-cli contract enum list [flags]", "查询枚举值"},
@@ -453,18 +455,18 @@ func addContractHelp(registry map[string]helpTopic) {
 	}
 	registry["contract search"] = helpTopic{
 		Name:    "contract search",
-		Summary: "搜索合同，按当前身份自动路由 user MCP 或 bot 开放平台接口。",
+		Summary: "搜索合同，按当前身份自动路由 user MCP 或 app 开放平台接口。",
 		Usage:   []string{"contract-cli contract search [flags]"},
 		Flags: concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags(), pageFlags(), []helpFlag{
 			{"--contract-number <number>", "按合同编号搜索，会合并进 JSON 请求体"},
 		}),
 		Examples: []string{
 			"contract-cli contract search --profile contract --as user --input-file search.json",
-			"contract-cli contract search --profile contract --as bot --data '{\"contract_number\":\"CN-001\"}'",
+			"contract-cli contract search --profile contract --as app --data '{\"contract_number\":\"CN-001\"}'",
 		},
 		Notes: []string{
 			"user: /open-apis/contract/v1/mcp/contracts/search",
-			"bot: /open-apis/contract/v1/contracts/search",
+			"app: /open-apis/contract/v1/contracts/search",
 			"--input-file / --data 可选；查询 flag 会合并进 JSON body。",
 		},
 	}
@@ -475,11 +477,11 @@ func addContractHelp(registry map[string]helpTopic) {
 		Flags:   openPlatformCommonFlags(),
 		Examples: []string{
 			"contract-cli contract get <contract-id> --profile contract --as user",
-			"contract-cli contract get <contract-id> --profile contract --as bot --user-id-type employee_id",
+			"contract-cli contract get <contract-id> --profile contract --as app --user-id-type employee_id",
 		},
 		Notes: []string{
 			"user: /open-apis/contract/v1/mcp/contracts/{contract_id}",
-			"bot: /open-apis/contract/v1/contracts/{contract_id}",
+			"app: /open-apis/contract/v1/contracts/{contract_id}",
 		},
 	}
 	registry["contract sync-user-groups"] = helpTopic{
@@ -489,11 +491,11 @@ func addContractHelp(registry map[string]helpTopic) {
 		Flags:   openPlatformCommonFlags(),
 		Examples: []string{
 			"contract-cli contract sync-user-groups --profile contract --as user",
-			"contract-cli contract sync-user-groups --profile contract --as bot --user-id ou_xxx",
+			"contract-cli contract sync-user-groups --profile contract --as app --user-id ou_xxx",
 		},
 		Notes: []string{
 			"user: /open-apis/contract/v1/mcp/contracts/user-groups/sync",
-			"bot: /open-apis/contract/v1/contracts/user-groups/sync",
+			"app: /open-apis/contract/v1/contracts/user-groups/sync",
 		},
 	}
 	registry["contract text"] = helpTopic{
@@ -507,11 +509,11 @@ func addContractHelp(registry map[string]helpTopic) {
 		}),
 		Examples: []string{
 			"contract-cli contract text <contract-id> --profile contract --as user --full-text",
-			"contract-cli contract text <contract-id> --profile contract --as bot --offset 0 --limit 1000",
+			"contract-cli contract text <contract-id> --profile contract --as app --offset 0 --limit 1000",
 		},
 		Notes: []string{
 			"user: /open-apis/contract/v1/mcp/contracts/{contract_id}/text",
-			"bot: /open-apis/contract/v1/contracts/{contract_id}/text",
+			"app: /open-apis/contract/v1/contracts/{contract_id}/text",
 		},
 	}
 	registry["contract create"] = helpTopic{
@@ -521,12 +523,12 @@ func addContractHelp(registry map[string]helpTopic) {
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
 		Examples: []string{
 			"contract-cli contract create --profile contract --input-file create.json",
-			"contract-cli contract create --profile contract --as bot --data '{\"title\":\"demo\",\"create_user_id\":\"ou_xxx\"}'",
+			"contract-cli contract create --profile contract --as app --data '{\"title\":\"demo\",\"create_user_id\":\"ou_xxx\"}'",
 		},
 		Notes: []string{
 			"user: /open-apis/contract/v1/mcp/contracts",
-			"bot: /open-apis/contract/v1/contracts",
-			"bot 创建合同时，请调用方自行在 JSON body 中提供 create_user_id。",
+			"app: /open-apis/contract/v1/contracts",
+			"app 创建合同时，请调用方自行在 JSON body 中提供 create_user_id。",
 		},
 	}
 	registry["contract upload-file"] = helpTopic{
@@ -540,10 +542,10 @@ func addContractHelp(registry map[string]helpTopic) {
 		}),
 		Examples: []string{
 			"contract-cli contract upload-file --profile contract --as user --file ./合同正文.docx --file-type text",
-			"contract-cli contract upload-file --profile contract --as bot --file ./附件.pdf --file-type attachment --file-name 附件.pdf",
+			"contract-cli contract upload-file --profile contract --as app --file ./附件.pdf --file-type attachment --file-name 附件.pdf",
 		},
 		Notes: []string{
-			"user/bot 均走 POST /open-apis/contract/v1/files/upload。",
+			"user/app 均走 POST /open-apis/contract/v1/files/upload。",
 			"请求使用 multipart/form-data，字段为 file_name、file_type、file。",
 			"本地文件必须存在、是普通文件，大小 <= 200MB。",
 			"不接受 --input-file / --data；这两个参数只用于 JSON 请求体。",
@@ -551,64 +553,64 @@ func addContractHelp(registry map[string]helpTopic) {
 	}
 	registry["contract submit"] = helpTopic{
 		Name:    "contract submit",
-		Summary: "bot 身份提交合同。",
+		Summary: "app 身份提交合同。",
 		Usage:   []string{"contract-cli contract submit <contract-id> [flags]"},
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
 		Examples: []string{
-			"contract-cli contract submit <contract-id> --profile contract --as bot",
-			"contract-cli contract submit <contract-id> --profile contract --as bot --data '{\"comment\":\"ok\"}'",
+			"contract-cli contract submit <contract-id> --profile contract --as app",
+			"contract-cli contract submit <contract-id> --profile contract --as app --data '{\"comment\":\"ok\"}'",
 		},
 		Notes: []string{
-			"bot-only: 当前仅支持 --as bot。",
+			"app-only: 当前仅支持 --as app。",
 			"走 POST /open-apis/contract/v1/contracts/{contract_id}/submit。",
 			"--input-file / --data 可选；不传时不发送请求体。",
 		},
 	}
 	registry["contract resubmit"] = helpTopic{
 		Name:    "contract resubmit",
-		Summary: "bot 身份重新提交合同。",
+		Summary: "app 身份重新提交合同。",
 		Usage:   []string{"contract-cli contract resubmit <contract-id> [flags]"},
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
 		Examples: []string{
-			"contract-cli contract resubmit <contract-id> --profile contract --as bot",
-			"contract-cli contract resubmit <contract-id> --profile contract --as bot --input-file resubmit.json",
+			"contract-cli contract resubmit <contract-id> --profile contract --as app",
+			"contract-cli contract resubmit <contract-id> --profile contract --as app --input-file resubmit.json",
 		},
 		Notes: []string{
-			"bot-only: 当前仅支持 --as bot。",
+			"app-only: 当前仅支持 --as app。",
 			"走 POST /open-apis/contract/v1/contracts/{contract_id}/resubmit。",
 			"--input-file / --data 可选；不传时不发送请求体。",
 		},
 	}
 	registry["contract patch"] = helpTopic{
 		Name:    "contract patch",
-		Summary: "bot 身份更新合同，请求体必须是 JSON。",
+		Summary: "app 身份更新合同，请求体必须是 JSON。",
 		Usage:   []string{"contract-cli contract patch <contract-id> --input-file <path>|--data <json> [flags]"},
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
 		Examples: []string{
-			"contract-cli contract patch <contract-id> --profile contract --as bot --input-file patch.json",
-			"contract-cli contract patch <contract-id> --profile contract --as bot --data '{\"title\":\"demo\"}'",
+			"contract-cli contract patch <contract-id> --profile contract --as app --input-file patch.json",
+			"contract-cli contract patch <contract-id> --profile contract --as app --data '{\"title\":\"demo\"}'",
 		},
 		Notes: []string{
-			"bot-only: 当前仅支持 --as bot。",
+			"app-only: 当前仅支持 --as app。",
 			"走 PATCH /open-apis/contract/v1/contracts/{contract_id}。",
 			"--input-file / --data 必填且互斥。",
 		},
 	}
 	registry["contract download-file"] = helpTopic{
 		Name:    "contract download-file",
-		Summary: "bot 身份下载合同相关文件。",
+		Summary: "app 身份下载合同相关文件。",
 		Usage:   []string{"contract-cli contract download-file <file-id> [flags]"},
 		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
 			{"--output-file <path>", "保存到指定文件；不传时默认拉起保存文件弹窗"},
 			{"--force", "覆盖已存在的 --output-file"},
 		}),
 		Examples: []string{
-			"contract-cli contract download-file <file-id> --profile contract --as bot",
-			"contract-cli contract download-file <file-id> --profile contract --as bot --output-file ./contract.pdf",
-			"contract-cli contract download-file <file-id> --profile contract --as bot --raw > contract.pdf",
+			"contract-cli contract download-file <file-id> --profile contract --as app",
+			"contract-cli contract download-file <file-id> --profile contract --as app --output-file ./contract.pdf",
+			"contract-cli contract download-file <file-id> --profile contract --as app --raw > contract.pdf",
 		},
 		Notes: []string{
-			"bot-only: 当前仅支持 --as bot。",
+			"app-only: 当前仅支持 --as app。",
 			"走 GET /open-apis/contract/v1/files/{file_id}。",
 			"默认拉起保存文件弹窗；无 GUI/远程/CI 环境推荐显式传 --output-file。",
 			"--raw 会把文件内容写到 stdout，不打印额外提示。",
@@ -617,29 +619,29 @@ func addContractHelp(registry map[string]helpTopic) {
 	}
 	registry["contract delete"] = helpTopic{
 		Name:    "contract delete",
-		Summary: "bot 身份删除草稿合同。",
+		Summary: "app 身份删除草稿合同。",
 		Usage:   []string{"contract-cli contract delete <contract-id> [flags]"},
 		Flags:   openPlatformCommonFlags(),
 		Examples: []string{
-			"contract-cli contract delete <contract-id> --profile contract --as bot",
+			"contract-cli contract delete <contract-id> --profile contract --as app",
 		},
 		Notes: []string{
-			"bot-only: 当前仅支持 --as bot。",
+			"app-only: 当前仅支持 --as app。",
 			"走 DELETE /open-apis/contract/v1/contracts/{contract_id}。",
 			"命令直接删除，不额外要求 --yes。",
 		},
 	}
 	registry["contract print-file"] = helpTopic{
 		Name:    "contract print-file",
-		Summary: "bot 身份生成合同打印文件，请求体必须是 JSON。",
+		Summary: "app 身份生成合同打印文件，请求体必须是 JSON。",
 		Usage:   []string{"contract-cli contract print-file --input-file <path>|--data <json> [flags]"},
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
 		Examples: []string{
-			"contract-cli contract print-file --profile contract --as bot --input-file print-file.json",
-			"contract-cli contract print-file --profile contract --as bot --data '{\"contract_id\":\"<contract-id>\"}'",
+			"contract-cli contract print-file --profile contract --as app --input-file print-file.json",
+			"contract-cli contract print-file --profile contract --as app --data '{\"contract_id\":\"<contract-id>\"}'",
 		},
 		Notes: []string{
-			"bot-only: 当前仅支持 --as bot。",
+			"app-only: 当前仅支持 --as app。",
 			"走 POST /open-apis/contract/v1/files。",
 			"--input-file / --data 必填且互斥。",
 		},
@@ -648,19 +650,19 @@ func addContractHelp(registry map[string]helpTopic) {
 		Name:  "contract share",
 		Usage: []string{"contract-cli contract share <subcommand> [flags]"},
 		Commands: []helpCommand{
-			{"contract-cli contract share get <contract-id> [flags]", "bot 身份查询合同分享记录"},
+			{"contract-cli contract share get <contract-id> [flags]", "app 身份查询合同分享记录"},
 		},
 	}
 	registry["contract share get"] = helpTopic{
 		Name:    "contract share get",
-		Summary: "bot 身份查询合同分享记录。",
+		Summary: "app 身份查询合同分享记录。",
 		Usage:   []string{"contract-cli contract share get <contract-id> [flags]"},
 		Flags:   openPlatformCommonFlags(),
 		Examples: []string{
-			"contract-cli contract share get <contract-id> --profile contract --as bot",
+			"contract-cli contract share get <contract-id> --profile contract --as app",
 		},
 		Notes: []string{
-			"bot-only: 当前仅支持 --as bot。",
+			"app-only: 当前仅支持 --as app。",
 			"走 GET /open-apis/contract/v1/contracts/{contract_id}/share_records。",
 		},
 	}
@@ -668,33 +670,33 @@ func addContractHelp(registry map[string]helpTopic) {
 		Name:  "contract cooperation",
 		Usage: []string{"contract-cli contract cooperation <resource> <subcommand> [flags]"},
 		Commands: []helpCommand{
-			{"contract-cli contract cooperation link get <contract-id> [flags]", "bot 身份查询合同协商邀请链接"},
-			{"contract-cli contract cooperation record get <contract-id> [flags]", "bot 身份查询合同协商操作记录"},
+			{"contract-cli contract cooperation link get <contract-id> [flags]", "app 身份查询合同协商邀请链接"},
+			{"contract-cli contract cooperation record get <contract-id> [flags]", "app 身份查询合同协商操作记录"},
 		},
 	}
 	registry["contract cooperation link get"] = helpTopic{
 		Name:    "contract cooperation link get",
-		Summary: "bot 身份查询合同协商邀请链接。",
+		Summary: "app 身份查询合同协商邀请链接。",
 		Usage:   []string{"contract-cli contract cooperation link get <contract-id> [flags]"},
 		Flags:   openPlatformCommonFlags(),
 		Examples: []string{
-			"contract-cli contract cooperation link get <contract-id> --profile contract --as bot",
+			"contract-cli contract cooperation link get <contract-id> --profile contract --as app",
 		},
 		Notes: []string{
-			"bot-only: 当前仅支持 --as bot。",
+			"app-only: 当前仅支持 --as app。",
 			"走 GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_link。",
 		},
 	}
 	registry["contract cooperation record get"] = helpTopic{
 		Name:    "contract cooperation record get",
-		Summary: "bot 身份查询合同协商操作记录信息。",
+		Summary: "app 身份查询合同协商操作记录信息。",
 		Usage:   []string{"contract-cli contract cooperation record get <contract-id> [flags]"},
 		Flags:   openPlatformCommonFlags(),
 		Examples: []string{
-			"contract-cli contract cooperation record get <contract-id> --profile contract --as bot",
+			"contract-cli contract cooperation record get <contract-id> --profile contract --as app",
 		},
 		Notes: []string{
-			"bot-only: 当前仅支持 --as bot。",
+			"app-only: 当前仅支持 --as app。",
 			"走 GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_record_info。",
 		},
 	}
@@ -718,11 +720,11 @@ func addContractNestedHelp(registry map[string]helpTopic) {
 		}),
 		Examples: []string{
 			"contract-cli contract category list --profile contract",
-			"contract-cli contract category list --profile contract --as bot --lang zh-CN",
+			"contract-cli contract category list --profile contract --as app --lang zh-CN",
 		},
 		Notes: []string{
 			"user: /open-apis/contract/v1/mcp/contract_categorys",
-			"bot: /open-apis/contract/v1/contract_categorys",
+			"app: /open-apis/contract/v1/contract_categorys",
 		},
 	}
 	registry["contract template"] = helpTopic{
@@ -743,11 +745,11 @@ func addContractNestedHelp(registry map[string]helpTopic) {
 		}),
 		Examples: []string{
 			"contract-cli contract template list --profile contract",
-			"contract-cli contract template list --profile contract --as bot --category-number CAT-1 --page-size 20",
+			"contract-cli contract template list --profile contract --as app --category-number CAT-1 --page-size 20",
 		},
 		Notes: []string{
 			"user: /open-apis/contract/v1/mcp/templates",
-			"bot: /open-apis/contract/v1/templates",
+			"app: /open-apis/contract/v1/templates",
 		},
 	}
 	registry["contract template get"] = helpTopic{
@@ -757,11 +759,11 @@ func addContractNestedHelp(registry map[string]helpTopic) {
 		Flags:   openPlatformCommonFlags(),
 		Examples: []string{
 			"contract-cli contract template get <template-id> --profile contract",
-			"contract-cli contract template get <template-id> --profile contract --as bot --user-id ou_xxx",
+			"contract-cli contract template get <template-id> --profile contract --as app --user-id ou_xxx",
 		},
 		Notes: []string{
 			"user: /open-apis/contract/v1/mcp/templates/{template_id}",
-			"bot: /open-apis/contract/v1/templates/{template_id}",
+			"app: /open-apis/contract/v1/templates/{template_id}",
 		},
 	}
 	registry["contract template instantiate"] = helpTopic{
@@ -771,12 +773,12 @@ func addContractNestedHelp(registry map[string]helpTopic) {
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
 		Examples: []string{
 			"contract-cli contract template instantiate --profile contract --input-file template-instance.json",
-			"contract-cli contract template instantiate --profile contract --as bot --data '{\"template_number\":\"TMP001\",\"create_user_id\":\"ou_xxx\"}'",
+			"contract-cli contract template instantiate --profile contract --as app --data '{\"template_number\":\"TMP001\",\"create_user_id\":\"ou_xxx\"}'",
 		},
 		Notes: []string{
 			"user: /open-apis/contract/v1/mcp/template_instances",
-			"bot: /open-apis/contract/v1/template_instances",
-			"bot 创建模板实例时，请调用方自行在 JSON body 中提供 create_user_id。",
+			"app: /open-apis/contract/v1/template_instances",
+			"app 创建模板实例时，请调用方自行在 JSON body 中提供 create_user_id。",
 		},
 	}
 	registry["contract enum"] = helpTopic{
@@ -827,11 +829,11 @@ func addMDMHelp(registry map[string]helpTopic) {
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), listQueryFlags()),
 		Examples: []string{
 			"contract-cli mdm vendor list --profile contract --name 供应商 --page-size 10",
-			"contract-cli mdm vendor list --profile contract --as bot --name V00000001 --user-id-type employee_id",
+			"contract-cli mdm vendor list --profile contract --as app --name V00000001 --user-id-type employee_id",
 		},
 		Notes: []string{
 			"user: /open-apis/contract/v1/mcp/vendors",
-			"bot: /open-apis/mdm/v1/vendors",
+			"app: /open-apis/mdm/v1/vendors",
 			"--name 会映射到底层 query vendor。",
 		},
 	}
@@ -842,11 +844,11 @@ func addMDMHelp(registry map[string]helpTopic) {
 		Flags:   openPlatformCommonFlags(),
 		Examples: []string{
 			"contract-cli mdm vendor get <vendor-id> --profile contract",
-			"contract-cli mdm vendor get <vendor-id> --profile contract --as bot --user-id-type employee_id",
+			"contract-cli mdm vendor get <vendor-id> --profile contract --as app --user-id-type employee_id",
 		},
 		Notes: []string{
 			"user: /open-apis/contract/v1/mcp/vendors/{vendor_id}",
-			"bot: /open-apis/mdm/v1/vendors/{vendor_id}",
+			"app: /open-apis/mdm/v1/vendors/{vendor_id}",
 		},
 	}
 	registry["mdm legal"] = helpTopic{
@@ -864,11 +866,11 @@ func addMDMHelp(registry map[string]helpTopic) {
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), listQueryFlags()),
 		Examples: []string{
 			"contract-cli mdm legal list --profile contract --name 主体A --page-size 10",
-			"contract-cli mdm legal list --profile contract --as bot --user-id-type employee_id",
+			"contract-cli mdm legal list --profile contract --as app --user-id-type employee_id",
 		},
 		Notes: []string{
 			"user: /open-apis/contract/v1/mcp/legal_entities",
-			"bot: /open-apis/mdm/v1/legal_entities/list_all",
+			"app: /open-apis/mdm/v1/legal_entities/list_all",
 			"--name 会映射到底层 query legalEntity。",
 		},
 	}
@@ -879,12 +881,12 @@ func addMDMHelp(registry map[string]helpTopic) {
 		Flags:   openPlatformCommonFlags(),
 		Examples: []string{
 			"contract-cli mdm legal get <legal-entity-id> --profile contract",
-			"contract-cli mdm legal get <legal-entity-id> --profile contract --as bot --user-id-type employee_id",
+			"contract-cli mdm legal get <legal-entity-id> --profile contract --as app --user-id-type employee_id",
 		},
 		Notes: []string{
 			"user: /open-apis/contract/v1/mcp/legal_entities/{legal_entity_id}",
-			"bot: /open-apis/mdm/v1/legal_entities/{legal_entity_id}",
-			"bot 路由会额外透传同名 query legal_entity_id。",
+			"app: /open-apis/mdm/v1/legal_entities/{legal_entity_id}",
+			"app 路由会额外透传同名 query legal_entity_id。",
 		},
 	}
 	registry["mdm fields"] = helpTopic{
@@ -899,17 +901,17 @@ func addMDMHelp(registry map[string]helpTopic) {
 		Summary: "查询字段配置。",
 		Usage:   []string{"contract-cli mdm fields list --biz-line <biz-line> [flags]"},
 		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
-			{"--biz-line <biz-line>", "必填；user 支持 vendor、legal_entity、vendor_risk；bot 支持 vendor、legalEntity，legal_entity 会自动映射为 legalEntity"},
+			{"--biz-line <biz-line>", "必填；user 支持 vendor、legal_entity、vendor_risk；app 支持 vendor、legalEntity，legal_entity 会自动映射为 legalEntity"},
 		}),
 		Examples: []string{
 			"contract-cli mdm fields list --profile contract --biz-line vendor",
-			"contract-cli mdm fields list --profile contract --as bot --biz-line legal_entity",
-			"contract-cli mdm fields list --profile contract --as bot --biz-line vendor --user-id-type employee_id",
+			"contract-cli mdm fields list --profile contract --as app --biz-line legal_entity",
+			"contract-cli mdm fields list --profile contract --as app --biz-line vendor --user-id-type employee_id",
 		},
 		Notes: []string{
 			"user: /open-apis/contract/v1/mcp/config/config_list",
-			"bot: /open-apis/mdm/v1/config/config_list",
-			"bot 后端当前只接受 vendor 或 legalEntity；CLI 会把 bot 下的 legal_entity 映射为 legalEntity，vendor_risk 不支持 bot。",
+			"app: /open-apis/mdm/v1/config/config_list",
+			"app 后端当前只接受 vendor 或 legalEntity；CLI 会把 app 下的 legal_entity 映射为 legalEntity，vendor_risk 不支持 app。",
 		},
 	}
 }
@@ -917,7 +919,7 @@ func addMDMHelp(registry map[string]helpTopic) {
 func openPlatformCommonFlags() []helpFlag {
 	return []helpFlag{
 		{"--profile <name>", "profile 名称；不传使用当前 profile"},
-		{"--as <user|bot>", "请求身份；不传使用 profile default_identity"},
+		{"--as <user|app>", "请求身份；不传使用 profile default_identity；兼容旧值 bot"},
 		{"--output <json|yaml|table>", "输出格式，默认 json"},
 		{"--raw", "原样输出响应 body"},
 		{"--user-id-type <type>", "通用 query 参数 user_id_type；不传默认 user_id，传了则覆盖默认值"},

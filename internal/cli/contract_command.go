@@ -231,7 +231,7 @@ func (a *App) runContractSubmit(ctx context.Context, args []string) error {
 	}
 
 	contractID := parsed.positionals[0]
-	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID+"/submit", openplatform.IdentityPolicyBotOnly)
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID+"/submit", openplatform.IdentityPolicyAppOnly)
 	if err != nil {
 		return err
 	}
@@ -257,7 +257,7 @@ func (a *App) runContractResubmit(ctx context.Context, args []string) error {
 	}
 
 	contractID := parsed.positionals[0]
-	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID+"/resubmit", openplatform.IdentityPolicyBotOnly)
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID+"/resubmit", openplatform.IdentityPolicyAppOnly)
 	if err != nil {
 		return err
 	}
@@ -283,7 +283,7 @@ func (a *App) runContractPatch(ctx context.Context, args []string) error {
 	}
 
 	contractID := parsed.positionals[0]
-	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID, openplatform.IdentityPolicyBotOnly)
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID, openplatform.IdentityPolicyAppOnly)
 	if err != nil {
 		return err
 	}
@@ -308,7 +308,7 @@ func (a *App) runContractDownloadFile(ctx context.Context, args []string) error 
 	}
 
 	fileID := parsed.positionals[0]
-	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/files/"+fileID, openplatform.IdentityPolicyBotOnly)
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/files/"+fileID, openplatform.IdentityPolicyAppOnly)
 	if err != nil {
 		return err
 	}
@@ -374,7 +374,7 @@ func (a *App) runContractDelete(ctx context.Context, args []string) error {
 	options := parseCommandOptions(parsed)
 
 	contractID := parsed.positionals[0]
-	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID, openplatform.IdentityPolicyBotOnly)
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID, openplatform.IdentityPolicyAppOnly)
 	if err != nil {
 		return err
 	}
@@ -399,7 +399,7 @@ func (a *App) runContractPrintFile(ctx context.Context, args []string) error {
 		return err
 	}
 
-	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/files", openplatform.IdentityPolicyBotOnly)
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/files", openplatform.IdentityPolicyAppOnly)
 	if err != nil {
 		return err
 	}
@@ -425,7 +425,7 @@ func (a *App) runContractShare(ctx context.Context, args []string) error {
 		}
 		options := parseCommandOptions(parsed)
 		contractID := parsed.positionals[0]
-		client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID+"/share_records", openplatform.IdentityPolicyBotOnly)
+		client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID+"/share_records", openplatform.IdentityPolicyAppOnly)
 		if err != nil {
 			return err
 		}
@@ -469,7 +469,7 @@ func (a *App) runContractCooperationLink(ctx context.Context, args []string) err
 	}
 	options := parseCommandOptions(parsed)
 	contractID := parsed.positionals[0]
-	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID+"/cooperation_link", openplatform.IdentityPolicyBotOnly)
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID+"/cooperation_link", openplatform.IdentityPolicyAppOnly)
 	if err != nil {
 		return err
 	}
@@ -496,7 +496,7 @@ func (a *App) runContractCooperationRecord(ctx context.Context, args []string) e
 	}
 	options := parseCommandOptions(parsed)
 	contractID := parsed.positionals[0]
-	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID+"/cooperation_record_info", openplatform.IdentityPolicyBotOnly)
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/contracts/"+contractID+"/cooperation_record_info", openplatform.IdentityPolicyAppOnly)
 	if err != nil {
 		return err
 	}

@@ -17,7 +17,6 @@ import (
 	"cn.qfei/contract-cli/internal/build"
 	"cn.qfei/contract-cli/internal/config"
 	"cn.qfei/contract-cli/internal/oauth"
-	updatecheck "cn.qfei/contract-cli/internal/update"
 	contractskills "cn.qfei/contract-cli/skills"
 )
 
@@ -39,9 +38,7 @@ type Options struct {
 
 	UpdateRegistryURL    string
 	UpdateCurrentVersion string
-	UpdateCheckInterval  time.Duration
 	Now                  func() time.Time
-	IsTerminal           func(io.Writer) bool
 }
 
 type App struct {
@@ -57,16 +54,15 @@ type App struct {
 	skillsFS       fs.FS
 	updateURL      string
 	updateVersion  string
-	updateInterval time.Duration
+	updateNotice   map[string]any
 	now            func() time.Time
-	isTerminal     func(io.Writer) bool
 	userProvider   authProvider
-	botProvider    authProvider
+	appProvider    authProvider
 }
 
 type environmentPreset struct {
 	OpenPlatformBaseURL            string
-	BotTokenEndpoint               string
+	AppTokenEndpoint               string
 	ProtectedResourceMetadataURL   string
 	AuthorizationServerMetadataURL string
 	Resource                       string
@@ -127,17 +123,9 @@ func New(options Options) *App {
 	if skillsFS == nil {
 		skillsFS = contractskills.FS
 	}
-	updateInterval := options.UpdateCheckInterval
-	if updateInterval == 0 {
-		updateInterval = updatecheck.DefaultCheckInterval
-	}
 	now := options.Now
 	if now == nil {
 		now = time.Now
-	}
-	isTerminal := options.IsTerminal
-	if isTerminal == nil {
-		isTerminal = defaultIsTerminal
 	}
 
 	app := &App{
@@ -153,9 +141,7 @@ func New(options Options) *App {
 		skillsFS:       skillsFS,
 		updateURL:      options.UpdateRegistryURL,
 		updateVersion:  options.UpdateCurrentVersion,
-		updateInterval: updateInterval,
 		now:            now,
-		isTerminal:     isTerminal,
 	}
 	app.userProvider = userAuthProvider{
 		httpClient:             httpClient,
@@ -166,7 +152,7 @@ func New(options Options) *App {
 			return oauth.StartCallbackServer(redirectURL)
 		},
 	}
-	app.botProvider = botAuthProvider{
+	app.appProvider = appAuthProvider{
 		httpClient: httpClient,
 		logger:     logger,
 		secrets:    secrets,
@@ -176,6 +162,7 @@ func New(options Options) *App {
 }
 
 func (a *App) Run(ctx context.Context, args []string) error {
+	a.updateNotice = nil
 	if len(args) == 0 {
 		a.printUsage()
 		return nil
@@ -200,7 +187,7 @@ func (a *App) Run(ctx context.Context, args []string) error {
 	}
 
 	a.logger.Info("run command", "args", strings.Join(args, " "))
-	a.maybePrintUpdateNotice(ctx, args)
+	a.maybePrepareUpdateNotice(ctx, args)
 
 	switch args[0] {
 	case "config":
@@ -228,15 +215,6 @@ func (a *App) printUsage() {
 
 func (a *App) printVersion() {
 	_, _ = fmt.Fprintln(a.stdout, build.Current().String())
-}
-
-func defaultIsTerminal(writer io.Writer) bool {
-	file, ok := writer.(*os.File)
-	if !ok {
-		return false
-	}
-	info, err := file.Stat()
-	return err == nil && info.Mode()&os.ModeCharDevice != 0
 }
 
 func (a *App) updateCachePath() string {
@@ -322,7 +300,7 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 		Name:                           profileName,
 		Environment:                    env,
 		OpenPlatformBaseURL:            preset.OpenPlatformBaseURL,
-		BotTokenEndpoint:               preset.BotTokenEndpoint,
+		AppTokenEndpoint:               preset.AppTokenEndpoint,
 		ProtectedResourceMetadataURL:   protectedResourceURL,
 		AuthorizationServerMetadataURL: discovery.AuthorizationServerMetadataURL,
 		Resource:                       discovery.ProtectedResource.Resource,
@@ -384,9 +362,9 @@ func (a *App) runAuthLogin(ctx context.Context, args []string) error {
 	flags.StringVar(&profileName, "profile", "", "profile name")
 	flags.DurationVar(&timeout, "timeout", 3*time.Minute, "authorization timeout")
 	flags.BoolVar(&noOpenBrowser, "no-open-browser", false, "print authorization URL without auto-opening the browser")
-	flags.StringVar(&as, "as", string(config.IdentityUser), "identity to use: user|bot")
-	flags.StringVar(&appID, "app-id", "", "bot app id")
-	flags.StringVar(&appSecret, "app-secret", "", "bot app secret")
+	flags.StringVar(&as, "as", string(config.IdentityUser), "identity to use: user|app")
+	flags.StringVar(&appID, "app-id", "", "app id")
+	flags.StringVar(&appSecret, "app-secret", "", "app secret")
 
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -411,9 +389,9 @@ func (a *App) runAuthLogin(ctx context.Context, args []string) error {
 		AppSecret:     appSecret,
 	})
 	if err != nil {
-		if identity == config.IdentityBot {
+		if identity == config.IdentityApp {
 			if saveErr := a.store.SaveProfile(profile); saveErr != nil {
-				a.logger.Error("auth login failed while saving bot profile", "profile", profile.Name, "identity", identity, "error", saveErr.Error())
+				a.logger.Error("auth login failed while saving app profile", "profile", profile.Name, "identity", identity, "error", saveErr.Error())
 				return saveErr
 			}
 		}
@@ -437,7 +415,7 @@ func (a *App) runAuthStatus(ctx context.Context, args []string) error {
 	var profileName string
 	var as string
 	flags.StringVar(&profileName, "profile", "", "profile name")
-	flags.StringVar(&as, "as", string(config.IdentityUser), "identity to inspect: user|bot")
+	flags.StringVar(&as, "as", string(config.IdentityUser), "identity to inspect: user|app")
 
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -478,7 +456,7 @@ func (a *App) runAuthLogout(ctx context.Context, args []string) error {
 	var profileName string
 	var as string
 	flags.StringVar(&profileName, "profile", "", "profile name")
-	flags.StringVar(&as, "as", string(config.IdentityUser), "identity to logout: user|bot")
+	flags.StringVar(&as, "as", string(config.IdentityUser), "identity to logout: user|app")
 
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -515,7 +493,7 @@ func (a *App) runAuthUse(args []string) error {
 	var profileName string
 	var as string
 	flags.StringVar(&profileName, "profile", "", "profile name")
-	flags.StringVar(&as, "as", string(config.IdentityUser), "default business identity: user|bot")
+	flags.StringVar(&as, "as", string(config.IdentityUser), "default business identity: user|app")
 
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -541,8 +519,8 @@ func (a *App) runAuthUse(args []string) error {
 
 func (a *App) providerFor(identity config.IdentityKind) authProvider {
 	switch identity {
-	case config.IdentityBot:
-		return a.botProvider
+	case config.IdentityApp:
+		return a.appProvider
 	case config.IdentityUser:
 		fallthrough
 	default:
@@ -555,7 +533,7 @@ func resolveEnvironment(name string) (environmentPreset, error) {
 	case "prod":
 		return environmentPreset{
 			OpenPlatformBaseURL:            "https://open.qfei.cn",
-			BotTokenEndpoint:               "https://open.qfei.cn/open-apis/auth/v3/tenant_access_token/internal",
+			AppTokenEndpoint:               "https://open.qfei.cn/open-apis/auth/v3/tenant_access_token/internal",
 			ProtectedResourceMetadataURL:   "",
 			AuthorizationServerMetadataURL: "https://myaccount.qfei.cn/.well-known/oauth-authorization-server/contract",
 			RedirectURL:                    "http://127.0.0.1:8000/callback",

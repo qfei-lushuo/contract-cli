@@ -59,12 +59,14 @@ func TestCommandReferenceDocumentCoversCurrentSupportedCommands(t *testing.T) {
 		"contract-cli mdm legal list",
 		"contract-cli mdm legal get",
 		"contract-cli mdm fields list",
-		"`contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 是当前仅有的十五个同时支持 `user` 与 `bot` 的结构化业务命令",
-		"`contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get` 当前仅支持 `--as bot`",
+		"`contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 是当前仅有的十五个同时支持 `user` 与 `app` 的结构化业务命令",
+		"`contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get` 当前仅支持 `--as app`",
 		"`--user-id-type`",
 		"`--user-id`",
 		"传了就拼接到 query string",
-		"`auth login --as bot`",
+		"`auth login --as app`",
+		"旧身份值 `--as bot` 仍可使用，运行时等价于 `--as app`",
+		"`contract text --as app` 走 `GET /open-apis/contract/v1/contracts/{contract_id}/text?...`",
 	}
 	for _, fragment := range requiredFragments {
 		if !strings.Contains(text, fragment) {
@@ -82,6 +84,7 @@ func TestCommandReferenceDocumentCoversCurrentSupportedCommands(t *testing.T) {
 		"`--env`：当前仅支持 `dev`",
 		"支持 `prod` 和 `dev`",
 		"contract-cli config add --env dev",
+		"`contract text --as app` 走 `POST /open-apis/contract/v1/contracts/{contract_id}/text?...`",
 	} {
 		if strings.Contains(text, forbidden) {
 			t.Fatalf("command reference should not contain production-stale fragment %q", forbidden)

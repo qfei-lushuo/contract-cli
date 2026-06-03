@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -47,7 +46,7 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 				"contract-cli contract upload-file --file <path> --file-type <type> [flags]",
 				"--file <path>",
 				"--file-type <type>",
-				"user/bot",
+				"user/app",
 				"200MB",
 				"不接受 --input-file / --data",
 			},
@@ -69,7 +68,7 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 				"--output-file <path>",
 				"--force",
 				"默认拉起保存文件弹窗",
-				"bot-only",
+				"app-only",
 			},
 		},
 		{
@@ -79,7 +78,7 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 				"contract patch",
 				"contract-cli contract patch <contract-id> --input-file <path>|--data <json> [flags]",
 				"PATCH /open-apis/contract/v1/contracts/{contract_id}",
-				"bot-only",
+				"app-only",
 			},
 		},
 		{
@@ -100,7 +99,7 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 				"contract search",
 				"--contract-number <number>",
 				"user: /open-apis/contract/v1/mcp/contracts/search",
-				"bot: /open-apis/contract/v1/contracts/search",
+				"app: /open-apis/contract/v1/contracts/search",
 			},
 		},
 		{
@@ -153,7 +152,8 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 			contains: []string{
 				"update check",
 				"--channel <latest|beta>",
-				"contract-cli update check --channel latest",
+				"--json",
+				"contract-cli update check --channel latest --json",
 			},
 			notContains: []string{
 				"contract-cli update check --channel beta",
@@ -212,7 +212,6 @@ func TestHelpDoesNotTriggerProfilesHTTPUpdateOrLogs(t *testing.T) {
 		Store:                store,
 		UpdateRegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
 		UpdateCurrentVersion: "0.1.0-beta.1",
-		IsTerminal:           func(io.Writer) bool { return true },
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				requests++

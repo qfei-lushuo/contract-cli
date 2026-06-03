@@ -25,8 +25,8 @@ contract-cli mdm vendor get 1063197165850985296 --profile contract
 - 不暴露 `--operator`
 - 默认输出就是开放平台原始 envelope；如果要脚本消费，建议加 `--output json`
 - 如果要排障或确认原始响应，建议加 `--raw`
-- `mdm vendor list` 同时支持 `user` 和 `bot`
-- `mdm vendor get` 也同时支持 `user` 和 `bot`
+- `mdm vendor list` 同时支持 `user` 和 `app`
+- `mdm vendor get` 也同时支持 `user` 和 `app`
 - `--user-id-type` / `--user-id` 继续按共享约定透传，不做本地校验
 
 ## 2. 场景配方
@@ -48,13 +48,13 @@ contract-cli mdm vendor list --profile contract --name "供应商A"
 
 - `--page-size 20`
 - `--page-token <next-token>`
-- `--as bot --user-id-type employee_id`
+- `--as app --user-id-type employee_id`
 
 补充说明：
 
 - user 路由走 `/open-apis/contract/v1/mcp/vendors`
-- bot 路由走 `/open-apis/mdm/v1/vendors`
-- 生产文档里 bot 侧把 query `vendor` 描述成“供应商编码”，CLI 仍保持 `--name -> vendor` 的透传映射
+- app 路由走 `/open-apis/mdm/v1/vendors`
+- 生产文档里 app 侧把 query `vendor` 描述成“供应商编码”，CLI 仍保持 `--name -> vendor` 的透传映射
 
 ### 2.2 分页扫交易方列表
 
@@ -75,10 +75,10 @@ contract-cli mdm vendor list --profile contract --page-size 20
 contract-cli mdm vendor list --profile contract --page-size 20 --page-token next
 ```
 
-bot 示例：
+app 示例：
 
 ```bash
-contract-cli mdm vendor list --profile contract --as bot --name "V00000001" --page-size 20 --user-id-type employee_id
+contract-cli mdm vendor list --profile contract --as app --name "V00000001" --page-size 20 --user-id-type employee_id
 ```
 
 ### 2.3 已知 id 直接查详情
@@ -93,17 +93,17 @@ contract-cli mdm vendor list --profile contract --as bot --name "V00000001" --pa
 contract-cli mdm vendor get 1063197165850985296 --profile contract
 ```
 
-bot 示例：
+app 示例：
 
 ```bash
-contract-cli mdm vendor get 7003410079584092448 --profile contract --as bot --user-id-type employee_id
+contract-cli mdm vendor get 7003410079584092448 --profile contract --as app --user-id-type employee_id
 ```
 
 补充说明：
 
 - user 路由走 `/open-apis/contract/v1/mcp/vendors/{vendor_id}`
-- bot 路由走 `/open-apis/mdm/v1/vendors/{vendor_id}`
-- 生产文档里 bot 详情接口只显式列出了 `user_id_type` 查询参数，没看到 `user_id`
+- app 路由走 `/open-apis/mdm/v1/vendors/{vendor_id}`
+- 生产文档里 app 详情接口只显式列出了 `user_id_type` 查询参数，没看到 `user_id`
 - CLI 仍按共享约定统一透传 `--user-id-type` / `--user-id`，不做本地校验
 
 ## 3. 什么时候不要走这里

@@ -44,7 +44,7 @@ func TestServiceFieldsUsesConfigListEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceFieldsUsesBotConfigListEndpoint(t *testing.T) {
+func TestServiceFieldsUsesAppConfigListEndpoint(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -65,7 +65,7 @@ func TestServiceFieldsUsesBotConfigListEndpoint(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -81,7 +81,7 @@ func TestServiceFieldsUsesBotConfigListEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceFieldsMapsBotLegalEntityBizLine(t *testing.T) {
+func TestServiceFieldsMapsAppLegalEntityBizLine(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -96,7 +96,7 @@ func TestServiceFieldsMapsBotLegalEntityBizLine(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -111,7 +111,7 @@ func TestServiceFieldsMapsBotLegalEntityBizLine(t *testing.T) {
 	}
 }
 
-func TestServiceFieldsRejectsBotVendorRiskBeforeRequest(t *testing.T) {
+func TestServiceFieldsRejectsAppVendorRiskBeforeRequest(t *testing.T) {
 	t.Parallel()
 
 	called := false
@@ -124,18 +124,18 @@ func TestServiceFieldsRejectsBotVendorRiskBeforeRequest(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
 
 	service := schema.NewService(client)
 	_, err = service.Fields(context.Background(), requestContext, "vendor_risk")
-	if err == nil || !strings.Contains(err.Error(), `biz line "vendor_risk" is not supported for bot identity`) {
+	if err == nil || !strings.Contains(err.Error(), `biz line "vendor_risk" is not supported for app identity`) {
 		t.Fatalf("unexpected error: %v", err)
 	}
 	if called {
-		t.Fatal("request should not be sent for unsupported bot biz line")
+		t.Fatal("request should not be sent for unsupported app biz line")
 	}
 }
 
@@ -169,16 +169,16 @@ func profileWithUserToken() config.Profile {
 	}
 }
 
-func profileWithBotToken() config.Profile {
+func profileWithAppToken() config.Profile {
 	return config.Profile{
 		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
-		DefaultIdentity:     config.IdentityBot,
+		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
-			Bot: config.BotIdentity{
+			App: config.AppIdentity{
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 					TokenType:   "Bearer",
 					Expiry:      time.Now().Add(time.Hour),
 				},

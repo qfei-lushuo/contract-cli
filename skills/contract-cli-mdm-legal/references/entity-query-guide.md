@@ -25,8 +25,8 @@ contract-cli mdm legal get 7023646046559404327 --profile contract
 - 不暴露 `--operator`
 - 默认输出就是开放平台原始 envelope；如果要脚本消费，建议加 `--output json`
 - 如果要排障或确认原始响应，建议加 `--raw`
-- `mdm legal list` 同时支持 `user` 和 `bot`
-- `mdm legal get` 也同时支持 `user` 和 `bot`
+- `mdm legal list` 同时支持 `user` 和 `app`
+- `mdm legal get` 也同时支持 `user` 和 `app`
 - `--user-id-type` / `--user-id` 继续按共享约定透传，不做本地校验
 
 ## 2. 场景配方
@@ -48,12 +48,12 @@ contract-cli mdm legal list --profile contract --name "上海主体"
 
 - `--page-size 20`
 - `--page-token <next-token>`
-- `--as bot --user-id-type employee_id`
+- `--as app --user-id-type employee_id`
 
 补充说明：
 
 - user 路由走 `/open-apis/contract/v1/mcp/legal_entities`
-- bot 路由走 `/open-apis/mdm/v1/legal_entities/list_all`
+- app 路由走 `/open-apis/mdm/v1/legal_entities/list_all`
 - 文档显示文本使用 `legal_entities/list_all`，但超链接目标误指到了 `vendors`
 - 文档还写了“查询参数采用驼峰式”，CLI 当前仍保持 `legalEntity/page_size/page_token` 的既有透传映射
 
@@ -70,10 +70,10 @@ contract-cli mdm legal list --profile contract --name "上海主体"
 contract-cli mdm legal list --profile contract --page-size 20
 ```
 
-bot 示例：
+app 示例：
 
 ```bash
-contract-cli mdm legal list --profile contract --as bot --name "主体A" --page-size 20 --user-id-type employee_id
+contract-cli mdm legal list --profile contract --as app --name "主体A" --page-size 20 --user-id-type employee_id
 ```
 
 ### 2.3 已知 id 直接查详情
@@ -88,17 +88,17 @@ contract-cli mdm legal list --profile contract --as bot --name "主体A" --page-
 contract-cli mdm legal get 7023646046559404327 --profile contract
 ```
 
-bot 示例：
+app 示例：
 
 ```bash
-contract-cli mdm legal get 7003410079584092448 --profile contract --as bot --user-id-type employee_id
+contract-cli mdm legal get 7003410079584092448 --profile contract --as app --user-id-type employee_id
 ```
 
 补充说明：
 
 - user 路由走 `/open-apis/contract/v1/mcp/legal_entities/{legal_entity_id}`
-- bot 路由走 `/open-apis/mdm/v1/legal_entities/{legal_entity_id}`
-- 按这次确认方案，bot 除了 path 参数外，还会额外拼接同名 query `legal_entity_id`
+- app 路由走 `/open-apis/mdm/v1/legal_entities/{legal_entity_id}`
+- 按这次确认方案，app 除了 path 参数外，还会额外拼接同名 query `legal_entity_id`
 - 文档把 `legal_entity_id` 写在查询参数表里，所以 CLI 采用“path + query 双带”的保守实现
 
 ## 3. 什么时候不要走这里
