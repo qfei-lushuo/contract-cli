@@ -23,7 +23,7 @@ func TestClientDoAddsAuthorizationAndQuery(t *testing.T) {
 				if req.URL.String() != "https://dev-open.qtech.cn/open-apis/mdm/v1/vendors/123?name=acme&user_id=ou_123&user_id_type=employee_id" {
 					t.Fatalf("url = %q", req.URL.String())
 				}
-				if req.Header.Get("Authorization") != "Bearer bot-token" {
+				if req.Header.Get("Authorization") != "Bearer app-token" {
 					t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
 				}
 				if req.Header.Get("Accept") != "application/json" {
@@ -39,11 +39,11 @@ func TestClientDoAddsAuthorizationAndQuery(t *testing.T) {
 		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
-		DefaultIdentity:     config.IdentityBot,
+		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
-			Bot: config.BotIdentity{
+			App: config.AppIdentity{
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 					TokenType:   "Bearer",
 					Expiry:      time.Now().Add(time.Hour),
 				},
@@ -144,17 +144,17 @@ func TestClientDoCommonQueryOverridesAnyPolicyRequestQuery(t *testing.T) {
 		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
-		DefaultIdentity:     config.IdentityBot,
+		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
-			Bot: config.BotIdentity{
+			App: config.AppIdentity{
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 					TokenType:   "Bearer",
 					Expiry:      time.Now().Add(time.Hour),
 				},
 			},
 		},
-	}, config.IdentityBot)
+	}, config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -201,17 +201,17 @@ func TestClientDoStreamsBodyReaderWithoutJSONContentType(t *testing.T) {
 		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
-		DefaultIdentity:     config.IdentityBot,
+		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
-			Bot: config.BotIdentity{
+			App: config.AppIdentity{
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 					TokenType:   "Bearer",
 					Expiry:      time.Now().Add(time.Hour),
 				},
 			},
 		},
-	}, config.IdentityBot)
+	}, config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -244,17 +244,17 @@ func TestClientDoPreservesMultipartContentType(t *testing.T) {
 		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
-		DefaultIdentity:     config.IdentityBot,
+		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
-			Bot: config.BotIdentity{
+			App: config.AppIdentity{
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 					TokenType:   "Bearer",
 					Expiry:      time.Now().Add(time.Hour),
 				},
 			},
 		},
-	}, config.IdentityBot)
+	}, config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -283,7 +283,7 @@ func TestClientDoStreamWritesSuccessBody(t *testing.T) {
 				if req.URL.String() != "https://dev-open.qtech.cn/open-apis/contract/v1/files/file-123?user_id=ou_123&user_id_type=user_id" {
 					t.Fatalf("url = %q", req.URL.String())
 				}
-				if req.Header.Get("Authorization") != "Bearer bot-token" {
+				if req.Header.Get("Authorization") != "Bearer app-token" {
 					t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
 				}
 				return &http.Response{
@@ -302,17 +302,17 @@ func TestClientDoStreamWritesSuccessBody(t *testing.T) {
 		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
-		DefaultIdentity:     config.IdentityBot,
+		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
-			Bot: config.BotIdentity{
+			App: config.AppIdentity{
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 					TokenType:   "Bearer",
 					Expiry:      time.Now().Add(time.Hour),
 				},
 			},
 		},
-	}, config.IdentityBot)
+	}, config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -325,7 +325,7 @@ func TestClientDoStreamWritesSuccessBody(t *testing.T) {
 	response, err := client.DoStream(context.Background(), requestContext, openplatform.Request{
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/files/file-123",
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	}, out)
 	if err != nil {
 		t.Fatalf("DoStream() error = %v", err)
@@ -359,17 +359,17 @@ func TestClientDoStreamWrapsNon2xxWithoutWritingBody(t *testing.T) {
 		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
-		DefaultIdentity:     config.IdentityBot,
+		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
-			Bot: config.BotIdentity{
+			App: config.AppIdentity{
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 					TokenType:   "Bearer",
 					Expiry:      time.Now().Add(time.Hour),
 				},
 			},
 		},
-	}, config.IdentityBot)
+	}, config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -378,7 +378,7 @@ func TestClientDoStreamWrapsNon2xxWithoutWritingBody(t *testing.T) {
 	response, err := client.DoStream(context.Background(), requestContext, openplatform.Request{
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/files/file-123",
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	}, out)
 	if err == nil || !strings.Contains(err.Error(), "open platform request failed with status 400") || !strings.Contains(err.Error(), "bad file") {
 		t.Fatalf("unexpected DoStream() error: %v", err)
@@ -407,17 +407,17 @@ func TestClientDoRejectsInvalidPathAndWrapsNon2xx(t *testing.T) {
 		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
-		DefaultIdentity:     config.IdentityBot,
+		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
-			Bot: config.BotIdentity{
+			App: config.AppIdentity{
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 					TokenType:   "Bearer",
 					Expiry:      time.Now().Add(time.Hour),
 				},
 			},
 		},
-	}, config.IdentityBot)
+	}, config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -437,7 +437,7 @@ func TestClientDoRejectsInvalidPathAndWrapsNon2xx(t *testing.T) {
 	}
 }
 
-func TestClientDoRejectsBotOnlyRequestForUserIdentity(t *testing.T) {
+func TestClientDoRejectsAppOnlyRequestForUserIdentity(t *testing.T) {
 	t.Parallel()
 
 	transportUsed := false
@@ -473,17 +473,17 @@ func TestClientDoRejectsBotOnlyRequestForUserIdentity(t *testing.T) {
 	_, err = client.Do(context.Background(), requestContext, openplatform.Request{
 		Method:         http.MethodPost,
 		Path:           "/open-apis/contract/v1/files/upload",
-		IdentityPolicy: openplatform.IdentityPolicyBotOnly,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
-	if err == nil || !strings.Contains(err.Error(), "only supports --as bot") {
-		t.Fatalf("unexpected bot-only error: %v", err)
+	if err == nil || !strings.Contains(err.Error(), "only supports --as app") {
+		t.Fatalf("unexpected app-only error: %v", err)
 	}
 	if transportUsed {
-		t.Fatalf("request transport should not be used for rejected bot-only requests")
+		t.Fatalf("request transport should not be used for rejected app-only requests")
 	}
 }
 
-func TestClientDoRejectsUserOnlyRequestForBotIdentity(t *testing.T) {
+func TestClientDoRejectsUserOnlyRequestForAppIdentity(t *testing.T) {
 	t.Parallel()
 
 	transportUsed := false
@@ -501,17 +501,17 @@ func TestClientDoRejectsUserOnlyRequestForBotIdentity(t *testing.T) {
 		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
-		DefaultIdentity:     config.IdentityBot,
+		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
-			Bot: config.BotIdentity{
+			App: config.AppIdentity{
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 					TokenType:   "Bearer",
 					Expiry:      time.Now().Add(time.Hour),
 				},
 			},
 		},
-	}, config.IdentityBot)
+	}, config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -550,7 +550,7 @@ func TestRequestContextRequiresConfiguredBaseURLAndToken(t *testing.T) {
 	_, err := client.RequestContext(config.Profile{
 		Name:        "contract",
 		Environment: "dev",
-	}, config.IdentityBot)
+	}, config.IdentityApp)
 	if err == nil ||
 		!strings.Contains(err.Error(), "open platform base url is not configured") ||
 		!strings.Contains(err.Error(), "contract-cli config add --env prod --name contract") {
@@ -561,8 +561,8 @@ func TestRequestContextRequiresConfiguredBaseURLAndToken(t *testing.T) {
 		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
-	}, config.IdentityBot)
-	if err == nil || !strings.Contains(err.Error(), "bot identity is not authorized") {
+	}, config.IdentityApp)
+	if err == nil || !strings.Contains(err.Error(), "app identity is not authorized") {
 		t.Fatalf("unexpected missing-token error: %v", err)
 	}
 }

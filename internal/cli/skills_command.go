@@ -115,7 +115,7 @@ func (a *App) runSkillsInstall(args []string) error {
 			return fmt.Errorf("stat skill target %q: %w", skill.Dir, err)
 		}
 
-		if err := copySkillDir(a.skillsFS, skill.Dir, destination); err != nil {
+		if err := copySkillDir(a.skillsFS, skill.Dir, destination, build.Current().Version); err != nil {
 			a.logger.Error("install skill failed", "skill", skill.Dir, "target", destination, "error", err.Error())
 			return err
 		}
@@ -221,7 +221,7 @@ func parseSkillMetadata(dir string, content string) skillMetadata {
 	return metadata
 }
 
-func copySkillDir(source fs.FS, sourceDir string, destination string) error {
+func copySkillDir(source fs.FS, sourceDir string, destination string, cliVersion string) error {
 	return fs.WalkDir(source, sourceDir, func(current string, entry fs.DirEntry, walkErr error) error {
 		if walkErr != nil {
 			return fmt.Errorf("walk bundled skill %q: %w", sourceDir, walkErr)
@@ -247,11 +247,41 @@ func copySkillDir(source fs.FS, sourceDir string, destination string) error {
 		if err != nil {
 			return fmt.Errorf("read bundled skill file %q: %w", current, err)
 		}
+		if path.Base(current) == "SKILL.md" {
+			content = rewriteSkillVersion(content, cliVersion)
+		}
 		if err := os.WriteFile(target, content, 0o644); err != nil {
 			return fmt.Errorf("write skill file %q: %w", target, err)
 		}
 		return nil
 	})
+}
+
+func rewriteSkillVersion(content []byte, cliVersion string) []byte {
+	cliVersion = strings.TrimSpace(cliVersion)
+	if cliVersion == "" {
+		return content
+	}
+
+	text := string(content)
+	lines := strings.Split(text, "\n")
+	if len(lines) == 0 || strings.TrimSpace(lines[0]) != "---" {
+		return content
+	}
+
+	for i := 1; i < len(lines); i++ {
+		line := strings.TrimSpace(lines[i])
+		if line == "---" {
+			lines = append(lines[:i], append([]string{"version: " + cliVersion}, lines[i:]...)...)
+			return []byte(strings.Join(lines, "\n"))
+		}
+		key, _, ok := strings.Cut(line, ":")
+		if ok && strings.TrimSpace(key) == "version" {
+			lines[i] = "version: " + cliVersion
+			return []byte(strings.Join(lines, "\n"))
+		}
+	}
+	return content
 }
 
 func expandHomePath(value string) (string, error) {

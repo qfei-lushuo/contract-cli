@@ -24,9 +24,9 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 
 - `mdm vendor list` 支持 `--name`、`--page-size`、`--page-token`
 - `mdm vendor list --as user` 走 `/open-apis/contract/v1/mcp/vendors`
-- `mdm vendor list --as bot` 走 `/open-apis/mdm/v1/vendors`
+- `mdm vendor list --as app` 走 `/open-apis/mdm/v1/vendors`
 - `mdm vendor get --as user` 走 `/open-apis/contract/v1/mcp/vendors/{vendor_id}`
-- `mdm vendor get --as bot` 走 `/open-apis/mdm/v1/vendors/{vendor_id}`
+- `mdm vendor get --as app` 走 `/open-apis/mdm/v1/vendors/{vendor_id}`
 - 不暴露 `--operator`
 - `--user-id-type` / `--user-id` 仍按共享规则透传，不做本地校验
 - 推荐阅读顺序是：

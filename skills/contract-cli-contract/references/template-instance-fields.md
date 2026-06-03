@@ -7,15 +7,15 @@
 ## 1. CLI 命令面与硬约束
 
 ```bash
-contract-cli contract template instantiate --profile contract --as bot --input-file template-instance.json --user-id-type employee_id
+contract-cli contract template instantiate --profile contract --as app --input-file template-instance.json --user-id-type employee_id
 ```
 
 硬约束：
 
 - `--as user` 走 `/open-apis/contract/v1/mcp/template_instances`
-- `--as bot` 走 `POST /open-apis/contract/v1/template_instances`
+- `--as app` 走 `POST /open-apis/contract/v1/template_instances`
 - `--input-file` 与 `--data` 必须传一个且互斥
-- 官方 bot 文档的 query 只有 `user_id_type`
+- 官方 app 文档的 query 只有 `user_id_type`
 - `create_user_id` 与 `create_employee_code` 二选一；官方说明优先取 `create_user_id`
 - `template_number` 来自 `contract template list/get`
 - 创建补充协议时，`template_field_list` 需要把所需字段全部填写，不会继承原合同模板自定义字段
@@ -121,4 +121,3 @@ contract-cli contract template instantiate --profile contract --as bot --input-f
 | `template_number` | `string` | 模板编号。 |
 | `template_id` | `string` | 模板 id。 |
 | `template_instance_id` | `string` | 模板实例 id，可用于 `contract create` 的 `template_instance_id`。 |
-

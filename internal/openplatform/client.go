@@ -262,8 +262,8 @@ func tokenForIdentity(profile config.Profile, identity config.IdentityKind) (*co
 	var token *config.Token
 
 	switch identity {
-	case config.IdentityBot:
-		token = profile.Identities.Bot.Token
+	case config.IdentityApp:
+		token = profile.Identities.App.Token
 	case config.IdentityUser:
 		token = profile.Identities.User.Token
 	default:
@@ -378,9 +378,9 @@ func validateIdentityPolicy(identity config.IdentityKind, policy IdentityPolicy,
 			return fmt.Errorf("open platform path %q only supports --as user", path)
 		}
 		return nil
-	case IdentityPolicyBotOnly:
-		if identity != config.IdentityBot {
-			return fmt.Errorf("open platform path %q only supports --as bot", path)
+	case IdentityPolicyAppOnly:
+		if identity != config.IdentityApp {
+			return fmt.Errorf("open platform path %q only supports --as app", path)
 		}
 		return nil
 	default:

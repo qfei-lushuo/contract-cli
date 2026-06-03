@@ -51,7 +51,7 @@ func (s *Service) List(ctx context.Context, requestContext openplatform.RequestC
 			Query:          spec.Query(query),
 			IdentityPolicy: spec.IdentityPolicy,
 		})
-	case config.IdentityBot:
+	case config.IdentityApp:
 		return s.client.Do(ctx, requestContext, openplatform.Request{
 			Method:         http.MethodGet,
 			Path:           "/open-apis/mdm/v1/legal_entities/list_all",
@@ -82,7 +82,7 @@ func (s *Service) Get(ctx context.Context, requestContext openplatform.RequestCo
 			Query:          spec.Query(nil),
 			IdentityPolicy: spec.IdentityPolicy,
 		})
-	case config.IdentityBot:
+	case config.IdentityApp:
 		return s.client.Do(ctx, requestContext, openplatform.Request{
 			Method:         http.MethodGet,
 			Path:           "/open-apis/mdm/v1/legal_entities/" + url.PathEscape(legalEntityID),

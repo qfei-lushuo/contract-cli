@@ -61,7 +61,7 @@ func TestServiceListUsesContractMCPVendorEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceListUsesBotVendorEndpoint(t *testing.T) {
+func TestServiceListUsesAppVendorEndpoint(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -88,7 +88,7 @@ func TestServiceListUsesBotVendorEndpoint(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -137,7 +137,7 @@ func TestServiceGetUsesContractMCPVendorDetailEndpoint(t *testing.T) {
 	}
 }
 
-func TestServiceGetUsesBotVendorDetailEndpoint(t *testing.T) {
+func TestServiceGetUsesAppVendorDetailEndpoint(t *testing.T) {
 	t.Parallel()
 
 	client := openplatform.New(openplatform.Options{
@@ -154,7 +154,7 @@ func TestServiceGetUsesBotVendorDetailEndpoint(t *testing.T) {
 		},
 		Logger: slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
-	requestContext, err := client.RequestContext(profileWithBotToken(), config.IdentityBot)
+	requestContext, err := client.RequestContext(profileWithAppToken(), config.IdentityApp)
 	if err != nil {
 		t.Fatalf("RequestContext() error = %v", err)
 	}
@@ -200,16 +200,16 @@ func profileWithUserToken() config.Profile {
 	}
 }
 
-func profileWithBotToken() config.Profile {
+func profileWithAppToken() config.Profile {
 	return config.Profile{
 		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
-		DefaultIdentity:     config.IdentityBot,
+		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
-			Bot: config.BotIdentity{
+			App: config.AppIdentity{
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 					TokenType:   "Bearer",
 					Expiry:      time.Now().Add(time.Hour),
 				},

@@ -10,8 +10,8 @@
 ## 1. CLI 命令面
 
 ```bash
-contract-cli contract get <contract-id> --profile contract --as bot --output json
-contract-cli contract search --profile contract --as bot --input-file contract-search.json --output json
+contract-cli contract get <contract-id> --profile contract --as app --output json
+contract-cli contract search --profile contract --as app --input-file contract-search.json --output json
 ```
 
 读取路径：
@@ -143,4 +143,3 @@ contract-cli contract search --profile contract --as bot --input-file contract-s
 - 后续要按模板创建合同，优先保存 `template_id` / `template_number`
 - 后续要选择主体，优先保存 `our_party_id`、`our_party_code`、`counter_party_id`、`counter_party_code`
 - `form` 是 JSON 字符串，不是已经展开的对象；需要解析后再读取控件内容
-

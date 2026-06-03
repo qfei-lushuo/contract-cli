@@ -32,7 +32,7 @@
 - 这批命令不暴露 `--operator`
 - 请求体文件输入统一使用 `--input-file`
 - `--file` 仅用于真实二进制文件上传，不再表示 JSON 请求体
-- 文件上传当前已支持 user/bot 身份下的 `contract upload-file`
+- 文件上传当前已支持 user/app 身份下的 `contract upload-file`
 
 ## 2. 设计目标
 

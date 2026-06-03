@@ -19,12 +19,12 @@ func TestStoreRoundTrip(t *testing.T) {
 		Name:                "contract",
 		Environment:         "dev",
 		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
-		BotTokenEndpoint:    "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
+		AppTokenEndpoint:    "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
 		Resource:            "http://example.com/mcp-servers",
 		Scopes:              []string{"mcp:tools", "mcp:resources"},
 		BusinessType:        "contract",
 		ClientName:          "contract-cli",
-		DefaultIdentity:     config.IdentityBot,
+		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
 			User: config.UserIdentity{
 				ClientID:              "zsdcli_test",
@@ -39,13 +39,13 @@ func TestStoreRoundTrip(t *testing.T) {
 					Expiry:      expiry,
 				},
 			},
-			Bot: config.BotIdentity{
-				AuthMode:     config.BotAuthModeAppCredentials,
-				AppID:        "cli_bot_123",
-				SecretRef:    "contract.bot.app_secret",
+			App: config.AppIdentity{
+				AuthMode:     config.AppAuthModeAppCredentials,
+				AppID:        "cli_app_123",
+				SecretRef:    "contract.app.app_secret",
 				ConfiguredAt: expiry,
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 					TokenType:   "Bearer",
 				},
 			},
@@ -67,17 +67,17 @@ func TestStoreRoundTrip(t *testing.T) {
 	if got.Identities.User.Token == nil || !got.Identities.User.Token.Expiry.Equal(expiry) {
 		t.Fatalf("user token expiry mismatch: got %+v want %v", got.Identities.User.Token, expiry)
 	}
-	if got.Identities.Bot.Token == nil || got.Identities.Bot.Token.AccessToken != "bot-token" {
-		t.Fatalf("bot token mismatch: got %+v", got.Identities.Bot.Token)
+	if got.Identities.App.Token == nil || got.Identities.App.Token.AccessToken != "app-token" {
+		t.Fatalf("app token mismatch: got %+v", got.Identities.App.Token)
 	}
-	if got.BotTokenEndpoint != profile.BotTokenEndpoint {
-		t.Fatalf("bot token endpoint mismatch: got %q want %q", got.BotTokenEndpoint, profile.BotTokenEndpoint)
+	if got.AppTokenEndpoint != profile.AppTokenEndpoint {
+		t.Fatalf("app token endpoint mismatch: got %q want %q", got.AppTokenEndpoint, profile.AppTokenEndpoint)
 	}
 	if got.OpenPlatformBaseURL != profile.OpenPlatformBaseURL {
 		t.Fatalf("open platform base url mismatch: got %q want %q", got.OpenPlatformBaseURL, profile.OpenPlatformBaseURL)
 	}
-	if got.DefaultIdentity != config.IdentityBot {
-		t.Fatalf("default identity mismatch: got %q want %q", got.DefaultIdentity, config.IdentityBot)
+	if got.DefaultIdentity != config.IdentityApp {
+		t.Fatalf("default identity mismatch: got %q want %q", got.DefaultIdentity, config.IdentityApp)
 	}
 	configContent, err := os.ReadFile(store.Path())
 	if err != nil {
@@ -86,8 +86,31 @@ func TestStoreRoundTrip(t *testing.T) {
 	if strings.Contains(string(configContent), "\"server_url\"") {
 		t.Fatalf("config should not contain removed server_url field: %s", string(configContent))
 	}
+	if strings.Contains(string(configContent), "\"bot\"") || strings.Contains(string(configContent), "bot_token_endpoint") {
+		t.Fatalf("config should use app field names, got: %s", string(configContent))
+	}
 	if store.Path() != filepath.Join(storeDir(t, store), "config.json") {
 		t.Fatalf("unexpected config path: %s", store.Path())
+	}
+}
+
+func TestParseIdentityKindAcceptsAppAndLegacyBotAlias(t *testing.T) {
+	t.Parallel()
+
+	identity, err := config.ParseIdentityKind("app")
+	if err != nil {
+		t.Fatalf("ParseIdentityKind(app) error = %v", err)
+	}
+	if identity != config.IdentityApp {
+		t.Fatalf("identity = %q, want %q", identity, config.IdentityApp)
+	}
+
+	identity, err = config.ParseIdentityKind("bot")
+	if err != nil {
+		t.Fatalf("ParseIdentityKind(bot) error = %v", err)
+	}
+	if identity != config.IdentityApp {
+		t.Fatalf("legacy bot identity = %q, want %q", identity, config.IdentityApp)
 	}
 }
 
@@ -104,9 +127,9 @@ func TestClearIdentityToken(t *testing.T) {
 					AccessToken: "user-token",
 				},
 			},
-			Bot: config.BotIdentity{
+			App: config.AppIdentity{
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 				},
 			},
 		},
@@ -115,7 +138,7 @@ func TestClearIdentityToken(t *testing.T) {
 	if err := store.UpsertProfile(profile, true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
-	if err := store.ClearToken("contract", config.IdentityBot); err != nil {
+	if err := store.ClearToken("contract", config.IdentityApp); err != nil {
 		t.Fatalf("ClearToken() error = %v", err)
 	}
 
@@ -123,11 +146,133 @@ func TestClearIdentityToken(t *testing.T) {
 	if err != nil {
 		t.Fatalf("GetProfile() error = %v", err)
 	}
-	if got.Identities.Bot.Token != nil {
-		t.Fatalf("expected bot token to be cleared, got %+v", got.Identities.Bot.Token)
+	if got.Identities.App.Token != nil {
+		t.Fatalf("expected app token to be cleared, got %+v", got.Identities.App.Token)
 	}
 	if got.Identities.User.Token == nil || got.Identities.User.Token.AccessToken != "user-token" {
 		t.Fatalf("expected user token to stay intact, got %+v", got.Identities.User.Token)
+	}
+}
+
+func TestLoadLegacyBotProfileMigratesToAppAndSavesNewShape(t *testing.T) {
+	t.Parallel()
+
+	store := config.NewStore(t.TempDir())
+	legacyConfig := `{
+  "current_profile": "contract",
+  "profiles": {
+    "contract": {
+      "name": "contract",
+      "environment": "dev",
+      "open_platform_base_url": "https://dev-open.qtech.cn",
+      "bot_token_endpoint": "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
+      "default_identity": "bot",
+      "identities": {
+        "bot": {
+          "auth_mode": "app_credentials",
+          "app_id": "legacy-app-id",
+          "secret_ref": "contract.bot.app_secret",
+          "token": {
+            "access_token": "legacy-app-token",
+            "token_type": "Bearer"
+          }
+        }
+      }
+    }
+  }
+}`
+
+	if err := os.WriteFile(store.Path(), []byte(legacyConfig), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	got, err := store.GetProfile("contract")
+	if err != nil {
+		t.Fatalf("GetProfile() error = %v", err)
+	}
+	if got.DefaultIdentity != config.IdentityApp {
+		t.Fatalf("default identity = %q, want %q", got.DefaultIdentity, config.IdentityApp)
+	}
+	if got.AppTokenEndpoint != "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal" {
+		t.Fatalf("app token endpoint = %q", got.AppTokenEndpoint)
+	}
+	if got.Identities.App.AppID != "legacy-app-id" {
+		t.Fatalf("app id = %q", got.Identities.App.AppID)
+	}
+	if got.Identities.App.Token == nil || got.Identities.App.Token.AccessToken != "legacy-app-token" {
+		t.Fatalf("app token = %+v", got.Identities.App.Token)
+	}
+
+	if err := store.SaveProfile(got); err != nil {
+		t.Fatalf("SaveProfile() error = %v", err)
+	}
+	content, err := os.ReadFile(store.Path())
+	if err != nil {
+		t.Fatalf("ReadFile(config) error = %v", err)
+	}
+	text := string(content)
+	if strings.Contains(text, `"bot"`) || strings.Contains(text, "bot_token_endpoint") {
+		t.Fatalf("saved config should not keep legacy bot fields: %s", text)
+	}
+	if !strings.Contains(text, `"app"`) || !strings.Contains(text, "app_token_endpoint") {
+		t.Fatalf("saved config should use app fields: %s", text)
+	}
+}
+
+func TestLoadProfilePrefersAppFieldsOverLegacyBotFields(t *testing.T) {
+	t.Parallel()
+
+	store := config.NewStore(t.TempDir())
+	rawConfig := `{
+  "current_profile": "contract",
+  "profiles": {
+    "contract": {
+      "name": "contract",
+      "environment": "dev",
+      "open_platform_base_url": "https://dev-open.qtech.cn",
+      "app_token_endpoint": "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
+      "bot_token_endpoint": "https://legacy-open.example/open-apis/auth/v3/tenant_access_token/internal",
+      "default_identity": "app",
+      "identities": {
+        "app": {
+          "auth_mode": "app_credentials",
+          "app_id": "new-app-id",
+          "secret_ref": "contract.app.app_secret",
+          "token": {
+            "access_token": "new-app-token",
+            "token_type": "Bearer"
+          }
+        },
+        "bot": {
+          "auth_mode": "app_credentials",
+          "app_id": "legacy-app-id",
+          "secret_ref": "contract.bot.app_secret",
+          "token": {
+            "access_token": "legacy-app-token",
+            "token_type": "Bearer"
+          }
+        }
+      }
+    }
+  }
+}`
+
+	if err := os.WriteFile(store.Path(), []byte(rawConfig), 0o600); err != nil {
+		t.Fatalf("WriteFile() error = %v", err)
+	}
+
+	got, err := store.GetProfile("contract")
+	if err != nil {
+		t.Fatalf("GetProfile() error = %v", err)
+	}
+	if got.AppTokenEndpoint != "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal" {
+		t.Fatalf("app token endpoint = %q", got.AppTokenEndpoint)
+	}
+	if got.Identities.App.AppID != "new-app-id" {
+		t.Fatalf("app id = %q", got.Identities.App.AppID)
+	}
+	if got.Identities.App.Token == nil || got.Identities.App.Token.AccessToken != "new-app-token" {
+		t.Fatalf("app token = %+v", got.Identities.App.Token)
 	}
 }
 

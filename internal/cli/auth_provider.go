@@ -15,10 +15,12 @@ import (
 )
 
 const (
-	envBotAppID           = "CONTRACT_CLI_BOT_APP_ID"
-	envBotAppSecret       = "CONTRACT_CLI_BOT_APP_SECRET"
+	envAppID              = "CONTRACT_CLI_APP_ID"
+	envAppSecret          = "CONTRACT_CLI_APP_SECRET"
 	legacyEnvBotAppID     = "DEMOCLI_BOT_APP_ID"
 	legacyEnvBotAppSecret = "DEMOCLI_BOT_APP_SECRET"
+	legacyEnvAppID        = "CONTRACT_CLI_BOT_APP_ID"
+	legacyEnvAppSecret    = "CONTRACT_CLI_BOT_APP_SECRET"
 )
 
 type authCommandOptions struct {
@@ -189,68 +191,68 @@ func (p userAuthProvider) Logout(_ context.Context, profile *config.Profile, _ a
 	return fmt.Sprintf("Logged out user identity for profile %q.", profile.Name), nil
 }
 
-type botAuthProvider struct {
+type appAuthProvider struct {
 	httpClient *http.Client
 	logger     *slog.Logger
 	secrets    *config.SecretsStore
 	lookupEnv  func(string) (string, bool)
 }
 
-type botCredentials struct {
+type appCredentials struct {
 	appID     string
 	appSecret string
 	source    string
 }
 
-func (p botAuthProvider) Login(ctx context.Context, profile *config.Profile, options authCommandOptions) (string, error) {
-	p.logger.Info("bot auth login started", "profile", profile.Name)
+func (p appAuthProvider) Login(ctx context.Context, profile *config.Profile, options authCommandOptions) (string, error) {
+	p.logger.Info("app auth login started", "profile", profile.Name)
 
 	credentials, err := p.resolveCredentials(*profile, options, true)
 	if err != nil {
-		p.logger.Error("bot auth resolve credentials failed", "profile", profile.Name, "error", err.Error())
+		p.logger.Error("app auth resolve credentials failed", "profile", profile.Name, "error", err.Error())
 		return "", err
 	}
-	if profile.BotTokenEndpoint == "" {
-		err = fmt.Errorf("bot identity is not configured; run `contract-cli config add --env prod --name %s` first", profile.Name)
-		p.logger.Error("bot auth token endpoint missing", "profile", profile.Name, "environment", profile.Environment, "error", err.Error())
+	if profile.AppTokenEndpoint == "" {
+		err = fmt.Errorf("app identity is not configured; run `contract-cli config add --env prod --name %s` first", profile.Name)
+		p.logger.Error("app auth token endpoint missing", "profile", profile.Name, "environment", profile.Environment, "error", err.Error())
 		return "", err
 	}
 
-	secretKey := config.BotSecretKey(profile.Name)
+	secretKey := config.AppSecretKey(profile.Name)
 	if err := p.secrets.Set(secretKey, credentials.appSecret); err != nil {
-		p.logger.Error("bot auth save secret failed", "profile", profile.Name, "error", err.Error())
+		p.logger.Error("app auth save secret failed", "profile", profile.Name, "error", err.Error())
 		return "", err
 	}
 
-	profile.Identities.Bot = config.BotIdentity{
-		AuthMode:     config.BotAuthModeAppCredentials,
+	profile.Identities.App = config.AppIdentity{
+		AuthMode:     config.AppAuthModeAppCredentials,
 		AppID:        credentials.appID,
 		SecretRef:    secretKey,
 		ConfiguredAt: time.Now().UTC(),
 		Token:        nil,
 	}
-	p.logger.Info("bot credentials saved", "profile", profile.Name, "source", credentials.source)
+	p.logger.Info("app credentials saved", "profile", profile.Name, "source", credentials.source)
 
-	p.logger.Info("bot token exchange started", "profile", profile.Name, "token_endpoint", profile.BotTokenEndpoint)
-	token, err := oauth.ExchangeTenantAccessToken(ctx, p.httpClient, p.logger, profile.BotTokenEndpoint, credentials.appID, credentials.appSecret)
+	p.logger.Info("app token exchange started", "profile", profile.Name, "token_endpoint", profile.AppTokenEndpoint)
+	token, err := oauth.ExchangeTenantAccessToken(ctx, p.httpClient, p.logger, profile.AppTokenEndpoint, credentials.appID, credentials.appSecret)
 	if err != nil {
-		p.logger.Error("bot token exchange failed", "profile", profile.Name, "token_endpoint", profile.BotTokenEndpoint, "error", err.Error())
-		profile.Identities.Bot.Token = nil
+		p.logger.Error("app token exchange failed", "profile", profile.Name, "token_endpoint", profile.AppTokenEndpoint, "error", err.Error())
+		profile.Identities.App.Token = nil
 		return "", err
 	}
 
-	profile.Identities.Bot.Token = token
-	p.logger.Info("bot auth login completed", "profile", profile.Name, "token_endpoint", profile.BotTokenEndpoint, "expires_at", token.Expiry.Format(time.RFC3339))
+	profile.Identities.App.Token = token
+	p.logger.Info("app auth login completed", "profile", profile.Name, "token_endpoint", profile.AppTokenEndpoint, "expires_at", token.Expiry.Format(time.RFC3339))
 
 	var builder strings.Builder
-	builder.WriteString(fmt.Sprintf("Bot authorization succeeded for profile %q.", profile.Name))
+	builder.WriteString(fmt.Sprintf("App authorization succeeded for profile %q.", profile.Name))
 	if !token.Expiry.IsZero() {
 		builder.WriteString(fmt.Sprintf("\nAccess token expires at: %s", token.Expiry.Format(time.RFC3339)))
 	}
 	return builder.String(), nil
 }
 
-func (p botAuthProvider) Status(_ context.Context, profile config.Profile, options authCommandOptions) (authStatusView, error) {
+func (p appAuthProvider) Status(_ context.Context, profile config.Profile, options authCommandOptions) (authStatusView, error) {
 	credentials, err := p.resolveCredentials(profile, options, false)
 	if err != nil {
 		return authStatusView{}, err
@@ -264,7 +266,7 @@ func (p botAuthProvider) Status(_ context.Context, profile config.Profile, optio
 	if credentials.appID != "" && credentials.appSecret != "" {
 		authorization = "configured"
 	}
-	if token := profile.Identities.Bot.Token; token != nil && token.AccessToken != "" {
+	if token := profile.Identities.App.Token; token != nil && token.AccessToken != "" {
 		authorization = "authorized"
 		if !token.Expiry.IsZero() && time.Now().After(token.Expiry) {
 			authorization = "expired"
@@ -272,13 +274,13 @@ func (p botAuthProvider) Status(_ context.Context, profile config.Profile, optio
 	}
 
 	fields := []authStatusField{
-		{Label: "Auth Mode", Value: emptyFallback(profile.Identities.Bot.AuthMode, config.BotAuthModeAppCredentials)},
+		{Label: "Auth Mode", Value: emptyFallback(profile.Identities.App.AuthMode, config.AppAuthModeAppCredentials)},
 		{Label: "App ID", Value: emptyFallback(credentials.appID, "<not-configured>")},
 		{Label: "App Secret", Value: secretState},
 		{Label: "Credential Source", Value: credentials.source},
 		{Label: "Token Protocol", Value: "tenant_access_token/internal"},
 	}
-	if token := profile.Identities.Bot.Token; token != nil && !token.Expiry.IsZero() {
+	if token := profile.Identities.App.Token; token != nil && !token.Expiry.IsZero() {
 		fields = append(fields, authStatusField{
 			Label: "Expires At",
 			Value: token.Expiry.Format(time.RFC3339),
@@ -291,56 +293,56 @@ func (p botAuthProvider) Status(_ context.Context, profile config.Profile, optio
 	}, nil
 }
 
-func (p botAuthProvider) Logout(_ context.Context, profile *config.Profile, _ authCommandOptions) (string, error) {
-	p.logger.Info("bot auth logout", "profile", profile.Name, "preserve_credentials", true)
-	profile.Identities.Bot.Token = nil
-	p.logger.Info("bot auth logout completed", "profile", profile.Name, "preserve_credentials", true)
-	return fmt.Sprintf("Logged out bot token for profile %q while keeping app credentials.", profile.Name), nil
+func (p appAuthProvider) Logout(_ context.Context, profile *config.Profile, _ authCommandOptions) (string, error) {
+	p.logger.Info("app auth logout", "profile", profile.Name, "preserve_credentials", true)
+	profile.Identities.App.Token = nil
+	p.logger.Info("app auth logout completed", "profile", profile.Name, "preserve_credentials", true)
+	return fmt.Sprintf("Logged out app token for profile %q while keeping app credentials.", profile.Name), nil
 }
 
-func (p botAuthProvider) resolveCredentials(profile config.Profile, options authCommandOptions, requireComplete bool) (botCredentials, error) {
-	appID, appIDSource := p.resolveBotAppID(profile, options)
-	appSecret, appSecretSource, err := p.resolveBotAppSecret(profile, options)
+func (p appAuthProvider) resolveCredentials(profile config.Profile, options authCommandOptions, requireComplete bool) (appCredentials, error) {
+	appID, appIDSource := p.resolveAppID(profile, options)
+	appSecret, appSecretSource, err := p.resolveAppSecret(profile, options)
 	if err != nil {
-		return botCredentials{}, err
+		return appCredentials{}, err
 	}
 
-	credentials := botCredentials{
+	credentials := appCredentials{
 		appID:     appID,
 		appSecret: appSecret,
 		source:    combineCredentialSources(appIDSource, appSecretSource),
 	}
 	if requireComplete && (credentials.appID == "" || credentials.appSecret == "") {
-		return botCredentials{}, fmt.Errorf("bot app credentials are incomplete; provide --app-id/--app-secret or set %s/%s", envBotAppID, envBotAppSecret)
+		return appCredentials{}, fmt.Errorf("app credentials are incomplete; provide --app-id/--app-secret or set %s/%s", envAppID, envAppSecret)
 	}
 	return credentials, nil
 }
 
-func (p botAuthProvider) resolveBotAppID(profile config.Profile, options authCommandOptions) (string, string) {
+func (p appAuthProvider) resolveAppID(profile config.Profile, options authCommandOptions) (string, string) {
 	switch {
 	case options.AppID != "":
 		return options.AppID, "flag"
 	default:
-		if value, ok := lookupEnvAny(p.lookupEnv, envBotAppID, legacyEnvBotAppID); ok {
+		if value, ok := lookupEnvAny(p.lookupEnv, envAppID, legacyEnvAppID, legacyEnvBotAppID); ok {
 			return value, "env"
 		}
-		if profile.Identities.Bot.AppID != "" {
-			return profile.Identities.Bot.AppID, "secrets"
+		if profile.Identities.App.AppID != "" {
+			return profile.Identities.App.AppID, "secrets"
 		}
 		return "", "missing"
 	}
 }
 
-func (p botAuthProvider) resolveBotAppSecret(profile config.Profile, options authCommandOptions) (string, string, error) {
+func (p appAuthProvider) resolveAppSecret(profile config.Profile, options authCommandOptions) (string, string, error) {
 	switch {
 	case options.AppSecret != "":
 		return options.AppSecret, "flag", nil
 	default:
-		if value, ok := lookupEnvAny(p.lookupEnv, envBotAppSecret, legacyEnvBotAppSecret); ok {
+		if value, ok := lookupEnvAny(p.lookupEnv, envAppSecret, legacyEnvAppSecret, legacyEnvBotAppSecret); ok {
 			return value, "env", nil
 		}
-		if profile.Identities.Bot.SecretRef != "" {
-			value, ok, err := p.secrets.Get(profile.Identities.Bot.SecretRef)
+		if profile.Identities.App.SecretRef != "" {
+			value, ok, err := p.secrets.Get(profile.Identities.App.SecretRef)
 			if err != nil {
 				return "", "", err
 			}

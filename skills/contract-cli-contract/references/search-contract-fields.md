@@ -7,7 +7,7 @@
 ## 1. CLI 命令面与硬约束
 
 ```bash
-contract-cli contract search --profile contract --as bot --input-file contract-search.json
+contract-cli contract search --profile contract --as app --input-file contract-search.json
 ```
 
 也可以直接传 JSON 字符串：
@@ -19,7 +19,7 @@ contract-cli contract search --profile contract --as user --data '{"contract_num
 硬约束：
 
 - `--as user` 走 `/open-apis/contract/v1/mcp/contracts/search`
-- `--as bot` 走 `POST /open-apis/contract/v1/contracts/search`
+- `--as app` 走 `POST /open-apis/contract/v1/contracts/search`
 - `--input-file` 与 `--data` 互斥
 - `--contract-number`、`--page-size`、`--page-token` 会合并进 JSON body
 - 顶层 `contract_number` 一旦传入，后端会忽略组合条件
@@ -180,4 +180,3 @@ contract-cli contract search --profile contract --as user --data '{"contract_num
 - `data.items[].contract_status_code` / `contract_status_name`：状态
 
 更完整的合同字段看 [contract-response-fields.md](contract-response-fields.md)。
-

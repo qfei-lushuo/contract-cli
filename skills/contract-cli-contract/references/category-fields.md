@@ -7,13 +7,13 @@
 ## 1. CLI 命令面
 
 ```bash
-contract-cli contract category list --profile contract --as bot --lang zh-CN
+contract-cli contract category list --profile contract --as app --lang zh-CN
 ```
 
 硬约束：
 
 - `--as user` 走 `/open-apis/contract/v1/mcp/contract_categorys`
-- `--as bot` 走 `/open-apis/contract/v1/contract_categorys`
+- `--as app` 走 `/open-apis/contract/v1/contract_categorys`
 - CLI 把 `--lang` 作为 query 参数透传
 - 官方文档的 body 里也出现 `lang`，但当前 CLI 命令面只支持 `--lang`
 
@@ -53,4 +53,3 @@ contract-cli contract category list --profile contract --as bot --lang zh-CN
 - 创建合同需要分类缩写时，优先取二级分类的 `abbreviation`
 - 查询模板列表需要分类编号时，优先取二级分类的 `number`
 - 如果后端返回多级树，先选 `children[]` 中具体业务分类，不要只用一级分类
-

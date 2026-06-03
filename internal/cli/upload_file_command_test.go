@@ -15,7 +15,7 @@ import (
 	"cn.qfei/contract-cli/internal/config"
 )
 
-func TestContractUploadFileCommandUploadsDefaultFileNameAsBot(t *testing.T) {
+func TestContractUploadFileCommandAcceptsLegacyBotIdentity(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -47,7 +47,7 @@ func TestContractUploadFileCommandUploadsDefaultFileNameAsBot(t *testing.T) {
 				if req.URL.Query().Get("user_id_type") != "employee_id" {
 					t.Fatalf("user_id_type = %q", req.URL.Query().Get("user_id_type"))
 				}
-				if req.Header.Get("Authorization") != "Bearer bot-token" {
+				if req.Header.Get("Authorization") != "Bearer app-token" {
 					t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
 				}
 				if got := req.Header.Get("Content-Type"); !strings.HasPrefix(got, "multipart/form-data; boundary=") {
@@ -77,7 +77,7 @@ func TestContractUploadFileCommandUploadsDefaultFileNameAsBot(t *testing.T) {
 	}
 }
 
-func TestContractUploadFileCommandUsesDefaultBotIdentityAndOverridesFileName(t *testing.T) {
+func TestContractUploadFileCommandUsesDefaultAppIdentityAndOverridesFileName(t *testing.T) {
 	t.Parallel()
 
 	dir := t.TempDir()
@@ -86,7 +86,7 @@ func TestContractUploadFileCommandUsesDefaultBotIdentityAndOverridesFileName(t *
 		t.Fatalf("WriteFile() error = %v", err)
 	}
 	store := config.NewStore(dir)
-	if err := store.UpsertProfile(uploadProfile(config.IdentityBot), true); err != nil {
+	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 
@@ -97,7 +97,7 @@ func TestContractUploadFileCommandUsesDefaultBotIdentityAndOverridesFileName(t *
 		Store:  store,
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Header.Get("Authorization") != "Bearer bot-token" {
+				if req.Header.Get("Authorization") != "Bearer app-token" {
 					t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
 				}
 				assertUploadMultipart(t, req, "附件.pdf", "attachment", "pdf bytes")
@@ -228,32 +228,32 @@ func TestContractUploadFileCommandValidationErrors(t *testing.T) {
 	}{
 		{
 			name:    "missing file",
-			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "bot", "--file-type", "text"},
+			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "app", "--file-type", "text"},
 			wantErr: "--file is required",
 		},
 		{
 			name:    "missing file type",
-			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "bot", "--file", uploadPath},
+			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "app", "--file", uploadPath},
 			wantErr: "--file-type is required",
 		},
 		{
 			name:    "missing path",
-			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "bot", "--file", filepath.Join(dir, "missing.pdf"), "--file-type", "text"},
+			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "app", "--file", filepath.Join(dir, "missing.pdf"), "--file-type", "text"},
 			wantErr: "stat upload file",
 		},
 		{
 			name:    "directory path",
-			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "bot", "--file", dir, "--file-type", "text"},
+			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "app", "--file", dir, "--file-type", "text"},
 			wantErr: "must be a regular file",
 		},
 		{
 			name:    "too large",
-			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "bot", "--file", tooLargePath, "--file-type", "text"},
+			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "app", "--file", tooLargePath, "--file-type", "text"},
 			wantErr: "must be <= 200MB",
 		},
 		{
 			name:    "json body flags",
-			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "bot", "--file", uploadPath, "--file-type", "text", "--input-file", uploadPath},
+			args:    []string{"contract", "upload-file", "--profile", "contract", "--as", "app", "--file", uploadPath, "--file-type", "text", "--input-file", uploadPath},
 			wantErr: "does not accept --input-file or --data",
 		},
 	}
@@ -264,7 +264,7 @@ func TestContractUploadFileCommandValidationErrors(t *testing.T) {
 			t.Parallel()
 
 			store := config.NewStore(t.TempDir())
-			if err := store.UpsertProfile(uploadProfile(config.IdentityBot), true); err != nil {
+			if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 				t.Fatalf("UpsertProfile() error = %v", err)
 			}
 			app := cli.New(cli.Options{
@@ -334,9 +334,9 @@ func uploadProfile(defaultIdentity config.IdentityKind) config.Profile {
 					Expiry:      time.Now().Add(time.Hour),
 				},
 			},
-			Bot: config.BotIdentity{
+			App: config.AppIdentity{
 				Token: &config.Token{
-					AccessToken: "bot-token",
+					AccessToken: "app-token",
 					TokenType:   "Bearer",
 					Expiry:      time.Now().Add(time.Hour),
 				},

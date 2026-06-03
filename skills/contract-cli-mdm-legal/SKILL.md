@@ -24,9 +24,9 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 
 - `mdm legal list` 支持 `--name`、`--page-size`、`--page-token`
 - `mdm legal list --as user` 走 `/open-apis/contract/v1/mcp/legal_entities`
-- `mdm legal list --as bot` 走 `/open-apis/mdm/v1/legal_entities/list_all`
+- `mdm legal list --as app` 走 `/open-apis/mdm/v1/legal_entities/list_all`
 - `mdm legal get --as user` 走 `/open-apis/contract/v1/mcp/legal_entities/{legal_entity_id}`
-- `mdm legal get --as bot` 走 `/open-apis/mdm/v1/legal_entities/{legal_entity_id}`，并额外透传 query `legal_entity_id`
+- `mdm legal get --as app` 走 `/open-apis/mdm/v1/legal_entities/{legal_entity_id}`，并额外透传 query `legal_entity_id`
 - 不暴露 `--operator`
 - `--user-id-type` / `--user-id` 仍按共享规则透传，不做本地校验
 - 推荐阅读顺序是：

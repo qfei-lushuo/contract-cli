@@ -11,7 +11,7 @@
 ## 1. `contract upload-file`
 
 ```bash
-contract-cli contract upload-file --profile contract --as bot --file ./合同正文.docx --file-type text
+contract-cli contract upload-file --profile contract --as app --file ./合同正文.docx --file-type text
 ```
 
 请求是 `multipart/form-data`：
@@ -46,7 +46,7 @@ contract-cli contract upload-file --profile contract --as bot --file ./合同正
 ## 2. `contract download-file`
 
 ```bash
-contract-cli contract download-file <file-id> --profile contract --as bot --output-file ./contract.pdf
+contract-cli contract download-file <file-id> --profile contract --as app --output-file ./contract.pdf
 ```
 
 字段：
@@ -60,14 +60,14 @@ contract-cli contract download-file <file-id> --profile contract --as bot --outp
 
 注意：
 
-- 当前仅支持 `--as bot`
+- 当前仅支持 `--as app`
 - 不返回 JSON；成功标准是文件正确写入或 `--raw` 输出二进制
 - Agent/CI/远程环境推荐显式传 `--output-file`
 
 ## 3. `contract submit`
 
 ```bash
-contract-cli contract submit <contract-id> --profile contract --as bot
+contract-cli contract submit <contract-id> --profile contract --as app
 ```
 
 字段：
@@ -85,7 +85,7 @@ contract-cli contract submit <contract-id> --profile contract --as bot
 ## 4. `contract resubmit`
 
 ```bash
-contract-cli contract resubmit <contract-id> --profile contract --as bot
+contract-cli contract resubmit <contract-id> --profile contract --as app
 ```
 
 字段与响应和 `submit` 一致。
@@ -103,7 +103,7 @@ contract-cli contract resubmit <contract-id> --profile contract --as bot
 ## 5. `contract delete`
 
 ```bash
-contract-cli contract delete <contract-id> --profile contract --as bot
+contract-cli contract delete <contract-id> --profile contract --as app
 ```
 
 字段：
@@ -114,7 +114,7 @@ contract-cli contract delete <contract-id> --profile contract --as bot
 
 限制：
 
-- 当前仅支持 `--as bot`
+- 当前仅支持 `--as app`
 - 仅支持删除同一应用下创建的草稿状态合同
 - CLI 不额外要求 `--yes`
 
@@ -127,4 +127,3 @@ contract-cli contract delete <contract-id> --profile contract --as bot
   "data": {}
 }
 ```
-

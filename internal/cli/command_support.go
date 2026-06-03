@@ -237,8 +237,8 @@ func resolveIdentity(profile config.Profile, requested string, path string, poli
 			return config.IdentityUser, nil
 		}
 		identity := defaultIdentity(profile)
-		if policy == openplatform.IdentityPolicyBotOnly && identity != config.IdentityBot {
-			return "", fmt.Errorf("open platform path %q only supports --as bot", path)
+		if policy == openplatform.IdentityPolicyAppOnly && identity != config.IdentityApp {
+			return "", fmt.Errorf("open platform path %q only supports --as app", path)
 		}
 		return identity, nil
 	}
@@ -250,8 +250,8 @@ func resolveIdentity(profile config.Profile, requested string, path string, poli
 	if policy == openplatform.IdentityPolicyUserOnly && identity != config.IdentityUser {
 		return "", fmt.Errorf("open platform path %q only supports --as user", path)
 	}
-	if policy == openplatform.IdentityPolicyBotOnly && identity != config.IdentityBot {
-		return "", fmt.Errorf("open platform path %q only supports --as bot", path)
+	if policy == openplatform.IdentityPolicyAppOnly && identity != config.IdentityApp {
+		return "", fmt.Errorf("open platform path %q only supports --as app", path)
 	}
 	return identity, nil
 }
