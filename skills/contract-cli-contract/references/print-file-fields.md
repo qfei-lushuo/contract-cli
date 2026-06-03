@@ -64,4 +64,3 @@ contract-cli contract print-file --profile contract --as app --data '{"contract_
 ```bash
 contract-cli contract download-file 7107133499601535020 --profile contract --as app --output-file ./contract.pdf
 ```
-

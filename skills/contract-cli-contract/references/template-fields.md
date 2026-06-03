@@ -90,4 +90,3 @@ contract-cli contract template get <template-id> --profile contract --as app --u
 2. `contract template list --category-number <number>` 找模板
 3. `contract template get <template-id>` 读取 `template_number` 和 `template_fields`
 4. 按 [template-instance-fields.md](template-instance-fields.md) 组装 `template_field_list`
-

@@ -53,4 +53,3 @@ contract-cli contract category list --profile contract --as app --lang zh-CN
 - 创建合同需要分类缩写时，优先取二级分类的 `abbreviation`
 - 查询模板列表需要分类编号时，优先取二级分类的 `number`
 - 如果后端返回多级树，先选 `children[]` 中具体业务分类，不要只用一级分类
-

@@ -235,36 +235,6 @@ func CacheFromResult(result Result) Cache {
 	}
 }
 
-func CheckCached(path string, currentVersion string, packageName string) *Notice {
-	cache, ok, err := LoadCache(path)
-	if err != nil || !ok {
-		return nil
-	}
-	if strings.TrimSpace(cache.Channel) != InferChannel(currentVersion) {
-		return nil
-	}
-	return NoticeFromCache(cache, currentVersion, packageName)
-}
-
-func RefreshCache(ctx context.Context, path string, options Options) error {
-	now := optionNow(options.Now)
-	currentVersion := strings.TrimSpace(options.CurrentVersion)
-	channel := defaultString(options.Channel, InferChannel(currentVersion))
-	cache, cacheOK, err := LoadCache(path)
-	if err == nil && cacheOK && CacheFresh(cache, channel, now, CacheTTL) {
-		return nil
-	}
-
-	result, err := Check(ctx, options)
-	if err != nil {
-		return err
-	}
-	if result.Skipped {
-		return nil
-	}
-	return SaveCache(path, CacheFromResult(result))
-}
-
 func CacheFresh(cache Cache, channel string, now time.Time, ttl time.Duration) bool {
 	if strings.TrimSpace(cache.Channel) != strings.TrimSpace(channel) {
 		return false

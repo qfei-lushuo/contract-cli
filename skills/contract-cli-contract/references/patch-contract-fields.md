@@ -70,4 +70,3 @@ contract-cli contract patch <contract-id> --profile contract --as app --input-fi
 - 不要用 `{"title":"demo"}`、`{"contract_name":"demo"}` 这类基础字段 payload 当作已确认能力
 - 不要传本地文件路径；这里的值都应该是平台 `file_id`
 - 不要对非专用测试数据执行 patch 验收
-

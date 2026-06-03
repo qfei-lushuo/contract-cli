@@ -180,4 +180,3 @@ contract-cli contract search --profile contract --as user --data '{"contract_num
 - `data.items[].contract_status_code` / `contract_status_name`：状态
 
 更完整的合同字段看 [contract-response-fields.md](contract-response-fields.md)。
-

@@ -10,7 +10,7 @@
 - 除上述 app 能力外，当前其他结构化业务命令仍只支持 `--as user`
 - `app` 目前已经支持登录、状态查看、登出、默认身份切换
 - 推荐使用 `npx skills add qfeius/contract-cli -y -g` 安装跨 Agent 平台 skills；`contract-cli skills install` 保留为 CLI 内置兜底
-- `update check` 支持手动检查 npm 远端版本；默认输出文本，带 `--json` 时返回飞书式 JSON；CLI 会为符合条件的普通命令同步读取本地更新缓存并在后台刷新缓存，可在 JSON object 输出中注入 `_notice.update`
+- `update check` 支持手动检查 npm 远端版本；默认输出文本，带 `--json` 时返回飞书式 JSON；CLI 会为符合条件的普通命令按 24 小时缓存检查远端版本，并在 JSON object 输出中注入 `_notice.update`
 - 当前全部已支持命令都可以通过 `--help` 查看本地帮助，例如 `contract-cli --help`、`contract-cli contract search --help`、`contract-cli help contract upload-file`
 - `app` 业务接口后续继续新增时，优先在本文件补充命令矩阵
 
@@ -191,9 +191,9 @@ contract-cli update check --channel latest --json
 自动提示：
 
 - 普通命令会先同步读取当前配置目录的 `update-check.json`；缓存里有可升级版本时，仅在 JSON object 输出中注入 `_notice.update`
-- 自动远端检查在后台执行，并按 24 小时 TTL 刷新缓存；命中 fresh cache 时不访问 npm registry，因此不会立即发现刚发布的新包
-- 远端刷新成功结果会写入当前配置目录的 `update-check.json`，下一次命令可从缓存提示
-- 网络失败、registry 失败或当前是 dev 构建时不会阻断原命令；后台刷新失败不会写入失败缓存
+- 命中 fresh cache 时不访问 npm registry，因此不会立即发现刚发布的新包
+- cache 缺失、channel 不匹配或过期时，当前命令会在短超时内同步刷新远端版本；成功结果会写入当前配置目录的 `update-check.json`
+- 网络失败、registry 失败或当前是 dev 构建时不会阻断原命令；刷新失败不会写入失败缓存
 - `--raw`、yaml、table、纯文本命令不注入 `_notice.update`
 - CI 环境会跳过自动远端检查
 - 设置 `CONTRACT_CLI_NO_UPDATE_CHECK=1` 可以关闭自动检查

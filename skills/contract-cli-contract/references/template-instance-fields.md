@@ -121,4 +121,3 @@ contract-cli contract template instantiate --profile contract --as app --input-f
 | `template_number` | `string` | 模板编号。 |
 | `template_id` | `string` | 模板 id。 |
 | `template_instance_id` | `string` | 模板实例 id，可用于 `contract create` 的 `template_instance_id`。 |
-

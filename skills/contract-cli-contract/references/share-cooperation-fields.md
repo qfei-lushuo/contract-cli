@@ -101,4 +101,3 @@ contract-cli contract cooperation record get <contract-id> --profile contract --
 - `32`：文件下载
 - `8`：完成协商
 - `9`：取消协商
-

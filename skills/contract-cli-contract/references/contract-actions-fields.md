@@ -127,4 +127,3 @@ contract-cli contract delete <contract-id> --profile contract --as app
   "data": {}
 }
 ```
-

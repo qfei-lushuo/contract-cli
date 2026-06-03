@@ -212,11 +212,11 @@ func TestUpdateCheckJSONReportsAvailableBetaVersion(t *testing.T) {
 	}
 }
 
-func TestAutomaticUpdateNoticeUsesCachedNoticeAndRefreshesCacheAsync(t *testing.T) {
+func TestAutomaticUpdateNoticeRefreshesStaleCacheSynchronously(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	apiRequests := 0
-	registryRequests := make(chan struct{}, 1)
+	registryRequests := 0
 	store := config.NewStore(t.TempDir())
 	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
@@ -244,7 +244,7 @@ func TestAutomaticUpdateNoticeUsesCachedNoticeAndRefreshesCacheAsync(t *testing.
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if req.URL.Host == "registry.test" {
-					registryRequests <- struct{}{}
+					registryRequests++
 					return jsonResponse(`{"dist-tags":{"beta":"0.1.0-beta.3"}}`), nil
 				}
 				apiRequests++
@@ -262,23 +262,31 @@ func TestAutomaticUpdateNoticeUsesCachedNoticeAndRefreshesCacheAsync(t *testing.
 	if strings.Contains(stderr.String(), "A new contract-cli version is available") {
 		t.Fatalf("stderr should not contain legacy update notice: %s", stderr.String())
 	}
-	first := decodeJSONObject(t, stdout.Bytes())
-	firstNotice := first["_notice"].(map[string]any)["update"].(map[string]any)
-	if firstNotice["current"] != "0.1.0-beta.1" || firstNotice["latest"] != "0.1.0-beta.2" {
-		t.Fatalf("unexpected first notice: %+v", firstNotice)
+	output := decodeJSONObject(t, stdout.Bytes())
+	updateNotice := output["_notice"].(map[string]any)["update"].(map[string]any)
+	if updateNotice["current"] != "0.1.0-beta.1" || updateNotice["latest"] != "0.1.0-beta.3" {
+		t.Fatalf("unexpected update notice: %+v", updateNotice)
 	}
 	if apiRequests != 1 {
 		t.Fatalf("api requests = %d, want 1", apiRequests)
 	}
-	waitForSignal(t, registryRequests, "async update refresh")
-	waitForUpdateCacheLatest(t, cachePath, "0.1.0-beta.3")
+	if registryRequests != 1 {
+		t.Fatalf("registry requests = %d, want 1", registryRequests)
+	}
+	cache, ok, err := updatecheck.LoadCache(cachePath)
+	if err != nil {
+		t.Fatalf("LoadCache() error = %v", err)
+	}
+	if !ok || cache.LatestVersion != "0.1.0-beta.3" || !cache.UpdateAvailable {
+		t.Fatalf("cache after synchronous refresh = %+v, ok=%v", cache, ok)
+	}
 }
 
-func TestAutomaticUpdateNoticeUsesCachedNoticeWhenAsyncRefreshFails(t *testing.T) {
+func TestAutomaticUpdateNoticeDoesNotUseStaleCacheWhenRefreshFails(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	apiRequests := 0
-	registryRequests := make(chan struct{}, 1)
+	registryRequests := 0
 	store := config.NewStore(t.TempDir())
 	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
@@ -306,7 +314,7 @@ func TestAutomaticUpdateNoticeUsesCachedNoticeWhenAsyncRefreshFails(t *testing.T
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if req.URL.Host == "registry.test" {
-					registryRequests <- struct{}{}
+					registryRequests++
 					return nil, errors.New("registry unavailable")
 				}
 				apiRequests++
@@ -322,21 +330,26 @@ func TestAutomaticUpdateNoticeUsesCachedNoticeWhenAsyncRefreshFails(t *testing.T
 		t.Fatalf("api requests = %d, want 1", apiRequests)
 	}
 	output := decodeJSONObject(t, stdout.Bytes())
-	updateNotice, ok := output["_notice"].(map[string]any)["update"].(map[string]any)
-	if !ok {
-		t.Fatalf("cached update notice missing when async refresh fails: %+v", output)
+	if _, ok := output["_notice"]; ok {
+		t.Fatalf("stale cache should not be injected when refresh fails: %+v", output)
 	}
-	if updateNotice["latest"] != "0.1.0-beta.2" {
-		t.Fatalf("unexpected cached update notice: %+v", updateNotice)
+	if registryRequests != 1 {
+		t.Fatalf("registry requests = %d, want 1", registryRequests)
 	}
-	waitForSignal(t, registryRequests, "failed async update refresh")
+	cache, ok, err := updatecheck.LoadCache(cachePath)
+	if err != nil {
+		t.Fatalf("LoadCache() error = %v", err)
+	}
+	if !ok || cache.LatestVersion != "0.1.0-beta.2" {
+		t.Fatalf("failed refresh should preserve existing cache, got %+v ok=%v", cache, ok)
+	}
 }
 
-func TestAutomaticUpdateNoticeKeepsFreshNoUpdateCacheUntilAsyncTTLExpires(t *testing.T) {
+func TestAutomaticUpdateNoticeKeepsFreshNoUpdateCache(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	apiRequests := 0
-	registryRequests := make(chan struct{}, 1)
+	registryRequests := 0
 	store := config.NewStore(t.TempDir())
 	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
@@ -364,7 +377,7 @@ func TestAutomaticUpdateNoticeKeepsFreshNoUpdateCacheUntilAsyncTTLExpires(t *tes
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if req.URL.Host == "registry.test" {
-					registryRequests <- struct{}{}
+					registryRequests++
 					return jsonResponse(`{"dist-tags":{"beta":"0.3.3-beta.6"}}`), nil
 				}
 				apiRequests++
@@ -381,9 +394,65 @@ func TestAutomaticUpdateNoticeKeepsFreshNoUpdateCacheUntilAsyncTTLExpires(t *tes
 	}
 	output := decodeJSONObject(t, stdout.Bytes())
 	if _, ok := output["_notice"]; ok {
-		t.Fatalf("fresh no-update cache should not inject notice before async TTL expires: %+v", output)
+		t.Fatalf("fresh no-update cache should not inject notice: %+v", output)
 	}
-	assertNoSignal(t, registryRequests, "fresh async update refresh")
+	if registryRequests != 0 {
+		t.Fatalf("fresh cache should not request registry, got %d", registryRequests)
+	}
+}
+
+func TestAutomaticUpdateNoticeWritesMissingCacheSynchronously(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	apiRequests := 0
+	registryRequests := 0
+	store := config.NewStore(t.TempDir())
+	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
+		t.Fatalf("UpsertProfile() error = %v", err)
+	}
+	cachePath := filepath.Join(filepath.Dir(store.Path()), "update-check.json")
+
+	app := cli.New(cli.Options{
+		Stdout:               stdout,
+		Stderr:               stderr,
+		Store:                store,
+		SkillsFS:             testSkillsFS(),
+		UpdateRegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
+		UpdateCurrentVersion: "0.1.0-beta.1",
+		Now:                  fixedCLINow,
+		HTTPClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.URL.Host == "registry.test" {
+					registryRequests++
+					return jsonResponse(`{"dist-tags":{"beta":"0.1.0-beta.2"}}`), nil
+				}
+				apiRequests++
+				return jsonResponse(`{"code":0,"data":{"contract":{"contract_id":"contract-1"}}}`), nil
+			}),
+		},
+	})
+
+	if err := app.Run(context.Background(), []string{"contract", "get", "contract-1", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatalf("contract get error = %v", err)
+	}
+	if apiRequests != 1 {
+		t.Fatalf("api requests = %d, want 1", apiRequests)
+	}
+	if registryRequests != 1 {
+		t.Fatalf("registry requests = %d, want 1", registryRequests)
+	}
+	output := decodeJSONObject(t, stdout.Bytes())
+	updateNotice := output["_notice"].(map[string]any)["update"].(map[string]any)
+	if updateNotice["latest"] != "0.1.0-beta.2" {
+		t.Fatalf("unexpected update notice: %+v", updateNotice)
+	}
+	cache, ok, err := updatecheck.LoadCache(cachePath)
+	if err != nil {
+		t.Fatalf("LoadCache() error = %v", err)
+	}
+	if !ok || cache.LatestVersion != "0.1.0-beta.2" || !cache.UpdateAvailable {
+		t.Fatalf("cache after missing-cache refresh = %+v, ok=%v", cache, ok)
+	}
 }
 
 func TestAutomaticUpdateNoticeCanBeDisabledByEnv(t *testing.T) {
@@ -431,7 +500,7 @@ func TestAutomaticUpdateNoticeCanBeDisabledByEnv(t *testing.T) {
 func TestAutomaticUpdateNoticeRetriesFailureEveryRun(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	registryRequests := make(chan struct{}, 2)
+	registryRequests := 0
 
 	app := cli.New(cli.Options{
 		Stdout:               stdout,
@@ -442,7 +511,7 @@ func TestAutomaticUpdateNoticeRetriesFailureEveryRun(t *testing.T) {
 		UpdateCurrentVersion: "0.1.0-beta.1",
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-				registryRequests <- struct{}{}
+				registryRequests++
 				return nil, errors.New("registry unavailable")
 			}),
 		},
@@ -454,7 +523,9 @@ func TestAutomaticUpdateNoticeRetriesFailureEveryRun(t *testing.T) {
 	if err := app.Run(context.Background(), []string{"skills", "list"}); err != nil {
 		t.Fatalf("second skills list error = %v", err)
 	}
-	waitForSignals(t, registryRequests, 2, "failed async update refresh")
+	if registryRequests != 2 {
+		t.Fatalf("failed update check requests = %d, want 2", registryRequests)
+	}
 	if strings.Contains(stderr.String(), "A new contract-cli version is available") {
 		t.Fatalf("failed update check should not print notice: %s", stderr.String())
 	}
@@ -1597,45 +1668,6 @@ func decodeJSONObject(t *testing.T, data []byte) map[string]any {
 		t.Fatalf("Unmarshal(%s) error = %v", string(data), err)
 	}
 	return value
-}
-
-func waitForSignal(t *testing.T, signals <-chan struct{}, label string) {
-	t.Helper()
-	select {
-	case <-signals:
-	case <-time.After(2 * time.Second):
-		t.Fatalf("timed out waiting for %s", label)
-	}
-}
-
-func waitForSignals(t *testing.T, signals <-chan struct{}, count int, label string) {
-	t.Helper()
-	for i := 0; i < count; i++ {
-		waitForSignal(t, signals, label)
-	}
-}
-
-func assertNoSignal(t *testing.T, signals <-chan struct{}, label string) {
-	t.Helper()
-	select {
-	case <-signals:
-		t.Fatalf("unexpected %s", label)
-	case <-time.After(50 * time.Millisecond):
-	}
-}
-
-func waitForUpdateCacheLatest(t *testing.T, cachePath string, latestVersion string) {
-	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
-	for time.Now().Before(deadline) {
-		cache, ok, err := updatecheck.LoadCache(cachePath)
-		if err == nil && ok && cache.LatestVersion == latestVersion {
-			return
-		}
-		time.Sleep(10 * time.Millisecond)
-	}
-	cache, ok, err := updatecheck.LoadCache(cachePath)
-	t.Fatalf("timed out waiting for update cache latest=%s, got cache=%+v ok=%v err=%v", latestVersion, cache, ok, err)
 }
 
 func jsonResponse(payload string) *http.Response {
