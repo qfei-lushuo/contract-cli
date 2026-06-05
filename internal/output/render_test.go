@@ -41,6 +41,30 @@ func TestRendererRenderJSONDoesNotEscapeHTML(t *testing.T) {
 	}
 }
 
+func TestRendererRenderJSONPreservesLargeIntegerPrecision(t *testing.T) {
+	t.Parallel()
+
+	var stdout bytes.Buffer
+	renderer := output.NewRenderer(&stdout)
+
+	if err := renderer.Render(output.FormatJSON, json.RawMessage(`{"code":0,"data":{"contract_id":1140439949925941626,"tenant_id":1118543858007802222}}`)); err != nil {
+		t.Fatalf("Render() error = %v", err)
+	}
+
+	got := stdout.String()
+	for _, want := range []string{
+		`"contract_id": 1140439949925941626`,
+		`"tenant_id": 1118543858007802222`,
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("json output should preserve %q, got: %s", want, got)
+		}
+	}
+	if strings.Contains(got, "1140439949925941600") {
+		t.Fatalf("json output lost integer precision: %s", got)
+	}
+}
+
 func TestRendererRenderRaw(t *testing.T) {
 	t.Parallel()
 

@@ -1,5 +1,20 @@
 # AI 变更记录
 
+- 2026-06-05
+  变更摘要：修复生产验证发现的输出精度、授权状态和开放平台命令契约问题。
+  涉及文件/模块：`internal/output`、`internal/cli`、`README.md`、`docs/*`、`skills/contract-cli-*`
+  关键逻辑/决策：JSON 渲染改用 `UseNumber` 保留大整数精度；user token 过期时 `auth status` 显示 `expired`；固定汇率 get 改传 query `date`，event 分页限制 `10-50`，MDM 写接口强制 `--user-id` 并校验 create/update 生成编码规则；同步 help、skill 和验收文档。
+
+- 2026-06-05
+  变更摘要：修正 release 合并前发现的 skill 口径不一致问题。
+  涉及文件/模块：`skills/contract-cli-contract`、`skills/contract-cli-shared`、`skills/contract-cli-api-call`、`internal/cli/openapi_gap_skill_test.go`
+  关键逻辑/决策：补齐合同 commands reference 的新增 app-only 命令清单，拆分协商 search/file/download 的快速路由，扩展 shared 合同入口，并将禁用 api-call agent 元数据改为不可隐式触发；新增契约测试防止回退。
+
+- 2026-06-05
+  变更摘要：收敛 P3 新增命令的 README、命令文档、Agent skills 和 help 测试口径。
+  涉及文件/模块：`README.md`、`docs/cli-command-reference.md`、`skills/contract-cli-*`、`internal/cli/*_test.go`、`docs/ai-changes.md`
+  关键逻辑/决策：补充回归测试覆盖新增 skill 清单、app-only 摘要、shared/contract/mdm-fields skill 旧口径和新增 help topic；修正审批/授权、MDM 写入、event/rule/payment 等已实现命令的引导，避免 Agent 误判未覆盖。
+
 - 2026-06-03
   变更摘要：将新增开放平台结构化命令的应用身份口径从 bot 收敛为 app。
   涉及文件/模块：`internal/cli`、`internal/openplatform/payment`、`internal/openplatform/contract`、`docs/cli-command-reference.md`、`docs/cli-test-plan.md`、`skills/contract-cli-*`

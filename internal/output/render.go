@@ -213,7 +213,9 @@ func decodeJSONBytes(data []byte) (any, error) {
 		return map[string]any{}, nil
 	}
 	var value any
-	if err := json.Unmarshal(data, &value); err != nil {
+	decoder := json.NewDecoder(bytes.NewReader(data))
+	decoder.UseNumber()
+	if err := decoder.Decode(&value); err != nil {
 		return string(data), nil
 	}
 	return value, nil
@@ -239,7 +241,7 @@ func isScalar(value any) bool {
 	case nil, string, bool,
 		int, int8, int16, int32, int64,
 		uint, uint8, uint16, uint32, uint64,
-		float32, float64:
+		float32, float64, json.Number:
 		return true
 	default:
 		return false
@@ -260,6 +262,8 @@ func yamlScalarString(value any) string {
 			return "true"
 		}
 		return "false"
+	case json.Number:
+		return typed.String()
 	default:
 		return fmt.Sprintf("%v", typed)
 	}

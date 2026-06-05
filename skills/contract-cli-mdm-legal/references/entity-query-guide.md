@@ -19,8 +19,8 @@
 contract-cli mdm legal list --profile contract --name "上海主体"
 contract-cli mdm legal get 7023646046559404327 --profile contract
 contract-cli mdm legal get --profile contract --as app --code L0001
-contract-cli mdm legal create --profile contract --as app --input-file legal-create.json
-contract-cli mdm legal update 7003410079584092448 --profile contract --as app --input-file legal-update.json
+contract-cli mdm legal create --profile contract --as app --user-id <operator-user-id> --input-file legal-create.json
+contract-cli mdm legal update 7003410079584092448 --profile contract --as app --user-id <operator-user-id> --input-file legal-update.json
 ```
 
 硬约束：
@@ -32,8 +32,10 @@ contract-cli mdm legal update 7003410079584092448 --profile contract --as app --
 - `mdm legal get` 也同时支持 `user` 和 `app`
 - `mdm legal get --code` 当前仅支持 `app`
 - `mdm legal create/update` 当前仅支持 `app`
-- `--user-id-type` / `--user-id` 继续按共享约定透传，不做本地校验
-- 创建/更新请求体直接透传，字段是否必填以 `mdm fields list --biz-line legal_entity` 和后端配置为准
+- `mdm legal create/update` 必须传 `--user-id`，用于提供当前操作人上下文
+- `create` 请求体不要包含后端生成的 `legalEntity` / `legal_entity` 编码；`update` 请求体必须包含后端返回的 `id` 和 `legalEntity` 编码
+- `update` 编码字段必须使用 camelCase `legalEntity`，不要写成 `legal_entity`
+- 创建/更新请求体除上述规则外仍直接透传，其他字段是否必填以 `mdm fields list --biz-line legal_entity` 和后端配置为准
 
 ## 2. 场景配方
 
@@ -143,14 +145,25 @@ contract-cli mdm legal get --profile contract --as app --code L0001
 最小命令：
 
 ```bash
-contract-cli mdm legal create --profile contract --as app --input-file legal-create.json
-contract-cli mdm legal update 7003410079584092448 --profile contract --as app --input-file legal-update.json
+contract-cli mdm legal create --profile contract --as app --user-id <operator-user-id> --input-file legal-create.json
+contract-cli mdm legal update 7003410079584092448 --profile contract --as app --user-id <operator-user-id> --input-file legal-update.json
 ```
 
-自动化样例里只找到负向样例，可参考最小字段形态：
+`legal-create.json` 示例不要带后端生成的 `legalEntity` / `legal_entity` 编码：
 
 ```json
 {
+  "legal_entity_text": "法大大我方11",
+  "status": 1
+}
+```
+
+`legal-update.json` 示例必须带后端返回的 `id` 和 `legalEntity` 编码：
+
+```json
+{
+  "id": "7003410079584092448",
+  "legalEntity": "L0001",
   "legal_entity_text": "法大大我方11",
   "status": 1
 }
@@ -160,6 +173,7 @@ contract-cli mdm legal update 7003410079584092448 --profile contract --as app --
 
 - `create` 走 `POST /open-apis/mdm/v1/legal_entities`
 - `update` 走 `PUT /open-apis/mdm/v1/legal_entities/{legal_entity_id}`
+- 写接口必须传 `--user-id`
 - 字段配置是动态的，不要只凭负向样例判断必填；先查 `mdm fields list --biz-line legal_entity`
 
 ## 3. 什么时候不要走这里

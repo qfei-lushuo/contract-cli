@@ -21,7 +21,7 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 
 - 已知交易方 ID：直接用 `mdm vendor get`
 - 只知道名称或想拿候选列表：用 `mdm vendor list`
-- 想创建或更新交易方：用 `mdm vendor create|update --as app --input-file ...`
+- 想创建或更新交易方：用 `mdm vendor create|update --as app --user-id <operator-user-id> --input-file ...`
 - 想按证件号精确查：用 `mdm vendor query-by-cert --as app`
 - 创建或更新前如果不确定字段：先切到 [../contract-cli-mdm-fields/SKILL.md](../contract-cli-mdm-fields/SKILL.md)
 
@@ -38,8 +38,10 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - `mdm vendor list-all` 走 `GET /open-apis/mdm/v1/vendors/list_all`
 - `mdm vendor query-by-cert` 走 `GET /open-apis/mdm/v1/vendors/query_vendors`
 - 不暴露 `--operator`
-- `--user-id-type` / `--user-id` 仍按共享规则透传，不做本地校验
-- 创建/更新请求体直接透传 JSON，字段是否必填受后台动态字段配置影响
+- `mdm vendor create/update` 必须传 `--user-id`；`--user-id-type` 不传时默认 `user_id`
+- `mdm vendor create` 请求体不要包含后端生成的 `vendor` 编码
+- `mdm vendor update` 请求体必须包含后端返回的 `id` 和 `vendor` 编码
+- 创建/更新请求体除上述规则外仍直接透传 JSON，其他字段是否必填受后台动态字段配置影响
 - 推荐阅读顺序是：
   - 先读 [references/vendor-query-guide.md](references/vendor-query-guide.md) 选查询场景
   - 再读 [references/vendor-query-parameters.md](references/vendor-query-parameters.md) 查请求参数映射
@@ -63,4 +65,5 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 ## 不要这样做
 
 - 不要把 `mdm vendor list/get` 当成字段配置查询
+- 不要在 create 请求体里传后端生成的 `vendor` 编码
 - 不要在 create/update 请求体里记录 token、密钥或个人敏感信息之外的无关内容

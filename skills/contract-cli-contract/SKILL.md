@@ -58,12 +58,12 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - 想上传合同正文或附件文件：用 `contract upload-file --as user|app`
 - 想提交、重新提交、更新或删除草稿合同：用 `contract submit|resubmit|patch|delete --as app`
 - 想下载或生成合同相关文件：用 `contract download-file|print-file --as app`
-- 想查分享、批量分享、协商列表/链接/记录/文件：用 `contract share ...` 或 `contract cooperation ... get --as app`
+- 想查分享、批量分享、协商链接/记录：用 `contract share ...`、`contract share batch-create`、`contract cooperation link get` 或 `contract cooperation record get --as app`
+- 想查协商列表或协商文件：用 `contract cooperation search`、`contract cooperation file get` 或 `contract cooperation file download --as app`
+- 想授予合同权限：用 `contract authorization grant --as app`
 - 想发起流程审批或查询审批实例：用 `contract approval start|get --as app`
 - 想查创建合同相关枚举：用 `contract enum list`
-- 若需求是审批、授权、付款：当前 skill 不覆盖，别伪造命令
 - 若需求是付款：读 [../contract-cli-payment/SKILL.md](../contract-cli-payment/SKILL.md)
-- 若需求是授权：当前 skill 不覆盖，别伪造命令
 
 ## 字段文档导航
 

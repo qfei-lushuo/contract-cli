@@ -1322,11 +1322,13 @@ func addMDMHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli mdm vendor create --input-file <path>|--data <json> [flags]"},
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
 		Examples: []string{
-			"contract-cli mdm vendor create --profile contract --as app --input-file vendor-create.json",
+			"contract-cli mdm vendor create --profile contract --as app --user-id <operator-user-id> --input-file vendor-create.json",
 		},
 		Notes: []string{
 			"app-only: 当前仅支持 --as app。",
+			"写接口必传 --user-id，用于提供当前操作人上下文。",
 			"走 POST /open-apis/mdm/v1/vendors。",
+			"创建请求体不要传后端生成的 vendor 编码。",
 			"交易方字段是否必填受后台动态配置影响，可先查 mdm fields list --biz-line vendor。",
 		},
 	}
@@ -1336,12 +1338,14 @@ func addMDMHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli mdm vendor update <vendor-id> --input-file <path>|--data <json> [flags]"},
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
 		Examples: []string{
-			"contract-cli mdm vendor update <vendor-id> --profile contract --as app --input-file vendor-update.json",
+			"contract-cli mdm vendor update <vendor-id> --profile contract --as app --user-id <operator-user-id> --input-file vendor-update.json",
 		},
 		Notes: []string{
 			"app-only: 当前仅支持 --as app。",
+			"写接口必传 --user-id，用于提供当前操作人上下文。",
 			"走 PUT /open-apis/mdm/v1/vendors/{vendor_id}。",
-			"字段是否必填受后台动态配置影响。",
+			"更新请求体必须包含后端返回的 id 和 vendor 编码。",
+			"其他字段是否必填受后台动态配置影响。",
 		},
 	}
 	registry["mdm vendor list"] = helpTopic{
@@ -1420,11 +1424,13 @@ func addMDMHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli mdm legal create --input-file <path>|--data <json> [flags]"},
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
 		Examples: []string{
-			"contract-cli mdm legal create --profile contract --as app --input-file legal-create.json",
+			"contract-cli mdm legal create --profile contract --as app --user-id <operator-user-id> --input-file legal-create.json",
 		},
 		Notes: []string{
 			"app-only: 当前仅支持 --as app。",
+			"写接口必传 --user-id，用于提供当前操作人上下文。",
 			"走 POST /open-apis/mdm/v1/legal_entities。",
+			"创建请求体不要传后端生成的 legalEntity / legal_entity 编码。",
 			"法人字段是否必填受后台动态配置影响，可先查 mdm fields list --biz-line legal_entity。",
 		},
 	}
@@ -1434,12 +1440,14 @@ func addMDMHelp(registry map[string]helpTopic) {
 		Usage:   []string{"contract-cli mdm legal update <legal-entity-id> --input-file <path>|--data <json> [flags]"},
 		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
 		Examples: []string{
-			"contract-cli mdm legal update <legal-entity-id> --profile contract --as app --input-file legal-update.json",
+			"contract-cli mdm legal update <legal-entity-id> --profile contract --as app --user-id <operator-user-id> --input-file legal-update.json",
 		},
 		Notes: []string{
 			"app-only: 当前仅支持 --as app。",
+			"写接口必传 --user-id，用于提供当前操作人上下文。",
 			"走 PUT /open-apis/mdm/v1/legal_entities/{legal_entity_id}。",
-			"字段是否必填受后台动态配置影响。",
+			"更新请求体必须包含后端返回的 id 和 legalEntity 编码；字段名使用 camelCase legalEntity，不要用 legal_entity。",
+			"其他字段是否必填受后台动态配置影响。",
 		},
 	}
 	registry["mdm legal list"] = helpTopic{
@@ -1529,6 +1537,7 @@ func addMDMHelp(registry map[string]helpTopic) {
 		Notes: []string{
 			"app-only: 当前仅支持 --as app。",
 			"走 GET /open-apis/mdm/v1/fixed_exchange_rate。",
+			"CLI flag --effective-date 会映射到底层 query 参数 date。",
 			"不接受 --input-file / --data。",
 		},
 	}
@@ -1591,7 +1600,7 @@ func addEventHelp(registry map[string]helpTopic) {
 		Name:    "event outbound-ip list",
 		Summary: "app 身份分页查询开放平台事件出口 IP。",
 		Usage:   []string{"contract-cli event outbound-ip list [flags]"},
-		Flags:   concatHelpFlags(openPlatformCommonFlags(), pageFlags()),
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), eventOutboundIPPageFlags()),
 		Examples: []string{
 			"contract-cli event outbound-ip list --profile contract --as app --page-size 10",
 		},
@@ -1724,6 +1733,13 @@ func jsonBodyFlags() []helpFlag {
 func pageFlags() []helpFlag {
 	return []helpFlag{
 		{"--page-size <n>", "分页大小"},
+		{"--page-token <token>", "分页 token"},
+	}
+}
+
+func eventOutboundIPPageFlags() []helpFlag {
+	return []helpFlag{
+		{"--page-size <n>", "分页大小，10-50"},
 		{"--page-token <token>", "分页 token"},
 	}
 }

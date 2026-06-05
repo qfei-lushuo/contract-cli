@@ -21,7 +21,7 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - 已知法人实体 ID：直接用 `mdm legal get`
 - 已知法人实体编码：用 `mdm legal get --as app --code <code>`
 - 只知道名称、需要候选列表：用 `mdm legal list`
-- 想创建或更新法人实体：用 `mdm legal create|update --as app --input-file ...`
+- 想创建或更新法人实体：用 `mdm legal create|update --as app --user-id <operator-user-id> --input-file ...`
 - 用户是想查字段配置：切到 [../contract-cli-mdm-fields/SKILL.md](../contract-cli-mdm-fields/SKILL.md)
 
 ## 关键规则
@@ -37,8 +37,10 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - `mdm legal update` 走 `PUT /open-apis/mdm/v1/legal_entities/{legal_entity_id}`
 - `mdm legal get --code` 走 `GET /open-apis/mdm/v1/legal_entities`，`--code` 映射到 query `legalEntity`
 - 不暴露 `--operator`
-- `--user-id-type` / `--user-id` 仍按共享规则透传，不做本地校验
-- 创建/更新请求体直接透传 JSON，字段是否必填受后台动态字段配置影响
+- `mdm legal create/update` 必须传 `--user-id`；`--user-id-type` 不传时默认 `user_id`
+- `mdm legal create` 请求体不要包含后端生成的 `legalEntity` / `legal_entity` 编码
+- `mdm legal update` 请求体必须包含后端返回的 `id` 和 `legalEntity` 编码；字段名使用 camelCase `legalEntity`，不要用 `legal_entity`
+- 创建/更新请求体除上述规则外仍直接透传 JSON，其他字段是否必填受后台动态字段配置影响
 - 推荐阅读顺序是：
   - 先读 [references/entity-query-guide.md](references/entity-query-guide.md) 选查询场景
   - 再读 [references/entity-query-parameters.md](references/entity-query-parameters.md) 查请求参数映射
@@ -63,4 +65,6 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 ## 不要这样做
 
 - 不要把 `mdm legal list/get` 当成字段配置查询
+- 不要在 create 请求体里传后端生成的 `legalEntity` / `legal_entity` 编码
+- 不要在 update 请求体里把编码字段写成 `legal_entity`
 - 不要在 create/update 请求体里写入 token、密钥或无关个人敏感信息

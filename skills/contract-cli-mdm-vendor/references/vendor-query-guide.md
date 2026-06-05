@@ -18,8 +18,8 @@
 ```bash
 contract-cli mdm vendor list --profile contract --name "供应商A"
 contract-cli mdm vendor get 1063197165850985296 --profile contract
-contract-cli mdm vendor create --profile contract --as app --input-file vendor-create.json
-contract-cli mdm vendor update 7003410079584092448 --profile contract --as app --input-file vendor-update.json
+contract-cli mdm vendor create --profile contract --as app --user-id <operator-user-id> --input-file vendor-create.json
+contract-cli mdm vendor update 7003410079584092448 --profile contract --as app --user-id <operator-user-id> --input-file vendor-update.json
 contract-cli mdm vendor list-all --profile contract --as app --page-size 20
 contract-cli mdm vendor query-by-cert --profile contract --as app --certification-id 91110105 --ad-country CN
 ```
@@ -32,8 +32,9 @@ contract-cli mdm vendor query-by-cert --profile contract --as app --certificatio
 - `mdm vendor list` 同时支持 `user` 和 `app`
 - `mdm vendor get` 也同时支持 `user` 和 `app`
 - `mdm vendor create/update/list-all/query-by-cert` 当前仅支持 `app`
-- `--user-id-type` / `--user-id` 继续按共享约定透传，不做本地校验
-- 创建/更新请求体直接透传，字段是否必填以 `mdm fields list --biz-line vendor` 和后端配置为准
+- `mdm vendor create/update` 必须传 `--user-id`，用于提供当前操作人上下文
+- `create` 请求体不要包含后端生成的 `vendor` 编码；`update` 请求体必须包含后端返回的 `id` 和 `vendor` 编码
+- 创建/更新请求体除上述规则外仍直接透传，其他字段是否必填以 `mdm fields list --biz-line vendor` 和后端配置为准
 
 ## 2. 场景配方
 
@@ -122,15 +123,14 @@ contract-cli mdm vendor get 7003410079584092448 --profile contract --as app --us
 最小命令：
 
 ```bash
-contract-cli mdm vendor create --profile contract --as app --input-file vendor-create.json
-contract-cli mdm vendor update 7003410079584092448 --profile contract --as app --input-file vendor-update.json
+contract-cli mdm vendor create --profile contract --as app --user-id <operator-user-id> --input-file vendor-create.json
+contract-cli mdm vendor update 7003410079584092448 --profile contract --as app --user-id <operator-user-id> --input-file vendor-update.json
 ```
 
-自动化样例里出现过的基础字段：
+`vendor-create.json` 示例不要带后端生成的 `vendor` 编码：
 
 ```json
 {
-  "vendor": "V00000001",
   "vendor_text": "供应商A",
   "certification_type": "统一社会信用代码",
   "status": 1,
@@ -139,10 +139,23 @@ contract-cli mdm vendor update 7003410079584092448 --profile contract --as app -
 }
 ```
 
+`vendor-update.json` 示例必须带后端返回的 `id` 和 `vendor` 编码：
+
+```json
+{
+  "id": "7003410079584092448",
+  "vendor": "V00000001",
+  "vendor_text": "供应商A",
+  "certification_type": "统一社会信用代码",
+  "status": 1
+}
+```
+
 补充说明：
 
 - `create` 走 `POST /open-apis/mdm/v1/vendors`
 - `update` 走 `PUT /open-apis/mdm/v1/vendors/{vendor_id}`
+- 写接口必须传 `--user-id`
 - 字段配置是动态的，不要只凭样例判断必填；先查 `mdm fields list --biz-line vendor`
 
 ### 2.5 全量分页或按证件查询

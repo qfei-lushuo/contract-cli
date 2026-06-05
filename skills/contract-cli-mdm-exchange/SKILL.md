@@ -23,6 +23,7 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - 两个命令当前都仅支持 `--as app`
 - `get` 走 `GET /open-apis/mdm/v1/fixed_exchange_rate`
 - `update` 走 `PUT /open-apis/mdm/v1/fixed_exchange_rate`
+- `get` 的 CLI flag `--effective-date` 会映射到底层 query `date`；`update` 请求体仍使用字段 `effective_date`
 - `get` 不接受 `--input-file` / `--data`
 - `update` 必须通过 `--input-file` 或 `--data` 传 JSON
 

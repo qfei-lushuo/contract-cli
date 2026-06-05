@@ -1451,6 +1451,48 @@ func TestAuthStatusDefaultsToUserEvenWhenDefaultIdentityIsApp(t *testing.T) {
 	}
 }
 
+func TestAuthStatusUserMarksExpiredToken(t *testing.T) {
+	t.Parallel()
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	dir := t.TempDir()
+	store := config.NewStore(dir)
+	profile := config.Profile{
+		Name:        "contract",
+		Environment: "dev",
+		Identities: config.Identities{
+			User: config.UserIdentity{
+				ClientID: "client-id",
+				Token: &config.Token{
+					AccessToken: "expired-user-token",
+					TokenType:   "Bearer",
+					Expiry:      time.Now().Add(-1 * time.Hour),
+				},
+			},
+		},
+	}
+	if err := store.UpsertProfile(profile, true); err != nil {
+		t.Fatalf("UpsertProfile() error = %v", err)
+	}
+	secrets := config.NewSecretsStore(dir)
+	app := cli.New(cli.Options{
+		Stdout:    stdout,
+		Stderr:    stderr,
+		Store:     store,
+		Secrets:   secrets,
+		LookupEnv: func(string) (string, bool) { return "", false },
+	})
+
+	if err := app.Run(context.Background(), []string{"auth", "status", "--profile", "contract", "--as", "user"}); err != nil {
+		t.Fatalf("auth status --as user error = %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "Authorization: expired") || !strings.Contains(output, "Expires At: ") {
+		t.Fatalf("unexpected expired user status output: %s", output)
+	}
+}
+
 func TestAuthStatusAppHandlesConfiguredExpiredAndUnconfigured(t *testing.T) {
 	t.Parallel()
 

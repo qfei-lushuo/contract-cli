@@ -6,8 +6,8 @@
 
 - 当前仅内置 `prod` 环境预设；正式包默认使用 `prod`：`contract-cli config add --env prod --name contract`
 - `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 是当前仅有的十五个同时支持 `user` 与 `app` 的结构化业务命令
-- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`、`contract approval start/get` 和 `payment *` 当前仅支持 `--as app`
-- 除上述 app 能力外，当前其他结构化业务命令仍只支持 `--as user`
+- `contract search-v2`、`contract field update`、`contract sign switch-to-paper`、`contract sign-url get`、`contract form attribute list`、`contract authorization grant`、`contract esign *`、`contract submit/resubmit/patch/download-file/delete/print-file`、`contract share get/batch-create`、`contract cooperation link/record/search/file`、`contract approval start/get`、`payment *`、`mdm vendor create/update/list-all/query-by-cert`、`mdm legal get --code/create/update`、`mdm fixed-exchange-rate get/update`、`mdm file download`、`event outbound-ip list` 和 `rule table *` 当前仅支持 `--as app`
+- 除上述双身份和 app-only 能力外，当前其他结构化业务命令仍只支持 `--as user`
 - `app` 目前已经支持登录、状态查看、登出、默认身份切换
 - 推荐使用 `npx skills add qfeius/contract-cli -y -g` 安装跨 Agent 平台 skills；`contract-cli skills install` 保留为 CLI 内置兜底
 - `update check` 支持手动检查 npm 远端版本；默认输出文本，带 `--json` 时返回飞书式 JSON；CLI 会为符合条件的普通命令按 24 小时缓存检查远端版本，并在 JSON object 输出中注入 `_notice.update`
@@ -119,7 +119,7 @@ contract-cli contract get <contract-id> --help
 - 显式传 `--user-id-type <type>` 时会覆盖默认值
 - `--user-id` 传了就拼接到 query string，不传就不带
 - 不区分 `user` / `app`
-- 不做命令级校验
+- 除 `mdm vendor create/update` 与 `mdm legal create/update` 外不做命令级校验；这四个 MDM 写接口会本地要求 `--user-id`
 
 ## 命令矩阵
 
@@ -1435,13 +1435,15 @@ contract-cli mdm fields list --profile contract --biz-line vendor
 命令：
 
 ```bash
-contract-cli mdm vendor create --profile contract --as app --input-file vendor-create.json
+contract-cli mdm vendor create --profile contract --as app --user-id <operator-user-id> --input-file vendor-create.json
 ```
 
 身份规则：
 
 - 当前仅支持 `--as app`。
+- 必须传 `--user-id`，用于提供当前操作人上下文。
 - 走 `POST /open-apis/mdm/v1/vendors`。
+- 创建请求体不要包含后端生成的 `vendor` 编码。
 - 字段是否必填受后台动态配置影响，可先查 `mdm fields list --biz-line vendor`。
 
 #### `contract-cli mdm vendor update`
@@ -1451,14 +1453,15 @@ contract-cli mdm vendor create --profile contract --as app --input-file vendor-c
 命令：
 
 ```bash
-contract-cli mdm vendor update <vendor-id> --profile contract --as app --input-file vendor-update.json
+contract-cli mdm vendor update <vendor-id> --profile contract --as app --user-id <operator-user-id> --input-file vendor-update.json
 ```
 
 身份规则：
 
 - 当前仅支持 `--as app`。
+- 必须传 `--user-id`，用于提供当前操作人上下文。
 - 走 `PUT /open-apis/mdm/v1/vendors/{vendor_id}`。
-- 请求体直接透传，不在 CLI 本地补动态字段。
+- 请求体必须包含后端返回的 `id` 和 `vendor` 编码；CLI 不在本地补动态字段。
 
 #### `contract-cli mdm vendor list-all`
 
@@ -1499,13 +1502,15 @@ contract-cli mdm vendor query-by-cert --profile contract --as app --certificatio
 命令：
 
 ```bash
-contract-cli mdm legal create --profile contract --as app --input-file legal-create.json
+contract-cli mdm legal create --profile contract --as app --user-id <operator-user-id> --input-file legal-create.json
 ```
 
 身份规则：
 
 - 当前仅支持 `--as app`。
+- 必须传 `--user-id`，用于提供当前操作人上下文。
 - 走 `POST /open-apis/mdm/v1/legal_entities`。
+- 创建请求体不要包含后端生成的 `legalEntity` / `legal_entity` 编码。
 - 字段是否必填受后台动态配置影响，可先查 `mdm fields list --biz-line legal_entity`。
 
 #### `contract-cli mdm legal update`
@@ -1515,14 +1520,15 @@ contract-cli mdm legal create --profile contract --as app --input-file legal-cre
 命令：
 
 ```bash
-contract-cli mdm legal update <legal-entity-id> --profile contract --as app --input-file legal-update.json
+contract-cli mdm legal update <legal-entity-id> --profile contract --as app --user-id <operator-user-id> --input-file legal-update.json
 ```
 
 身份规则：
 
 - 当前仅支持 `--as app`。
+- 必须传 `--user-id`，用于提供当前操作人上下文。
 - 走 `PUT /open-apis/mdm/v1/legal_entities/{legal_entity_id}`。
-- 请求体直接透传，不在 CLI 本地补动态字段。
+- 请求体必须包含后端返回的 `id` 和 camelCase `legalEntity` 编码，不要写成 `legal_entity`；CLI 不在本地补动态字段。
 
 #### `contract-cli mdm fixed-exchange-rate get`
 
@@ -1538,6 +1544,7 @@ contract-cli mdm fixed-exchange-rate get --profile contract --as app --source-cu
 
 - 当前仅支持 `--as app`。
 - 走 `GET /open-apis/mdm/v1/fixed_exchange_rate`。
+- CLI flag `--effective-date` 会映射到底层 query 参数 `date`。
 - 不接受 `--input-file` / `--data`。
 
 #### `contract-cli mdm fixed-exchange-rate update`
@@ -1589,6 +1596,7 @@ contract-cli event outbound-ip list --profile contract --as app --page-size 10 -
 
 - 当前仅支持 `--as app`。
 - 走 `GET /open-apis/event/v1/outbound_ip`。
+- `--page-size` 可选，传入时必须在 `10` 到 `50` 之间。
 - 不接受 `--input-file` / `--data`。
 
 ### 8. 审批矩阵规则表命令

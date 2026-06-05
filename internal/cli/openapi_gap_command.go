@@ -2,11 +2,13 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"cn.qfei/contract-cli/internal/config"
 	"cn.qfei/contract-cli/internal/openplatform"
 )
 
@@ -306,7 +308,7 @@ func (a *App) runMDMFixedExchangeRate(ctx context.Context, args []string) error 
 		query := url.Values{
 			"source_currency": {sourceCurrency},
 			"target_currency": {targetCurrency},
-			"effective_date":  {effectiveDate},
+			"date":            {effectiveDate},
 		}
 		return a.executeAppOpenPlatformRequest(ctx, options, http.MethodGet, "/open-apis/mdm/v1/fixed_exchange_rate", query, nil)
 	case "update":
@@ -337,8 +339,17 @@ func (a *App) runMDMVendorCreate(ctx context.Context, args []string) error {
 		return fmt.Errorf("usage: contract-cli mdm vendor create --input-file <path>|--data <json> [flags]")
 	}
 	options := parseCommandOptions(parsed)
+	if err := rejectExplicitNonAppIdentity(options, "/open-apis/mdm/v1/vendors"); err != nil {
+		return err
+	}
+	if err := requireMDMWriteUserID("mdm vendor create", options); err != nil {
+		return err
+	}
 	body, err := resolveRequiredRawBody(options)
 	if err != nil {
+		return err
+	}
+	if err := validateMDMVendorCreateBody(body); err != nil {
 		return err
 	}
 	return a.executeAppOpenPlatformRequest(ctx, options, http.MethodPost, "/open-apis/mdm/v1/vendors", nil, body)
@@ -353,11 +364,20 @@ func (a *App) runMDMVendorUpdate(ctx context.Context, args []string) error {
 		return fmt.Errorf("usage: contract-cli mdm vendor update <vendor-id> --input-file <path>|--data <json> [flags]")
 	}
 	options := parseCommandOptions(parsed)
+	path := "/open-apis/mdm/v1/vendors/" + escapePathSegment(parsed.positionals[0])
+	if err := rejectExplicitNonAppIdentity(options, path); err != nil {
+		return err
+	}
+	if err := requireMDMWriteUserID("mdm vendor update", options); err != nil {
+		return err
+	}
 	body, err := resolveRequiredRawBody(options)
 	if err != nil {
 		return err
 	}
-	path := "/open-apis/mdm/v1/vendors/" + escapePathSegment(parsed.positionals[0])
+	if err := validateMDMVendorUpdateBody(body); err != nil {
+		return err
+	}
 	return a.executeAppOpenPlatformRequest(ctx, options, http.MethodPut, path, nil, body)
 }
 
@@ -416,8 +436,17 @@ func (a *App) runMDMLegalCreate(ctx context.Context, args []string) error {
 		return fmt.Errorf("usage: contract-cli mdm legal create --input-file <path>|--data <json> [flags]")
 	}
 	options := parseCommandOptions(parsed)
+	if err := rejectExplicitNonAppIdentity(options, "/open-apis/mdm/v1/legal_entities"); err != nil {
+		return err
+	}
+	if err := requireMDMWriteUserID("mdm legal create", options); err != nil {
+		return err
+	}
 	body, err := resolveRequiredRawBody(options)
 	if err != nil {
+		return err
+	}
+	if err := validateMDMLegalCreateBody(body); err != nil {
 		return err
 	}
 	return a.executeAppOpenPlatformRequest(ctx, options, http.MethodPost, "/open-apis/mdm/v1/legal_entities", nil, body)
@@ -432,11 +461,20 @@ func (a *App) runMDMLegalUpdate(ctx context.Context, args []string) error {
 		return fmt.Errorf("usage: contract-cli mdm legal update <legal-entity-id> --input-file <path>|--data <json> [flags]")
 	}
 	options := parseCommandOptions(parsed)
+	path := "/open-apis/mdm/v1/legal_entities/" + escapePathSegment(parsed.positionals[0])
+	if err := rejectExplicitNonAppIdentity(options, path); err != nil {
+		return err
+	}
+	if err := requireMDMWriteUserID("mdm legal update", options); err != nil {
+		return err
+	}
 	body, err := resolveRequiredRawBody(options)
 	if err != nil {
 		return err
 	}
-	path := "/open-apis/mdm/v1/legal_entities/" + escapePathSegment(parsed.positionals[0])
+	if err := validateMDMLegalUpdateBody(body); err != nil {
+		return err
+	}
 	return a.executeAppOpenPlatformRequest(ctx, options, http.MethodPut, path, nil, body)
 }
 
@@ -507,7 +545,7 @@ func (a *App) runEvent(ctx context.Context, args []string) error {
 	if err := rejectRawBody(options, "event outbound-ip list"); err != nil {
 		return err
 	}
-	query, err := pageQuery(parsed)
+	query, err := pageQueryWithPageSizeRange(parsed, 10, 50)
 	if err != nil {
 		return err
 	}
@@ -809,6 +847,117 @@ func pageQuery(parsed parsedArgs) (url.Values, error) {
 		query.Set("page_token", value)
 	}
 	return query, nil
+}
+
+func pageQueryWithPageSizeRange(parsed parsedArgs, minValue, maxValue int) (url.Values, error) {
+	query := url.Values{}
+	pageSize, err := parsed.Int("--page-size")
+	if err != nil {
+		return nil, err
+	}
+	if pageSize > 0 {
+		if pageSize < minValue || pageSize > maxValue {
+			return nil, fmt.Errorf("--page-size must be between %d and %d", minValue, maxValue)
+		}
+		query.Set("page_size", fmt.Sprintf("%d", pageSize))
+	}
+	if value := strings.TrimSpace(parsed.String("--page-token")); value != "" {
+		query.Set("page_token", value)
+	}
+	return query, nil
+}
+
+func rejectExplicitNonAppIdentity(options commandOptions, path string) error {
+	if strings.TrimSpace(options.identity) == "" {
+		return nil
+	}
+	identity, err := config.ParseIdentityKind(options.identity)
+	if err != nil {
+		return err
+	}
+	if identity != config.IdentityApp {
+		return fmt.Errorf("open platform path %q only supports --as app", path)
+	}
+	return nil
+}
+
+func requireMDMWriteUserID(command string, options commandOptions) error {
+	if strings.TrimSpace(options.userID) == "" {
+		return fmt.Errorf("%s requires --user-id", command)
+	}
+	return nil
+}
+
+func validateMDMVendorCreateBody(body []byte) error {
+	object, err := decodeJSONBodyObject("mdm vendor create", body)
+	if err != nil {
+		return err
+	}
+	if hasJSONField(object, "vendor") {
+		return fmt.Errorf("mdm vendor create body must not include vendor")
+	}
+	return nil
+}
+
+func validateMDMVendorUpdateBody(body []byte) error {
+	object, err := decodeJSONBodyObject("mdm vendor update", body)
+	if err != nil {
+		return err
+	}
+	if !hasNonEmptyJSONField(object, "id") || !hasNonEmptyJSONField(object, "vendor") {
+		return fmt.Errorf("mdm vendor update body must include id and vendor")
+	}
+	return nil
+}
+
+func validateMDMLegalCreateBody(body []byte) error {
+	object, err := decodeJSONBodyObject("mdm legal create", body)
+	if err != nil {
+		return err
+	}
+	if hasJSONField(object, "legalEntity") || hasJSONField(object, "legal_entity") {
+		return fmt.Errorf("mdm legal create body must not include legalEntity")
+	}
+	return nil
+}
+
+func validateMDMLegalUpdateBody(body []byte) error {
+	object, err := decodeJSONBodyObject("mdm legal update", body)
+	if err != nil {
+		return err
+	}
+	if hasJSONField(object, "legal_entity") {
+		return fmt.Errorf("mdm legal update body must use legalEntity")
+	}
+	if !hasNonEmptyJSONField(object, "id") || !hasNonEmptyJSONField(object, "legalEntity") {
+		return fmt.Errorf("mdm legal update body must include id and legalEntity")
+	}
+	return nil
+}
+
+func decodeJSONBodyObject(command string, body []byte) (map[string]json.RawMessage, error) {
+	var object map[string]json.RawMessage
+	if err := json.Unmarshal(body, &object); err != nil {
+		return nil, fmt.Errorf("decode %s body json: %w", command, err)
+	}
+	if object == nil {
+		return nil, fmt.Errorf("%s body must be a JSON object", command)
+	}
+	return object, nil
+}
+
+func hasJSONField(object map[string]json.RawMessage, key string) bool {
+	_, ok := object[key]
+	return ok
+}
+
+func hasNonEmptyJSONField(object map[string]json.RawMessage, key string) bool {
+	value, ok := object[key]
+	if !ok {
+		return false
+	}
+	trimmed := strings.TrimSpace(string(value))
+	return trimmed != "" && trimmed != "null" && trimmed != `""`
 }
 
 func requiredRuleProductGroup(parsed parsedArgs) (string, string, error) {

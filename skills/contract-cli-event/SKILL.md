@@ -17,6 +17,7 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - 当前仅支持 `--as app`
 - 走 `GET /open-apis/event/v1/outbound_ip`
 - 支持 `--page-size`、`--page-token`
+- `--page-size` 必须在 `10` 到 `50` 之间；不传时由后端默认分页
 - 不接受 `--input-file` / `--data`
 
 ## 示例
