@@ -1482,15 +1482,15 @@ CLI 不在本地强校验扩展名白名单，扩展名与 `file_type` 的最终
 
 ## 16. P2 付款与审批命令专项测试
 
-本模块覆盖 `payment *` 和 `contract approval *`。当前这一组命令均为 bot-only。
+本模块覆盖 `payment *` 和 `contract approval *`。当前这一组命令均为 app-only。
 
 ### 16.1 付款申请
 
 ```bash
-contract-cli payment create --contract "$CONTRACT_ID" --profile "$PROFILE" --as bot --input-file payment.json --output json
-contract-cli payment update "$PAYMENT_ID" --contract "$CONTRACT_ID" --profile "$PROFILE" --as bot --input-file payment-update.json --output json
-contract-cli payment get "$PAYMENT_ID" --contract "$CONTRACT_ID" --profile "$PROFILE" --as bot --output json
-contract-cli payment list --contract "$CONTRACT_ID" --profile "$PROFILE" --as bot --page-size 10 --output json
+contract-cli payment create --contract "$CONTRACT_ID" --profile "$PROFILE" --as app --input-file payment.json --output json
+contract-cli payment update "$PAYMENT_ID" --contract "$CONTRACT_ID" --profile "$PROFILE" --as app --input-file payment-update.json --output json
+contract-cli payment get "$PAYMENT_ID" --contract "$CONTRACT_ID" --profile "$PROFILE" --as app --output json
+contract-cli payment list --contract "$CONTRACT_ID" --profile "$PROFILE" --as app --page-size 10 --output json
 ```
 
 预期底层接口：
@@ -1505,12 +1505,12 @@ GET /open-apis/contract/v1/contracts/{contract_id}/payments
 ### 16.2 付款计划与付款记录
 
 ```bash
-contract-cli payment plan notify --profile "$PROFILE" --as bot --input-file notify.json --output json
-contract-cli payment plan search --profile "$PROFILE" --as bot --input-file payment-plan-search.json --output json
-contract-cli payment record create --contract "$CONTRACT_ID" --payment "$PAYMENT_ID" --profile "$PROFILE" --as bot --input-file payment-record.json --output json
-contract-cli payment record update "$PAYMENT_RECORD_ID" --contract "$CONTRACT_ID" --payment "$PAYMENT_ID" --profile "$PROFILE" --as bot --input-file payment-record-update.json --output json
-contract-cli payment record get "$PAYMENT_RECORD_ID" --contract "$CONTRACT_ID" --payment "$PAYMENT_ID" --profile "$PROFILE" --as bot --output json
-contract-cli payment record list --plan "$PAYMENT_PLAN_UUID" --profile "$PROFILE" --as bot --output json
+contract-cli payment plan notify --profile "$PROFILE" --as app --input-file notify.json --output json
+contract-cli payment plan search --profile "$PROFILE" --as app --input-file payment-plan-search.json --output json
+contract-cli payment record create --contract "$CONTRACT_ID" --payment "$PAYMENT_ID" --profile "$PROFILE" --as app --input-file payment-record.json --output json
+contract-cli payment record update "$PAYMENT_RECORD_ID" --contract "$CONTRACT_ID" --payment "$PAYMENT_ID" --profile "$PROFILE" --as app --input-file payment-record-update.json --output json
+contract-cli payment record get "$PAYMENT_RECORD_ID" --contract "$CONTRACT_ID" --payment "$PAYMENT_ID" --profile "$PROFILE" --as app --output json
+contract-cli payment record list --plan "$PAYMENT_PLAN_UUID" --profile "$PROFILE" --as app --output json
 ```
 
 预期底层接口：
@@ -1527,8 +1527,8 @@ GET /open-apis/contract/v1/contracts/payments/{payment_plan_uuid}/payment_record
 ### 16.3 审批管理
 
 ```bash
-contract-cli contract approval start "$PROCESS_INSTANCE_ID" --profile "$PROFILE" --as bot --input-file approval.json --output json
-contract-cli contract approval get "$PROCESS_INSTANCE_ID" --profile "$PROFILE" --as bot --notice-filter notice_filter --task-instance-filter task_instance_filter --output json
+contract-cli contract approval start "$PROCESS_INSTANCE_ID" --profile "$PROFILE" --as app --input-file approval.json --output json
+contract-cli contract approval get "$PROCESS_INSTANCE_ID" --profile "$PROFILE" --as app --notice-filter notice_filter --task-instance-filter task_instance_filter --output json
 ```
 
 预期底层接口：
@@ -1541,11 +1541,11 @@ GET /open-apis/contract/v1/process_instances/{process_instance_id}
 ### 16.4 参数负向测试
 
 ```bash
-contract-cli payment create --profile "$PROFILE" --as bot --input-file payment.json
-contract-cli payment update "$PAYMENT_ID" --contract "$CONTRACT_ID" --profile "$PROFILE" --as bot
-contract-cli payment record create --contract "$CONTRACT_ID" --profile "$PROFILE" --as bot --input-file payment-record.json
-contract-cli payment record list --profile "$PROFILE" --as bot
-contract-cli contract approval start "$PROCESS_INSTANCE_ID" --profile "$PROFILE" --as bot
+contract-cli payment create --profile "$PROFILE" --as app --input-file payment.json
+contract-cli payment update "$PAYMENT_ID" --contract "$CONTRACT_ID" --profile "$PROFILE" --as app
+contract-cli payment record create --contract "$CONTRACT_ID" --profile "$PROFILE" --as app --input-file payment-record.json
+contract-cli payment record list --profile "$PROFILE" --as app
+contract-cli contract approval start "$PROCESS_INSTANCE_ID" --profile "$PROFILE" --as app
 contract-cli payment get "$PAYMENT_ID" --contract "$CONTRACT_ID" --profile "$PROFILE" --as user
 ```
 
@@ -1554,4 +1554,4 @@ contract-cli payment get "$PAYMENT_ID" --contract "$CONTRACT_ID" --profile "$PRO
 - 缺少 `--contract`、`--payment`、`--plan` 或位置 ID 时返回明确 usage 或必填错误，且不发送 HTTP。
 - POST/PATCH 缺少 `--input-file` / `--data` 时报错，且不发送 HTTP。
 - GET/list 命令传入 `--input-file` / `--data` 时报错，且不发送 HTTP。
-- 显式 `--as user` 调用这些 bot-only 命令时报 `only supports --as bot`，且不发送 HTTP。
+- 显式 `--as user` 调用这些 app-only 命令时报 `only supports --as app`，且不发送 HTTP。

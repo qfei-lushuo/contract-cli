@@ -84,4 +84,4 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 - 命令报 `user identity is not authorized`：先执行 `contract-cli auth login --profile <profile> --as user`
 - 用户想做文件上传：使用 `contract upload-file --as user|app --file <path> --file-type <type>`
 - 用户想下载文件：使用 `contract download-file --as app --output-file <path>`；不要写成 `dowload-file`
-- 用户想做付款申请、付款计划或付款记录：使用 `payment ... --as bot`，不要放到 `contract` 子命令下面
+- 用户想做付款申请、付款计划或付款记录：使用 `payment ... --as app`，不要放到 `contract` 子命令下面

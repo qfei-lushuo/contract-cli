@@ -1,7 +1,6 @@
 ---
 name: contract-cli-payment
-version: 1.0.0
-description: "contract-cli 付款命令技能：支持 bot 身份下创建/更新/查看/查询付款申请、同步/搜索付款计划、创建/更新/查看/按付款计划查询付款记录。当用户要使用 `contract-cli payment ...` 操作付款能力时触发。"
+description: "contract-cli 付款命令技能：支持 app 身份下创建/更新/查看/查询付款申请、同步/搜索付款计划、创建/更新/查看/按付款计划查询付款记录。当用户要使用 `contract-cli payment ...` 操作付款能力时触发。"
 ---
 
 # contract-cli Payment
@@ -34,9 +33,16 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - 查询付款记录详情：`payment record get <payment-record-id> --contract <contract-id> --payment <payment-id>`
 - 按付款计划查询付款记录：`payment record list --plan <payment-plan-uuid>`
 
+## 字段文档导航
+
+- 付款申请创建/更新请求体：读 [references/payment-fields.md](references/payment-fields.md)
+- 付款计划同步/搜索请求体：读 [references/payment-plan-fields.md](references/payment-plan-fields.md)
+- 付款记录创建/更新请求体：读 [references/payment-record-fields.md](references/payment-record-fields.md)
+- 付款命令和路由总览：读 [references/commands.md](references/commands.md)
+
 ## 关键规则
 
-- 当前 `payment *` 全部仅支持 `--as bot`。
+- 当前 `payment *` 全部仅支持 `--as app`。
 - 命令参数采用“主操作对象 ID 用位置参数，父资源/上下文 ID 用 flag”的方式。
 - `contract_id` 作为父资源时使用 `--contract <contract-id>`。
 - `payment_id` 作为父资源时使用 `--payment <payment-id>`。
@@ -67,10 +73,13 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - [internal/cli/payment_command.go](../../internal/cli/payment_command.go)
 - [internal/openplatform/payment/service.go](../../internal/openplatform/payment/service.go)
 - [references/commands.md](references/commands.md)
+- [references/payment-fields.md](references/payment-fields.md)
+- [references/payment-plan-fields.md](references/payment-plan-fields.md)
+- [references/payment-record-fields.md](references/payment-record-fields.md)
 
 ## 操作建议
 
-- 先确认 profile 已完成 bot 登录：`contract-cli auth login --profile contract --as bot`
+- 先确认 profile 已完成 app 登录：`contract-cli auth login --profile contract --as app`
 - 复杂请求体优先用 `--input-file`
 - 需要脚本消费时加 `--output json`
 - 需要对照后端原始 envelope 时加 `--raw`

@@ -20,7 +20,7 @@ contract-cli contract resubmit 7023646046559404327 --profile contract --as app
 contract-cli contract patch 7023646046559404327 --profile contract --as app --input-file contract-patch.json
 contract-cli contract download-file file_123 --profile contract --as app --output-file ./contract.pdf
 contract-cli contract delete 7023646046559404327 --profile contract --as app
-contract-cli contract print-file --profile contract --as bot --input-file print-file.json
+contract-cli contract print-file --profile contract --as app --input-file print-file.json
 contract-cli contract share get 7023646046559404327 --profile contract --as app
 contract-cli contract cooperation link get 7023646046559404327 --profile contract --as app
 contract-cli contract cooperation record get 7023646046559404327 --profile contract --as app
@@ -51,7 +51,7 @@ contract-cli contract enum list --profile contract --type contract_status
 ## 已知限制
 
 - `contract upload-file` 当前同时支持 user/app 身份，均走 `/open-apis/contract/v1/files/upload`
-- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`、`contract approval start`、`contract approval get` 当前仅支持 bot 身份
+- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`、`contract approval start`、`contract approval get` 当前仅支持 app 身份
 - `contract template fields` 尚未实现
 - `contract create` 不自动帮你补模板信息；当前就是透传请求体
 - `contract create --as app` 时，`create_user_id` 需要你自己写进 JSON body
@@ -71,6 +71,7 @@ contract-cli contract enum list --profile contract --type contract_status
 - 合同分类树：看 [category-fields.md](category-fields.md)
 - 分享和协商响应：看 [share-cooperation-fields.md](share-cooperation-fields.md)
 - 上传、下载、提交、重提、删除：看 [contract-actions-fields.md](contract-actions-fields.md)
+- 审批发起请求体：看 [approval-fields.md](approval-fields.md)
 
 ## app-only 合同操作
 
@@ -143,3 +144,5 @@ contract-cli contract approval get process_123 --profile contract --as app --not
 - `cooperation record get`：`GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_record_info`
 - `approval start`：`POST /open-apis/contract/v1/process_instances/{process_instance_id}/task_approval`
 - `approval get`：`GET /open-apis/contract/v1/process_instances/{process_instance_id}`
+
+审批发起请求体字段：看 [approval-fields.md](approval-fields.md)

@@ -1,6 +1,5 @@
 ---
 name: contract-cli-contract
-version: 1.0.2
 description: "contract-cli 合同命令技能：支持 user/app 双身份下的合同详情、合同搜索、合同创建、同步用户组、读取合同文本、查询合同分类、列出模板、查看模板详情、创建模板实例、文件上传，app 身份下的提交/重提/更新/删除合同、下载/生成文件、分享记录、协商信息查询和审批管理，以及 user 身份下的枚举查询。内含合同搜索、详情响应、模板、打印文件、分类、分享协商等字段参考。当用户要使用 `contract-cli contract ...` 操作合同能力时触发。"
 ---
 
@@ -62,6 +61,7 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - 合同分类树：读 [references/category-fields.md](references/category-fields.md)
 - 分享和协商响应：读 [references/share-cooperation-fields.md](references/share-cooperation-fields.md)
 - 上传、下载、提交、重提、删除等轻量动作：读 [references/contract-actions-fields.md](references/contract-actions-fields.md)
+- 审批发起请求体：读 [references/approval-fields.md](references/approval-fields.md)
 - `contract sync-user-groups`、`contract text`、`contract enum list` 当前只补命令级约束；本技能未找到可补到 `contract create` 级别的官方字段页
 
 ## 关键规则
@@ -134,6 +134,7 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - [references/category-fields.md](references/category-fields.md)
 - [references/share-cooperation-fields.md](references/share-cooperation-fields.md)
 - [references/contract-actions-fields.md](references/contract-actions-fields.md)
+- [references/approval-fields.md](references/approval-fields.md)
 
 ## 操作建议
 

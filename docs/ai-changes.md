@@ -1,5 +1,15 @@
 # AI 变更记录
 
+- 2026-07-06
+  变更摘要：补齐 P2 付款和审批命令的 `--input-file` 请求体字段参考，并以 CLM 后端代码口径覆盖飞书文档差异。
+  涉及文件/模块：`skills/contract-cli-payment/references/*-fields.md`、`skills/contract-cli-contract/references/approval-fields.md`、`skills/contract-cli-* /SKILL.md`、`internal/cli/contract_skill_reference_test.go`
+  关键逻辑/决策：付款申请、付款计划、付款记录和审批字段按 DTO/Service/Swagger 校验整理；明确 `has_invoice` 为 boolean、付款状态无 `9`、付款记录部门字段使用 `department_lark_id`；移除 skill frontmatter 中不符合校验脚本的 `version`。
+
+- 2026-07-06
+  变更摘要：统一 P2 付款与审批文档、skill 的身份命名，用户可见新示例从 `bot` 收敛为 `app`。
+  涉及文件/模块：`docs/cli-command-reference.md`、`docs/cli-test-plan.md`、`docs/cli-p2-提示词.md`、`skills/contract-cli-payment`、`skills/contract-cli-contract`、`skills/contract-cli-shared`、`internal/cli/command_reference_doc_test.go`
+  关键逻辑/决策：保留 README/auth/旧配置迁移中的 `--as bot` 兼容说明；新增文档契约测试只约束 P2 新命令和 skill 不再出现 `bot-only` / `--as bot` 主推文案。
+
 - 2026-06-03
   变更摘要：修复 P2 分支在 app 身份改名后的编译失败。
   涉及文件/模块：`internal/cli/payment_command.go`、`internal/cli/contract_command.go`、`internal/openplatform/payment/service.go`、`internal/openplatform/contract/service.go`、相关 CLI/service 测试
