@@ -1,5 +1,20 @@
 # AI 变更记录
 
+- 2026-07-06
+  变更摘要：补齐 P2 付款和审批命令的 `--input-file` 请求体字段参考，并以 CLM 后端代码口径覆盖飞书文档差异。
+  涉及文件/模块：`skills/contract-cli-payment/references/*-fields.md`、`skills/contract-cli-contract/references/approval-fields.md`、`skills/contract-cli-* /SKILL.md`、`internal/cli/contract_skill_reference_test.go`
+  关键逻辑/决策：付款申请、付款计划、付款记录和审批字段按 DTO/Service/Swagger 校验整理；明确 `has_invoice` 为 boolean、付款状态无 `9`、付款记录部门字段使用 `department_lark_id`；移除 skill frontmatter 中不符合校验脚本的 `version`。
+
+- 2026-07-06
+  变更摘要：统一 P2 付款与审批文档、skill 的身份命名，用户可见新示例从 `bot` 收敛为 `app`。
+  涉及文件/模块：`docs/cli-command-reference.md`、`docs/cli-test-plan.md`、`docs/cli-p2-提示词.md`、`skills/contract-cli-payment`、`skills/contract-cli-contract`、`skills/contract-cli-shared`、`internal/cli/command_reference_doc_test.go`
+  关键逻辑/决策：保留 README/auth/旧配置迁移中的 `--as bot` 兼容说明；新增文档契约测试只约束 P2 新命令和 skill 不再出现 `bot-only` / `--as bot` 主推文案。
+
+- 2026-06-03
+  变更摘要：修复 P2 分支在 app 身份改名后的编译失败。
+  涉及文件/模块：`internal/cli/payment_command.go`、`internal/cli/contract_command.go`、`internal/openplatform/payment/service.go`、`internal/openplatform/contract/service.go`、相关 CLI/service 测试
+  关键逻辑/决策：将付款和审批命令残留的 `IdentityPolicyBotOnly` / `IdentityBot` fixture 迁移为现有 `IdentityPolicyAppOnly` / `IdentityApp`，保持 app-only 身份限制语义并恢复生产入口编译。
+
 - 2026-05-27
   变更摘要：收敛 profile 和授权状态输出，避免展示开放平台与授权 endpoint 地址。
   涉及文件/模块：`internal/cli/app.go`、`internal/cli/auth_provider.go`、CLI 测试、`docs/cli-test-plan.md`、`skills/auth`
@@ -9,6 +24,21 @@
   变更摘要：移除 CLI 内置 dev 环境预设，收敛正式包初始化入口到 prod。
   涉及文件/模块：`internal/cli/app.go`、`internal/cli/help.go`、`internal/cli/auth_provider.go`、`internal/openplatform/client.go`、CLI 测试、`docs/*`、`skills/auth`
   关键逻辑/决策：`config add --env dev` 现在本地拒绝并提示仅支持 `prod`；help、错误提示、命令文档、测试计划和 auth skill 不再引导新建 dev profile；保留既有 profile 按已保存 URL 运行的兼容性。
+
+- 2026-05-12
+  变更摘要：实现 P2 付款、付款计划、付款记录和审批管理 CLI 命令。
+  涉及文件/模块：`internal/cli`、`internal/openplatform/payment`、`internal/openplatform/contract`、`docs/*`、`skills/contract-cli-*`
+  关键逻辑/决策：新增顶层 `payment` bot-only 命令和 `contract approval start/get`，按“主 ID 位置参数、父资源 ID 用 flag”解析；POST/PATCH 强制 JSON body，GET/list 拒绝 body，并同步 help、命令文档、测试计划和 payment skill。
+
+- 2026-05-12
+  变更摘要：新增 P2 CLI 开发提示词文档，固化付款、付款计划、付款记录和审批命令规划。
+  涉及文件/模块：`docs/cli-p2-提示词.md`、`docs/ai-changes.md`
+  关键逻辑/决策：按“主操作对象 ID 用位置参数、父资源 ID 用 flag”的命令参数约定记录 P2 开发范围，并明确接口疑问停下询问、skill 同步、TDD 和测试验收要求。
+
+- 2026-05-12
+  变更摘要：新增正式发版现状整理文档，汇总生产发版流程、所需信息和当前达成结果。
+  涉及文件/模块：`docs/current-production-release-process.md`、`docs/ai-changes.md`
+  关键逻辑/决策：以 `scripts/release.sh`、README 和现有 release 测试为基线，明确正式版当前走 GitHub 正式 Release + npm latest、需准备的授权与环境、默认 remote/branch 行为以及后续值得讨论的边界问题。
 
 - 2026-05-12
   变更摘要：全仓收敛旧 profile 示例名，统一使用 `--profile contract`。

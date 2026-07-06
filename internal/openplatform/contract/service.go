@@ -44,6 +44,11 @@ type UploadFileInput struct {
 	File     io.Reader
 }
 
+type ProcessInstanceInput struct {
+	NoticeFilter       string
+	TaskInstanceFilter string
+}
+
 func NewService(client *openplatform.Client) *Service {
 	return &Service{client: client}
 }
@@ -376,6 +381,39 @@ func (s *Service) GetCooperationRecordInfo(ctx context.Context, requestContext o
 	return s.client.Do(ctx, requestContext, openplatform.Request{
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/contracts/" + url.PathEscape(contractID) + "/cooperation_record_info",
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
+	})
+}
+
+func (s *Service) StartApproval(ctx context.Context, requestContext openplatform.RequestContext, processInstanceID string, body []byte) (openplatform.Response, error) {
+	processInstanceID = strings.TrimSpace(processInstanceID)
+	if processInstanceID == "" {
+		return openplatform.Response{}, fmt.Errorf("process instance id is required")
+	}
+	return s.client.Do(ctx, requestContext, openplatform.Request{
+		Method:         http.MethodPost,
+		Path:           "/open-apis/contract/v1/process_instances/" + url.PathEscape(processInstanceID) + "/task_approval",
+		Body:           body,
+		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
+	})
+}
+
+func (s *Service) GetProcessInstance(ctx context.Context, requestContext openplatform.RequestContext, processInstanceID string, input ProcessInstanceInput) (openplatform.Response, error) {
+	processInstanceID = strings.TrimSpace(processInstanceID)
+	if processInstanceID == "" {
+		return openplatform.Response{}, fmt.Errorf("process instance id is required")
+	}
+	query := url.Values{}
+	if strings.TrimSpace(input.NoticeFilter) != "" {
+		query.Set("notice_filter", strings.TrimSpace(input.NoticeFilter))
+	}
+	if strings.TrimSpace(input.TaskInstanceFilter) != "" {
+		query.Set("task_instance_filter", strings.TrimSpace(input.TaskInstanceFilter))
+	}
+	return s.client.Do(ctx, requestContext, openplatform.Request{
+		Method:         http.MethodGet,
+		Path:           "/open-apis/contract/v1/process_instances/" + url.PathEscape(processInstanceID),
+		Query:          query,
 		IdentityPolicy: openplatform.IdentityPolicyAppOnly,
 	})
 }
