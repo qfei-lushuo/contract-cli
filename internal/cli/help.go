@@ -199,6 +199,7 @@ func helpRegistry() map[string]helpTopic {
 		{"contract-cli skills install [flags]", "安装内置 Agent skills"},
 		{"contract-cli update check [flags]", "检查 npm 远端版本"},
 		{"contract-cli contract <subcommand> [flags]", "合同结构化命令"},
+		{"contract-cli payment <subcommand> [flags]", "付款结构化命令"},
 		{"contract-cli mdm vendor <subcommand> [flags]", "交易方主数据命令"},
 		{"contract-cli mdm legal <subcommand> [flags]", "法人主体主数据命令"},
 		{"contract-cli mdm fields list [flags]", "字段配置查询"},
@@ -235,6 +236,7 @@ func helpRegistry() map[string]helpTopic {
 	addSkillsHelp(registry)
 	addUpdateHelp(registry)
 	addContractHelp(registry)
+	addPaymentHelp(registry)
 	addMDMHelp(registry)
 	return registry
 }
@@ -448,6 +450,7 @@ func addContractHelp(registry map[string]helpTopic) {
 			{"contract-cli contract print-file [flags]", "app 身份生成合同打印文件"},
 			{"contract-cli contract share <subcommand> [flags]", "app 身份查询合同分享记录"},
 			{"contract-cli contract cooperation <resource> <subcommand> [flags]", "app 身份查询合同协商信息"},
+			{"contract-cli contract approval <subcommand> [flags]", "app 身份操作审批流程"},
 			{"contract-cli contract category list [flags]", "列出合同分类"},
 			{"contract-cli contract template <subcommand> [flags]", "模板相关命令"},
 			{"contract-cli contract enum list [flags]", "查询枚举值"},
@@ -700,7 +703,241 @@ func addContractHelp(registry map[string]helpTopic) {
 			"走 GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_record_info。",
 		},
 	}
+	registry["contract approval"] = helpTopic{
+		Name:  "contract approval",
+		Usage: []string{"contract-cli contract approval <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli contract approval start <process-instance-id> [flags]", "app 身份发起流程审批"},
+			{"contract-cli contract approval get <process-instance-id> [flags]", "app 身份查询审批实例详情"},
+		},
+	}
+	registry["contract approval start"] = helpTopic{
+		Name:    "contract approval start",
+		Summary: "app 身份发起流程审批，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli contract approval start <process-instance-id> --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli contract approval start <process-instance-id> --profile contract --as app --input-file approval.json",
+			"contract-cli contract approval start <process-instance-id> --profile contract --as app --data '{\"task_instance_id\":\"task-1\",\"command_type\":\"general\"}'",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 POST /open-apis/contract/v1/process_instances/{process_instance_id}/task_approval。",
+			"--input-file / --data 必填且互斥。",
+		},
+	}
+	registry["contract approval get"] = helpTopic{
+		Name:    "contract approval get",
+		Summary: "app 身份查询审批实例详情。",
+		Usage:   []string{"contract-cli contract approval get <process-instance-id> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
+			{"--notice-filter <filter>", "可选，审批实例详情查询参数 notice_filter"},
+			{"--task-instance-filter <filter>", "可选，审批实例详情查询参数 task_instance_filter"},
+		}),
+		Examples: []string{
+			"contract-cli contract approval get <process-instance-id> --profile contract --as app",
+			"contract-cli contract approval get <process-instance-id> --profile contract --as app --notice-filter notice_filter --task-instance-filter task_instance_filter",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 GET /open-apis/contract/v1/process_instances/{process_instance_id}。",
+			"不接受 --input-file / --data。",
+		},
+	}
 	addContractNestedHelp(registry)
+}
+
+func addPaymentHelp(registry map[string]helpTopic) {
+	registry["payment"] = helpTopic{
+		Name:  "payment",
+		Usage: []string{"contract-cli payment <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli payment create [flags]", "app 身份创建付款申请"},
+			{"contract-cli payment update <payment-id> [flags]", "app 身份更新付款信息"},
+			{"contract-cli payment get <payment-id> [flags]", "app 身份查看付款信息"},
+			{"contract-cli payment list [flags]", "app 身份查询付款申请列表"},
+			{"contract-cli payment plan <subcommand> [flags]", "app 身份操作付款计划"},
+			{"contract-cli payment record <subcommand> [flags]", "app 身份操作付款记录"},
+		},
+	}
+	registry["payment create"] = helpTopic{
+		Name:    "payment create",
+		Summary: "app 身份创建付款申请，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli payment create --contract <contract-id> --input-file <path>|--data <json> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags(), []helpFlag{
+			{"--contract <contract-id>", "必填，父级合同 ID"},
+		}),
+		Examples: []string{
+			"contract-cli payment create --contract <contract-id> --profile contract --as app --input-file payment.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 POST /open-apis/contract/v1/contracts/{contract_id}/payments。",
+			"--input-file / --data 必填且互斥。",
+		},
+	}
+	registry["payment update"] = helpTopic{
+		Name:    "payment update",
+		Summary: "app 身份更新付款信息，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli payment update <payment-id> --contract <contract-id> --input-file <path>|--data <json> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags(), []helpFlag{
+			{"--contract <contract-id>", "必填，父级合同 ID"},
+		}),
+		Examples: []string{
+			"contract-cli payment update <payment-id> --contract <contract-id> --profile contract --as app --input-file payment-update.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 PATCH /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}。",
+			"--input-file / --data 必填且互斥。",
+		},
+	}
+	registry["payment get"] = helpTopic{
+		Name:    "payment get",
+		Summary: "app 身份查看付款信息。",
+		Usage:   []string{"contract-cli payment get <payment-id> --contract <contract-id> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
+			{"--contract <contract-id>", "必填，父级合同 ID"},
+		}),
+		Examples: []string{
+			"contract-cli payment get <payment-id> --contract <contract-id> --profile contract --as app",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 GET /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}。",
+			"不接受 --input-file / --data。",
+		},
+	}
+	registry["payment list"] = helpTopic{
+		Name:    "payment list",
+		Summary: "app 身份查询付款申请列表。",
+		Usage:   []string{"contract-cli payment list --contract <contract-id> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), pageFlags(), []helpFlag{
+			{"--contract <contract-id>", "必填，父级合同 ID"},
+		}),
+		Examples: []string{
+			"contract-cli payment list --contract <contract-id> --profile contract --as app",
+			"contract-cli payment list --contract <contract-id> --profile contract --as app --page-size 10 --page-token next",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 GET /open-apis/contract/v1/contracts/{contract_id}/payments。",
+			"不接受 --input-file / --data。",
+		},
+	}
+	registry["payment plan"] = helpTopic{
+		Name:  "payment plan",
+		Usage: []string{"contract-cli payment plan <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli payment plan notify [flags]", "app 身份同步付款记录"},
+			{"contract-cli payment plan search [flags]", "app 身份搜索付款计划"},
+		},
+	}
+	registry["payment plan notify"] = helpTopic{
+		Name:    "payment plan notify",
+		Summary: "app 身份同步付款记录，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli payment plan notify --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli payment plan notify --profile contract --as app --input-file notify.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 POST /open-apis/contract/v1/payment/notify。",
+			"--input-file / --data 必填且互斥。",
+		},
+	}
+	registry["payment plan search"] = helpTopic{
+		Name:    "payment plan search",
+		Summary: "app 身份搜索付款计划，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli payment plan search --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli payment plan search --profile contract --as app --input-file payment-plan-search.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 POST /open-apis/contract/v1/payments/search。",
+			"--input-file / --data 必填且互斥。",
+		},
+	}
+	registry["payment record"] = helpTopic{
+		Name:  "payment record",
+		Usage: []string{"contract-cli payment record <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli payment record create [flags]", "app 身份创建付款记录"},
+			{"contract-cli payment record update <payment-record-id> [flags]", "app 身份更新付款记录"},
+			{"contract-cli payment record get <payment-record-id> [flags]", "app 身份查询付款记录详情"},
+			{"contract-cli payment record list [flags]", "app 身份按付款计划查询付款记录"},
+		},
+	}
+	registry["payment record create"] = helpTopic{
+		Name:    "payment record create",
+		Summary: "app 身份创建付款记录，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli payment record create --contract <contract-id> --payment <payment-id> --input-file <path>|--data <json> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags(), []helpFlag{
+			{"--contract <contract-id>", "必填，父级合同 ID"},
+			{"--payment <payment-id>", "必填，父级付款 ID"},
+		}),
+		Examples: []string{
+			"contract-cli payment record create --contract <contract-id> --payment <payment-id> --profile contract --as app --input-file payment-record.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 POST /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}/payment_records。",
+			"--input-file / --data 必填且互斥。",
+		},
+	}
+	registry["payment record update"] = helpTopic{
+		Name:    "payment record update",
+		Summary: "app 身份更新付款记录，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli payment record update <payment-record-id> --contract <contract-id> --payment <payment-id> --input-file <path>|--data <json> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags(), []helpFlag{
+			{"--contract <contract-id>", "必填，父级合同 ID"},
+			{"--payment <payment-id>", "必填，父级付款 ID"},
+		}),
+		Examples: []string{
+			"contract-cli payment record update <payment-record-id> --contract <contract-id> --payment <payment-id> --profile contract --as app --input-file payment-record-update.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 PATCH /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}/payment_records/{payment_record_id}。",
+			"--input-file / --data 必填且互斥。",
+		},
+	}
+	registry["payment record get"] = helpTopic{
+		Name:    "payment record get",
+		Summary: "app 身份查询付款记录详情。",
+		Usage:   []string{"contract-cli payment record get <payment-record-id> --contract <contract-id> --payment <payment-id> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
+			{"--contract <contract-id>", "必填，父级合同 ID"},
+			{"--payment <payment-id>", "必填，父级付款 ID"},
+		}),
+		Examples: []string{
+			"contract-cli payment record get <payment-record-id> --contract <contract-id> --payment <payment-id> --profile contract --as app",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 GET /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}/payment_records/{payment_record_id}。",
+			"不接受 --input-file / --data。",
+		},
+	}
+	registry["payment record list"] = helpTopic{
+		Name:    "payment record list",
+		Summary: "app 身份根据付款计划 ID 查询付款记录。",
+		Usage:   []string{"contract-cli payment record list --plan <payment-plan-uuid> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
+			{"--plan <payment-plan-uuid>", "必填，付款计划 UUID"},
+		}),
+		Examples: []string{
+			"contract-cli payment record list --plan <payment-plan-uuid> --profile contract --as app",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 GET /open-apis/contract/v1/contracts/payments/{payment_plan_uuid}/payment_records。",
+			"不接受 --input-file / --data。",
+		},
+	}
 }
 
 func addContractNestedHelp(registry map[string]helpTopic) {

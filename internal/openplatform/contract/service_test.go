@@ -638,6 +638,25 @@ func TestServiceAppOnlyContractActionEndpoints(t *testing.T) {
 			},
 			wantBodyOptional: true,
 		},
+		{
+			name:     "approval start",
+			want:     "POST https://dev-open.qtech.cn/open-apis/contract/v1/process_instances/process-1/task_approval",
+			wantBody: `{"task_instance_id":"task-1"}`,
+			call: func(service *contract.Service, requestContext openplatform.RequestContext) (openplatform.Response, error) {
+				return service.StartApproval(context.Background(), requestContext, "process-1", []byte(`{"task_instance_id":"task-1"}`))
+			},
+		},
+		{
+			name: "approval get",
+			want: "GET https://dev-open.qtech.cn/open-apis/contract/v1/process_instances/process-1?notice_filter=notice_filter&task_instance_filter=task_instance_filter",
+			call: func(service *contract.Service, requestContext openplatform.RequestContext) (openplatform.Response, error) {
+				return service.GetProcessInstance(context.Background(), requestContext, "process-1", contract.ProcessInstanceInput{
+					NoticeFilter:       "notice_filter",
+					TaskInstanceFilter: "task_instance_filter",
+				})
+			},
+			wantBodyOptional: true,
+		},
 	}
 
 	for _, tc := range testCases {

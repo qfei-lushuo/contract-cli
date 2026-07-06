@@ -48,6 +48,8 @@ func (a *App) runContract(ctx context.Context, args []string) error {
 		return a.runContractShare(ctx, args[1:])
 	case "cooperation":
 		return a.runContractCooperation(ctx, args[1:])
+	case "approval":
+		return a.runContractApproval(ctx, args[1:])
 	case "category":
 		return a.runContractCategory(ctx, args[1:])
 	case "template":
@@ -501,6 +503,74 @@ func (a *App) runContractCooperationRecord(ctx context.Context, args []string) e
 		return err
 	}
 	response, err := contractsvc.NewService(client).GetCooperationRecordInfo(ctx, requestContext, contractID)
+	if err != nil {
+		return err
+	}
+	return a.renderOpenPlatformResponse(options, response)
+}
+
+func (a *App) runContractApproval(ctx context.Context, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("missing contract approval subcommand")
+	}
+	switch args[0] {
+	case "start":
+		return a.runContractApprovalStart(ctx, args[1:])
+	case "get":
+		return a.runContractApprovalGet(ctx, args[1:])
+	default:
+		return fmt.Errorf("unknown contract approval subcommand %q", args[0])
+	}
+}
+
+func (a *App) runContractApprovalStart(ctx context.Context, args []string) error {
+	parsed, err := parseArgs(args, structuredValueFlags(), commonBoolFlags())
+	if err != nil {
+		return err
+	}
+	if len(parsed.positionals) != 1 {
+		return fmt.Errorf("usage: contract-cli contract approval start <process-instance-id> --input-file <path>|--data <json> [flags]")
+	}
+	options := parseCommandOptions(parsed)
+	body, err := resolveRequiredRawBody(options)
+	if err != nil {
+		return err
+	}
+
+	processInstanceID := parsed.positionals[0]
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/process_instances/"+processInstanceID+"/task_approval", openplatform.IdentityPolicyAppOnly)
+	if err != nil {
+		return err
+	}
+	response, err := contractsvc.NewService(client).StartApproval(ctx, requestContext, processInstanceID, body)
+	if err != nil {
+		return err
+	}
+	return a.renderOpenPlatformResponse(options, response)
+}
+
+func (a *App) runContractApprovalGet(ctx context.Context, args []string) error {
+	parsed, err := parseArgs(args, structuredValueFlags("--notice-filter", "--task-instance-filter"), commonBoolFlags())
+	if err != nil {
+		return err
+	}
+	if len(parsed.positionals) != 1 {
+		return fmt.Errorf("usage: contract-cli contract approval get <process-instance-id> [flags]")
+	}
+	options := parseCommandOptions(parsed)
+	if err := rejectRawBody(options, "contract approval get"); err != nil {
+		return err
+	}
+
+	processInstanceID := parsed.positionals[0]
+	client, requestContext, err := a.openPlatformClientAndContextForOptions(options, contractOpenAPIPathPrefix+"/process_instances/"+processInstanceID, openplatform.IdentityPolicyAppOnly)
+	if err != nil {
+		return err
+	}
+	response, err := contractsvc.NewService(client).GetProcessInstance(ctx, requestContext, processInstanceID, contractsvc.ProcessInstanceInput{
+		NoticeFilter:       parsed.String("--notice-filter"),
+		TaskInstanceFilter: parsed.String("--task-instance-filter"),
+	})
 	if err != nil {
 		return err
 	}

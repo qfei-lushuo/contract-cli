@@ -250,6 +250,90 @@ func TestContractDownloadFileCommandUsesSaveDialogByDefault(t *testing.T) {
 	}
 }
 
+func TestContractApprovalCommandsUseExpectedEndpoints(t *testing.T) {
+	t.Parallel()
+
+	store := config.NewStore(t.TempDir())
+	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
+		t.Fatalf("UpsertProfile() error = %v", err)
+	}
+
+	testCases := []struct {
+		name         string
+		args         []string
+		wantMethod   string
+		wantPath     string
+		wantQuery    map[string]string
+		wantBody     string
+		responseBody string
+	}{
+		{
+			name:         "approval start",
+			args:         []string{"contract", "approval", "start", "process-1", "--profile", "contract", "--data", `{"task_instance_id":"task-1","command_type":"general"}`},
+			wantMethod:   http.MethodPost,
+			wantPath:     "/open-apis/contract/v1/process_instances/process-1/task_approval",
+			wantQuery:    map[string]string{"user_id_type": "user_id"},
+			wantBody:     `{"task_instance_id":"task-1","command_type":"general"}`,
+			responseBody: `{"code":0,"data":{"process_instance":{"process_instance_id":"process-1"}}}`,
+		},
+		{
+			name:         "approval get",
+			args:         []string{"contract", "approval", "get", "process-1", "--profile", "contract", "--notice-filter", "notice_filter", "--task-instance-filter", "task_instance_filter"},
+			wantMethod:   http.MethodGet,
+			wantPath:     "/open-apis/contract/v1/process_instances/process-1",
+			wantQuery:    map[string]string{"user_id_type": "user_id", "notice_filter": "notice_filter", "task_instance_filter": "task_instance_filter"},
+			responseBody: `{"code":0,"data":{"process_instance":{"process_instance_id":"process-1"}}}`,
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			stdout := &bytes.Buffer{}
+			app := cli.New(cli.Options{
+				Stdout: stdout,
+				Stderr: &bytes.Buffer{},
+				Store:  store,
+				HTTPClient: &http.Client{
+					Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+						if req.Method != tc.wantMethod {
+							t.Fatalf("method = %s, want %s", req.Method, tc.wantMethod)
+						}
+						if req.URL.Path != tc.wantPath {
+							t.Fatalf("path = %s, want %s", req.URL.Path, tc.wantPath)
+						}
+						for key, want := range tc.wantQuery {
+							if got := req.URL.Query().Get(key); got != want {
+								t.Fatalf("query %s = %q, want %q", key, got, want)
+							}
+						}
+						if req.Header.Get("Authorization") != "Bearer app-token" {
+							t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
+						}
+						body, err := io.ReadAll(req.Body)
+						if err != nil {
+							t.Fatalf("ReadAll() error = %v", err)
+						}
+						if string(body) != tc.wantBody {
+							t.Fatalf("body = %q, want %q", string(body), tc.wantBody)
+						}
+						return jsonResponse(tc.responseBody), nil
+					}),
+				},
+			})
+
+			if err := app.Run(context.Background(), tc.args); err != nil {
+				t.Fatalf("Run() error = %v", err)
+			}
+			if !strings.Contains(stdout.String(), `"code": 0`) {
+				t.Fatalf("unexpected output: %s", stdout.String())
+			}
+		})
+	}
+}
+
 func TestContractDownloadFileCommandRawWritesStdout(t *testing.T) {
 	t.Parallel()
 
@@ -405,6 +489,8 @@ func TestContractAppOnlyCommandsRejectUserIdentityBeforeHTTP(t *testing.T) {
 		{"contract", "share", "get", "contract-1", "--profile", "contract", "--as", "user"},
 		{"contract", "cooperation", "link", "get", "contract-1", "--profile", "contract", "--as", "user"},
 		{"contract", "cooperation", "record", "get", "contract-1", "--profile", "contract", "--as", "user"},
+		{"contract", "approval", "start", "process-1", "--profile", "contract", "--as", "user", "--data", `{"task_instance_id":"task-1"}`},
+		{"contract", "approval", "get", "process-1", "--profile", "contract", "--as", "user"},
 	}
 
 	for _, args := range testCases {
@@ -481,6 +567,21 @@ func TestContractAppOnlyCommandValidationErrors(t *testing.T) {
 			name:    "cooperation missing resource",
 			args:    []string{"contract", "cooperation"},
 			wantErr: "missing contract cooperation resource",
+		},
+		{
+			name:    "approval missing subcommand",
+			args:    []string{"contract", "approval"},
+			wantErr: "missing contract approval subcommand",
+		},
+		{
+			name:    "approval start missing body",
+			args:    []string{"contract", "approval", "start", "process-1", "--profile", "contract"},
+			wantErr: "--input-file or --data is required",
+		},
+		{
+			name:    "approval get missing id",
+			args:    []string{"contract", "approval", "get", "--profile", "contract"},
+			wantErr: "usage: contract-cli contract approval get <process-instance-id> [flags]",
 		},
 	}
 
