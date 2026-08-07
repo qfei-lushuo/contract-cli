@@ -3,9 +3,12 @@ package openplatform
 import (
 	"bytes"
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"net/url"
 	"strings"
@@ -33,12 +36,24 @@ type Client struct {
 }
 
 type RequestContext struct {
-	Profile     config.Profile
-	Identity    config.IdentityKind
-	BaseURL     string
-	AccessToken string
-	CommonQuery url.Values
+	Profile            config.Profile
+	Identity           config.IdentityKind
+	BaseURL            string
+	AccessToken        string
+	CommonQuery        url.Values
+	PrepareAccessToken func(context.Context, string) (string, error)
+	RefreshAccessToken func(context.Context, string) (string, error)
 }
+
+type OperationKind string
+
+const (
+	OperationRead             OperationKind = "read"
+	OperationWrite            OperationKind = "write"
+	maxReadNetworkRetries                   = 1
+	authenticationErrorHeader               = "X-Qfei-Open-Platform-Auth-Error"
+	tokenExpiredErrorType                   = "token_expired"
+)
 
 type Request struct {
 	Method         string
@@ -49,12 +64,35 @@ type Request struct {
 	BodyReader     io.Reader
 	Raw            bool
 	IdentityPolicy IdentityPolicy
+	OperationKind  OperationKind
 }
 
 type Response struct {
 	StatusCode int
 	Headers    http.Header
 	Body       []byte
+}
+
+type HTTPStatusError struct {
+	StatusCode int
+	ErrorType  string
+	Body       []byte
+}
+
+func (e *HTTPStatusError) Error() string {
+	return fmt.Sprintf("open platform request failed with status %d: %s", e.StatusCode, responseSnippet(e.Body))
+}
+
+type UncertainWriteError struct {
+	Cause error
+}
+
+func (e *UncertainWriteError) Error() string {
+	return "执行结果不确定，请先查询确认"
+}
+
+func (e *UncertainWriteError) Unwrap() error {
+	return e.Cause
 }
 
 func New(options Options) *Client {
@@ -101,6 +139,16 @@ func (c *Client) Do(ctx context.Context, requestContext RequestContext, request 
 	if err != nil {
 		return Response{}, err
 	}
+	if requestContext.PrepareAccessToken != nil {
+		preparedToken, prepareErr := requestContext.PrepareAccessToken(ctx, requestContext.AccessToken)
+		if prepareErr != nil {
+			return Response{}, fmt.Errorf("prepare access token: %w", prepareErr)
+		}
+		if strings.TrimSpace(preparedToken) == "" {
+			return Response{}, fmt.Errorf("prepare access token returned an empty token")
+		}
+		requestContext.AccessToken = preparedToken
+	}
 
 	headers := cloneHeaders(request.Headers)
 	if headers.Get("Authorization") == "" {
@@ -115,43 +163,115 @@ func (c *Client) Do(ctx context.Context, requestContext RequestContext, request 
 
 	c.logger.Info("open platform request started", "method", method, "path", request.Path, "identity", requestContext.Identity)
 
+	operation := request.OperationKind
+	if operation == "" {
+		operation = OperationWrite
+		if method == http.MethodGet || method == http.MethodHead || method == http.MethodOptions {
+			operation = OperationRead
+		}
+	}
+	if operation != OperationRead && operation != OperationWrite {
+		return Response{}, fmt.Errorf("unsupported open platform operation kind %q", operation)
+	}
+
+	refreshed := false
+	for attempt := 0; ; attempt++ {
+		response, requestErr := c.doOnce(ctx, method, fullURL, headers, request)
+		if requestErr == nil {
+			c.logger.Info("open platform request completed", "method", method, "path", request.Path, "status_code", response.StatusCode)
+			return response, nil
+		}
+
+		var statusErr *HTTPStatusError
+		if errors.As(requestErr, &statusErr) {
+			if isTrustedTokenExpired(response, statusErr) && !refreshed && requestContext.RefreshAccessToken != nil {
+				newToken, refreshErr := requestContext.RefreshAccessToken(ctx, requestContext.AccessToken)
+				if refreshErr != nil {
+					return response, fmt.Errorf("refresh access token: %w", refreshErr)
+				}
+				if strings.TrimSpace(newToken) == "" {
+					return response, fmt.Errorf("refresh access token returned an empty token")
+				}
+				requestContext.AccessToken = newToken
+				headers.Set("Authorization", "Bearer "+newToken)
+				refreshed = true
+				if request.BodyReader != nil {
+					return response, errors.New("access token refreshed, but streaming request body cannot be replayed; retry the command")
+				}
+				continue
+			}
+			if operation == OperationWrite && statusErr.StatusCode >= http.StatusInternalServerError {
+				return response, &UncertainWriteError{Cause: statusErr}
+			}
+			return response, statusErr
+		}
+
+		if operation == OperationWrite {
+			return response, &UncertainWriteError{Cause: requestErr}
+		}
+		if attempt < maxReadNetworkRetries && request.BodyReader == nil && isRetryableNetworkError(requestErr) {
+			c.logger.Warn("retrying open platform read after temporary network error", "method", method, "path", request.Path)
+			continue
+		}
+		return response, requestErr
+	}
+}
+
+func isTrustedTokenExpired(response Response, statusErr *HTTPStatusError) bool {
+	return statusErr != nil &&
+		statusErr.StatusCode == http.StatusUnauthorized &&
+		statusErr.ErrorType == tokenExpiredErrorType &&
+		response.Headers.Get(authenticationErrorHeader) == tokenExpiredErrorType
+}
+
+func (c *Client) doOnce(ctx context.Context, method, fullURL string, headers http.Header, request Request) (Response, error) {
 	bodyReader := io.Reader(bytes.NewReader(request.Body))
 	if request.BodyReader != nil {
 		bodyReader = request.BodyReader
 	}
 	httpRequest, err := http.NewRequestWithContext(ctx, method, fullURL, bodyReader)
 	if err != nil {
-		c.logger.Error("build open platform request failed", "method", method, "path", request.Path, "error", err.Error())
 		return Response{}, fmt.Errorf("build open platform request: %w", err)
 	}
-	httpRequest.Header = headers
+	httpRequest.Header = headers.Clone()
 
 	resp, err := c.httpClient.Do(httpRequest)
 	if err != nil {
-		c.logger.Error("perform open platform request failed", "method", method, "path", request.Path, "error", err.Error())
 		return Response{}, fmt.Errorf("perform open platform request: %w", err)
 	}
 	defer resp.Body.Close()
 
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
-		c.logger.Error("read open platform response failed", "method", method, "path", request.Path, "error", err.Error())
 		return Response{}, fmt.Errorf("read open platform response: %w", err)
 	}
-
-	response := Response{
-		StatusCode: resp.StatusCode,
-		Headers:    resp.Header.Clone(),
-		Body:       body,
-	}
+	response := Response{StatusCode: resp.StatusCode, Headers: resp.Header.Clone(), Body: body}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		err = fmt.Errorf("open platform request failed with status %d: %s", resp.StatusCode, responseSnippet(body))
-		c.logger.Error("open platform request failed", "method", method, "path", request.Path, "status_code", resp.StatusCode, "error", err.Error())
-		return response, err
+		httpErr := &HTTPStatusError{StatusCode: resp.StatusCode, ErrorType: responseErrorType(body), Body: body}
+		c.logger.Error("open platform request failed", "method", method, "path", request.Path, "status_code", resp.StatusCode, "error_type", httpErr.ErrorType)
+		return response, httpErr
 	}
-
-	c.logger.Info("open platform request completed", "method", method, "path", request.Path, "status_code", resp.StatusCode)
 	return response, nil
+}
+
+func responseErrorType(body []byte) string {
+	var payload struct {
+		Data struct {
+			ErrorType string `json:"error_type"`
+		} `json:"data"`
+	}
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return ""
+	}
+	return strings.TrimSpace(payload.Data.ErrorType)
+}
+
+func isRetryableNetworkError(err error) bool {
+	if errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return false
+	}
+	var networkErr net.Error
+	return errors.As(err, &networkErr) && (networkErr.Timeout() || networkErr.Temporary())
 }
 
 func (c *Client) DoStream(ctx context.Context, requestContext RequestContext, request Request, writer io.Writer) (Response, error) {

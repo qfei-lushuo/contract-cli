@@ -54,6 +54,25 @@ func TestContractMCPToolSpecsStayAlignedWithMCPYAML(t *testing.T) {
 	}
 }
 
+func TestContractMCPToolSpecsDeclareReadWriteSemantics(t *testing.T) {
+	t.Parallel()
+
+	writes := map[string]bool{
+		"sync-user-groups":         true,
+		"create-contracts":         true,
+		"create-template-instance": true,
+	}
+	for _, spec := range openplatform.ContractMCPToolSpecs() {
+		want := openplatform.OperationRead
+		if writes[spec.ToolName] {
+			want = openplatform.OperationWrite
+		}
+		if spec.OperationKind != want {
+			t.Fatalf("tool %q operation = %q, want %q", spec.ToolName, spec.OperationKind, want)
+		}
+	}
+}
+
 type mcpTool struct {
 	Method string
 	URL    string

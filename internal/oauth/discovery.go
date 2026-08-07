@@ -26,6 +26,8 @@ type AuthorizationServerMetadata struct {
 	GrantTypesSupported             []string `json:"grant_types_supported"`
 	ResponseTypesSupported          []string `json:"response_types_supported"`
 	TokenEndpointAuthMethodsSupport []string `json:"token_endpoint_auth_methods_supported"`
+	DeviceAuthorizationEndpoint     string   `json:"device_authorization_endpoint"`
+	RevocationEndpoint              string   `json:"revocation_endpoint"`
 }
 
 type DiscoveryResult struct {

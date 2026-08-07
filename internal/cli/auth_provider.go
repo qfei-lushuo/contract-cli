@@ -64,6 +64,7 @@ func (p userAuthProvider) Login(ctx context.Context, profile *config.Profile, op
 	p.logger.Info("user auth login started", "profile", profile.Name)
 
 	user := &profile.Identities.User
+	user.AuthMode = config.UserAuthModeAuthorizationCode
 	if user.RegistrationEndpoint == "" || user.AuthorizationEndpoint == "" || user.TokenEndpoint == "" || user.RedirectURL == "" {
 		return "", fmt.Errorf("user identity is not configured; run `contract-cli config add` first")
 	}

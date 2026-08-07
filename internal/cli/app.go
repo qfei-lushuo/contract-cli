@@ -16,6 +16,7 @@ import (
 
 	"cn.qfei/contract-cli/internal/build"
 	"cn.qfei/contract-cli/internal/config"
+	"cn.qfei/contract-cli/internal/credential"
 	"cn.qfei/contract-cli/internal/oauth"
 	contractskills "cn.qfei/contract-cli/skills"
 )
@@ -25,16 +26,17 @@ const defaultProfileName = "contract"
 var errAPICommandUnavailable = errors.New("api call 暂未开放使用，请使用已开放的结构化命令")
 
 type Options struct {
-	Stdout         io.Writer
-	Stderr         io.Writer
-	Logger         *slog.Logger
-	Store          *config.Store
-	Secrets        *config.SecretsStore
-	HTTPClient     *http.Client
-	OpenBrowser    func(string) error
-	SaveFileDialog func(context.Context, string) (string, error)
-	LookupEnv      func(string) (string, bool)
-	SkillsFS       fs.FS
+	Stdout          io.Writer
+	Stderr          io.Writer
+	Logger          *slog.Logger
+	Store           *config.Store
+	Secrets         *config.SecretsStore
+	HTTPClient      *http.Client
+	OpenBrowser     func(string) error
+	SaveFileDialog  func(context.Context, string) (string, error)
+	LookupEnv       func(string) (string, bool)
+	SkillsFS        fs.FS
+	CredentialStore credential.Store
 
 	UpdateRegistryURL    string
 	UpdateCurrentVersion string
@@ -42,22 +44,23 @@ type Options struct {
 }
 
 type App struct {
-	stdout         io.Writer
-	stderr         io.Writer
-	logger         *slog.Logger
-	store          *config.Store
-	secrets        *config.SecretsStore
-	httpClient     *http.Client
-	openBrowser    func(string) error
-	saveFileDialog func(context.Context, string) (string, error)
-	lookupEnv      func(string) (string, bool)
-	skillsFS       fs.FS
-	updateURL      string
-	updateVersion  string
-	updateNotice   map[string]any
-	now            func() time.Time
-	userProvider   authProvider
-	appProvider    authProvider
+	stdout          io.Writer
+	stderr          io.Writer
+	logger          *slog.Logger
+	store           *config.Store
+	secrets         *config.SecretsStore
+	httpClient      *http.Client
+	openBrowser     func(string) error
+	saveFileDialog  func(context.Context, string) (string, error)
+	lookupEnv       func(string) (string, bool)
+	skillsFS        fs.FS
+	credentialStore credential.Store
+	updateURL       string
+	updateVersion   string
+	updateNotice    map[string]any
+	now             func() time.Time
+	userProvider    authProvider
+	appProvider     authProvider
 }
 
 type environmentPreset struct {
@@ -70,6 +73,8 @@ type environmentPreset struct {
 	Scopes                         []string
 	BusinessType                   string
 	ClientName                     string
+	DeviceClientID                 string
+	DeviceScope                    string
 }
 
 func New(options Options) *App {
@@ -129,19 +134,20 @@ func New(options Options) *App {
 	}
 
 	app := &App{
-		stdout:         stdout,
-		stderr:         stderr,
-		logger:         logger,
-		store:          store,
-		secrets:        secrets,
-		httpClient:     httpClient,
-		openBrowser:    opener,
-		saveFileDialog: saveFileDialog,
-		lookupEnv:      lookupEnv,
-		skillsFS:       skillsFS,
-		updateURL:      options.UpdateRegistryURL,
-		updateVersion:  options.UpdateCurrentVersion,
-		now:            now,
+		stdout:          stdout,
+		stderr:          stderr,
+		logger:          logger,
+		store:           store,
+		secrets:         secrets,
+		httpClient:      httpClient,
+		openBrowser:     opener,
+		saveFileDialog:  saveFileDialog,
+		lookupEnv:       lookupEnv,
+		skillsFS:        skillsFS,
+		credentialStore: options.CredentialStore,
+		updateURL:       options.UpdateRegistryURL,
+		updateVersion:   options.UpdateCurrentVersion,
+		now:             now,
 	}
 	app.userProvider = userAuthProvider{
 		httpClient:             httpClient,
@@ -317,8 +323,12 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	}
 
 	profile.Identities.User.AuthorizationEndpoint = discovery.AuthorizationServer.AuthorizationEndpoint
+	profile.Identities.User.DeviceAuthorizationEndpoint = discovery.AuthorizationServer.DeviceAuthorizationEndpoint
 	profile.Identities.User.TokenEndpoint = discovery.AuthorizationServer.TokenEndpoint
+	profile.Identities.User.RevocationEndpoint = discovery.AuthorizationServer.RevocationEndpoint
 	profile.Identities.User.RegistrationEndpoint = discovery.AuthorizationServer.RegistrationEndpoint
+	profile.Identities.User.DeviceClientID = preset.DeviceClientID
+	profile.Identities.User.DeviceScope = preset.DeviceScope
 	profile.Identities.User.RedirectURL = redirectURL
 
 	a.logger.Info("save profile", "profile", profileName, "environment", env)
@@ -339,6 +349,10 @@ func (a *App) runAuth(ctx context.Context, args []string) error {
 	switch args[0] {
 	case "login":
 		return a.runAuthLogin(ctx, args[1:])
+	case "init":
+		return a.runAuthDeviceInit(ctx, args[1:])
+	case "complete":
+		return a.runAuthDeviceComplete(ctx, args[1:])
 	case "status":
 		return a.runAuthStatus(ctx, args[1:])
 	case "logout":
@@ -427,15 +441,20 @@ func (a *App) runAuthStatus(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	profile, err := a.store.GetProfile(profileName)
+	profile, err := a.loadDeviceAwareProfile(profileName)
 	if err != nil {
 		return err
 	}
 
-	view, err := a.providerFor(identity).Status(ctx, profile, authCommandOptions{
-		Identity:    identity,
-		ProfileName: profile.Name,
-	})
+	var view authStatusView
+	if identity == config.IdentityUser && profile.Identities.User.AuthMode == config.UserAuthModeDevice {
+		view, err = a.deviceAuthStatus(profile)
+	} else {
+		view, err = a.providerFor(identity).Status(ctx, profile, authCommandOptions{
+			Identity:    identity,
+			ProfileName: profile.Name,
+		})
+	}
 	if err != nil {
 		return err
 	}
@@ -468,15 +487,20 @@ func (a *App) runAuthLogout(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	profile, err := a.store.GetProfile(profileName)
+	profile, err := a.loadDeviceAwareProfile(profileName)
 	if err != nil {
 		return err
 	}
 
-	message, err := a.providerFor(identity).Logout(ctx, &profile, authCommandOptions{
-		Identity:    identity,
-		ProfileName: profile.Name,
-	})
+	var message string
+	if identity == config.IdentityUser && profile.Identities.User.AuthMode == config.UserAuthModeDevice {
+		message, err = a.deviceAuthLogout(ctx, profile)
+	} else {
+		message, err = a.providerFor(identity).Logout(ctx, &profile, authCommandOptions{
+			Identity:    identity,
+			ProfileName: profile.Name,
+		})
+	}
 	if err != nil {
 		return err
 	}
@@ -538,10 +562,13 @@ func resolveEnvironment(name string) (environmentPreset, error) {
 			AppTokenEndpoint:               "https://open.qfei.cn/open-apis/auth/v3/tenant_access_token/internal",
 			ProtectedResourceMetadataURL:   "",
 			AuthorizationServerMetadataURL: "https://myaccount.qfei.cn/.well-known/oauth-authorization-server/contract",
+			Resource:                       "https://open.qfei.cn",
 			RedirectURL:                    "http://127.0.0.1:8000/callback",
 			Scopes:                         []string{"cli:tools", "cli:resources"},
 			BusinessType:                   "contract",
 			ClientName:                     "contract-cli",
+			DeviceClientID:                 "zscli_892efdadc11a3f53",
+			DeviceScope:                    "contract:full",
 		}, nil
 	default:
 		return environmentPreset{}, fmt.Errorf("unsupported environment %q; supported environments: prod", name)

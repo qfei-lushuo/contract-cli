@@ -28,6 +28,11 @@ const (
 
 const AppAuthModeAppCredentials = "app_credentials"
 
+const (
+	UserAuthModeAuthorizationCode = "authorization_code"
+	UserAuthModeDevice            = "device"
+)
+
 type Token struct {
 	AccessToken  string    `json:"access_token"`
 	TokenType    string    `json:"token_type"`
@@ -37,12 +42,17 @@ type Token struct {
 }
 
 type UserIdentity struct {
-	ClientID              string `json:"client_id,omitempty"`
-	AuthorizationEndpoint string `json:"authorization_endpoint,omitempty"`
-	TokenEndpoint         string `json:"token_endpoint,omitempty"`
-	RegistrationEndpoint  string `json:"registration_endpoint,omitempty"`
-	RedirectURL           string `json:"redirect_url,omitempty"`
-	Token                 *Token `json:"token,omitempty"`
+	AuthMode                    string `json:"auth_mode,omitempty"`
+	ClientID                    string `json:"client_id,omitempty"`
+	DeviceClientID              string `json:"device_client_id,omitempty"`
+	DeviceScope                 string `json:"device_scope,omitempty"`
+	AuthorizationEndpoint       string `json:"authorization_endpoint,omitempty"`
+	DeviceAuthorizationEndpoint string `json:"device_authorization_endpoint,omitempty"`
+	TokenEndpoint               string `json:"token_endpoint,omitempty"`
+	RevocationEndpoint          string `json:"revocation_endpoint,omitempty"`
+	RegistrationEndpoint        string `json:"registration_endpoint,omitempty"`
+	RedirectURL                 string `json:"redirect_url,omitempty"`
+	Token                       *Token `json:"token,omitempty"`
 }
 
 type AppIdentity struct {

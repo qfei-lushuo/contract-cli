@@ -1,6 +1,5 @@
 ---
 name: contract-cli-shared
-version: 1.0.0
 description: "contract-cli 开放平台共享约定技能：在 `contract`、`payment` 和 `mdm` 模块间做选择，并遵守 `contract/v1/mcp` user-only 限制、`--input-file` 请求体输入、输出格式和 profile 选择规则。当用户要操作开放平台 CLI 但尚未明确命令模块、需要更新 contract-cli，或看到 JSON 输出中的 `_notice` / `_notice.update` 时触发。"
 ---
 
@@ -43,6 +42,18 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 
 ## 共享约束
 
+- Device 模式业务命令提示未授权时，按 [../auth/SKILL.md](../auth/SKILL.md) 执行 `auth init`；用户明确完成授权后只执行一次 `auth complete`。
+- `auth init` 返回后严格执行授权 Skill 的展示契约：WorkBuddy 使用 `show_widget` 内联展示二维码，豆包继续使用 `qr_code_path`；同一条最终回复必须同时提供可点击授权链接、二维码和过期时间。
+- WorkBuddy 授权回复统一使用 [../auth/SKILL.md](../auth/SKILL.md) 中的面向用户文案和 220×220 显示尺寸，不向用户暴露 `user 身份未授权`、CLI 命令或内部状态。
+- WorkBuddy 时间文案只使用 CLI 返回的 `expires_at_display`，不展示 RFC3339 原值；授权回复必须使用授权 Skill 中的三步编号模板，并将 `**已授权**` 加粗。
+- WorkBuddy 正常路径只允许一次 `show_widget`；仅内联展示明确失败时，才允许额外使用一次 PNG 产物卡片。展示完成后禁止继续调用授权或业务工具。
+- `auth complete` 成功后，授权前没有发送的原业务请求可继续执行一次，不追加二次用户确认。
+- CLI 只在 HTTP 401 同时包含 `X-Qfei-Open-Platform-Auth-Error: token_expired` 和 `data.error_type=token_expired` 时，确认请求未转发并刷新、重发一次；不把其他 401、5xx 或网络错误当成 Token 过期。
+- Skill / 模型层不得重试任何 OAuth 命令。CLI 内部仅对 `auth init` 的 TCP `dial` 失败自动重试一次，因为该分支能确认 HTTP 请求尚未发出；请求已发送后的超时、HTTP 5xx、响应中断或解析失败不重试，`auth complete`、Token 刷新和撤销始终不自动重试。
+- Refresh Token 返回 `invalid_grant` 后，必须先询问用户是否重新授权；只有收到新的用户消息明确同意后，才能先查询当前授权状态，再按真实状态复用会话或发起新授权。
+- 写请求发送后遇超时、断网、连接中断或 5xx 禁止自动重试。
+- 看到“执行结果不确定，请先查询确认”时，必须先用查询命令确认服务端结果，不得直接重复写入。
+
 - `api call` 当前不对外开放；执行 `contract-cli api ...` 会直接返回 `api call 暂未开放使用，请使用已开放的结构化命令`
 - `contract/v1/mcp` 这批路径大部分只支持 `--as user`
 - 当前结构化命令里只有 `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`、`contract approval start/get`、`payment *`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 支持 app；其中合同命令的 app 路由走 `/open-apis/contract/v1/...`，`contract upload-file` 走 `/open-apis/contract/v1/files/upload` 且同时支持 user/app，`contract submit/resubmit/patch/download-file/delete/print-file/share/cooperation/approval` 和 `payment *` 仅支持 app，`mdm vendor list/get` 的 app 路由走 `/open-apis/mdm/v1/vendors...`，`mdm legal list` 的 app 路由走 `/open-apis/mdm/v1/legal_entities/list_all`，`mdm legal get` 的 app 路由走 `/open-apis/mdm/v1/legal_entities/{legal_entity_id}`，`mdm fields list` 的 app 路由走 `/open-apis/mdm/v1/config/config_list`
@@ -81,7 +92,8 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 
 - 命令报 `only supports --as user`：当前命中的是 user-only `contract/v1/mcp` 路径，切到 `--as user`
 - 命令报 `profile "<name>" not found`：先执行 `contract-cli config add --env prod --name <profile>`
-- 命令报 `user identity is not authorized`：先执行 `contract-cli auth login --profile <profile> --as user`
+- 命令报 `user identity is not authorized`：Device profile 执行 `contract-cli auth init --profile <profile> --output json`，用户完成授权后只执行一次 `auth complete`；旧 Authorization Code profile 才执行 `contract-cli auth login --profile <profile> --as user`
+- Device 授权返回 `denied`、`expired` 或 `restart_required`：先等待用户明确同意，再执行一次带 `--restart` 的 `auth init`；禁止自动重试
 - 用户想做文件上传：使用 `contract upload-file --as user|app --file <path> --file-type <type>`
 - 用户想下载文件：使用 `contract download-file --as app --output-file <path>`；不要写成 `dowload-file`
 - 用户想做付款申请、付款计划或付款记录：使用 `payment ... --as app`，不要放到 `contract` 子命令下面

@@ -1,7 +1,7 @@
 ---
 name: auth
-version: 1.1.1
-description: "contract-cli 登录与身份切换技能：初始化 prod profile、执行 user OAuth 登录、录入 app 的 app_id/app_secret 并立即兑换 tenant_access_token、查看状态、切换默认身份、排查本地 config/secrets 持久化问题。当用户需要 `contract-cli config add`、`contract-cli auth login --as user|app`、`contract-cli auth status/logout/use` 或排查登录异常时触发。"
+version: 1.1.7
+description: "contract-cli 登录与身份切换技能：初始化 profile、通过 Device Grant 展示手机号授权链接/二维码并单次查询结果、保留旧 user OAuth 授权码模式、登录 app 身份、查看状态与退出。当用户需要 `auth init/complete/login/status/logout/use` 时触发。"
 ---
 
 # contract-cli Auth
@@ -11,7 +11,8 @@ description: "contract-cli 登录与身份切换技能：初始化 prod profile�
 ## 适用范围
 
 - 首次初始化本地 `profile`
-- 以 `user` 身份走 OAuth 授权码 + PKCE 登录
+- 在豆包或 WorkBuddy 中以 Device Grant 完成手机号授权
+- 保留 `user` 身份的 OAuth 授权码 + PKCE 登录
 - 以 `app` 身份录入 `app_id/app_secret`
 - 查看或清理本地身份状态
 - 切换默认业务身份
@@ -32,7 +33,7 @@ description: "contract-cli 登录与身份切换技能：初始化 prod profile�
 contract-cli config add --env prod --name contract
 ```
 
-当前实现仅内置 `prod` 环境，默认环境为 `prod`，默认 profile 名为 `contract`。该命令会：
+当前仅内置 `prod` 环境，默认环境为 `prod`，默认 profile 名为 `contract`。该命令会：
 
 - 发现 well-known 元数据
 - 保存 MCP server / resource / OAuth server 配置
@@ -47,6 +48,11 @@ contract-cli config add --env prod --name contract
 | `user` | `contract-cli auth login --as user` | `profiles.<name>.identities.user.token` | 已实现 OAuth 登录 |
 | `app` | `contract-cli auth login --as app` | `profiles.<name>.identities.app` + `secrets.json` | 已实现凭据录入和 `tenant_access_token` 兑换 |
 
+`user` 身份有两种互不迁移的模式：
+
+- `auth login --as user`：保留的 Authorization Code + PKCE 模式，token 继续使用旧 profile 存储。
+- `auth init` + `auth complete`：豆包/WorkBuddy 使用的 Device Grant 模式，token 只进入 CredentialStore，不写入 profile。
+
 额外还有一个默认身份指针：
 
 - `profiles.<name>.default_identity`
@@ -54,6 +60,56 @@ contract-cli config add --env prod --name contract
 - `auth login --as ...` 成功后也会自动切换到对应身份
 
 ## 快速流程
+
+### 豆包 / WorkBuddy Device 授权
+
+```bash
+contract-cli config add --env prod --name contract
+contract-cli auth init --profile contract --output json
+# 展示 verification_uri_complete 和 qr_code_path，等用户完成手机号、企业确认和同意授权
+contract-cli auth complete --profile contract --output json
+```
+
+完成授权后的每次合同业务调用也必须显式传入同一个 profile，例如：
+
+```bash
+contract-cli contract get <contract-id> --profile contract --output json
+```
+
+固定规则：
+
+- `auth init` 只发起一次请求并立即退出；最终回复必须同时包含完整 HTTPS 授权链接、二维码和过期时间。完成下述展示后必须立即结束当前轮次。
+- 将 `verification_uri_complete` 替换到 Markdown `[打开授权页面](<verification_uri_complete>)` 中，确保最终回复正文有可点击链接；不得只把 URL 留在工具输出或思考过程中。
+- WorkBuddy 在执行 `auth init` 前，先调用 `read_me` 加载 `show_widget` 对应的展示说明。`auth init` 返回 `pending` 后读取 `qr_code_data_uri`，使用 `show_widget` 的 HTML 模式内联渲染 `<img src="data:image/png;base64,...">`；PNG 原始内容保持 320×320，页面显示尺寸限制为 220×220，并保留白色背景和清晰边界。
+- WorkBuddy 主路径只能调用一次授权展示工具 `show_widget`。调用参数使用 `qr_code_data_uri`，但不得把完整 Data URI 输出到最终回复正文、日志或其他持久化内容。
+- WorkBuddy 工具调用顺序固定为 `read_me(modules: "diagram")`，再执行一次 `auth init`，最后执行 `show_widget(title: "智书合同授权二维码", widget_code: "<div style='display:flex;justify-content:center;align-items:center;background:#fff;padding:12px'><img src='<qr_code_data_uri>' alt='智书合同授权二维码' style='display:block;width:220px;height:220px;max-width:220px;object-fit:contain' /></div>")`。其中 `<qr_code_data_uri>` 必须替换为本次 CLI 返回值，不得自行重新生成或猜测。
+- WorkBuddy 的最终授权提示使用下方固定模板，不展示 `user 身份未授权`、命令名或内部状态：
+
+  ```markdown
+继续查询前，需要先完成智书合同授权。
+  1. 点击蓝色链接「[打开授权页面](<verification_uri_complete>)」，或扫描本消息中的二维码
+  2. 在 **<expires_at_display>** 前完成：手机号验证 + 企业确认授权
+  3. 授权全部完成后，回复消息：**已授权**，我将立刻为你执行合同查询
+  ```
+
+  必须直接使用 CLI 返回的 `expires_at_display`，并按模板加粗显示。不得向用户展示 `expires_at` 的 RFC3339 原值，不得出现 `T` 或 `+08:00`，不得使用反引号或代码样式展示时间。回复关键词“已授权”必须使用 Markdown `**已授权**` 加粗，逗号不放入加粗范围。
+- `show_widget` 成功后，正文仍必须包含 `[打开授权页面](<verification_uri_complete>)` 和 `expires_at_display`，不得只返回授权链接或只返回二维码。
+- `show_widget` 明确失败时，才允许额外调用一次 `present_files(files: ["<qr_code_path>"])`，降级为可点击授权链接和 `qr_code_path` 对应的 PNG 产物卡片，并原样告知“二维码内联展示失败，请点击图片卡片或授权链接”；不得声称二维码已经展示。
+- 豆包不要求 `show_widget`；豆包继续将 `qr_code_path` 对应的 PNG 作为图片展示，并在正文中同时提供可点击链接和过期时间。
+- `auth init` 返回后只能调用一次授权展示工具；仅前述 `show_widget` 明确失败时可追加一次 `present_files`。除此之外，禁止执行 `auth complete`、再次执行 `auth init`、业务命令、轮询或网络重试。
+- CLI 内部的单次安全重试不算第二次 `auth init` 命令；该重试只允许发生在明确的 TCP `dial` 失败、能够确认请求尚未发出时。
+- `auth init` 最终失败后，禁止额外执行 `curl`、`auth status` 或其他探测命令；如实告知失败原因并明确询问用户是否重新发起授权。
+- 链接已包含一次性用户码，不要再要求用户手工输入授权码。
+- 只有收到新的用户消息明确说“已授权”后，才执行一次 `auth complete`；不得在展示链接的同一轮调用。返回 `pending` 时只告知尚未完成并结束当前轮次，禁止持续轮询。
+- `succeeded` 后可继续执行授权前尚未发送的原业务请求一次，不再追加二次确认。
+- `uncertain` / `busy` 必须告知当前结果不确定并结束当前轮次；禁止重试 `auth complete`，禁止重新执行 `auth init`。
+- `denied` / `expired` / `restart_required` 为终态；先询问用户是否重新授权。只有收到新的用户消息明确同意后，才执行 `auth init --profile <profile> --output json --restart`，随后再次立即结束当前轮次。
+- `auth status` 不支持 `--output`，禁止自动附加该参数。
+- Refresh Token 返回 `invalid_grant` 时也必须先询问用户；CLI 会清理失效 Token，但会保留可能存在的 pending 会话。只有收到新的用户消息明确同意后，才先执行 `auth status --profile <profile> --as user`，再根据真实状态选择复用现有会话、普通 `auth init` 或带 `--restart` 的 `auth init`；不要直接重复未确认结果的写请求。
+- 豆包工作任务运行在云端任务环境，必须提供 `SKILL_SESSION_WORKSPACE` 和格式正确的 `CONTRACT_CLI_CREDENTIAL_KEY_V1`。
+- `auth init` 成功后，CLI 会把 Device 运行所需的非敏感 profile 快照与 pending transaction 一起加密保存。豆包用同一个会话工作区重建沙箱、临时 HOME 中没有本地 profile 时，CLI 只会在命令显式携带 `--profile contract` 且快照完整匹配时恢复 profile。
+- 恢复只写入当前沙箱临时 HOME；不会把 `config.json`、`secrets.json`、App Secret 或明文 profile 写进会话工作区。快照缺失或损坏时，按错误提示重新执行 `config add` 和 `auth init`，禁止猜测环境、scope、client 或 endpoint。
+- WorkBuddy 运行在客户本机，必须提供 `CODEBUDDY_SESSION_ID`；macOS 使用 macOS Keychain，Windows 使用 Credential Manager，Linux 使用 Secret Service。任一条件缺失都直接失败，不降级成明文文件。
 
 ### `user` 登录
 
@@ -129,7 +185,8 @@ contract-cli auth logout --as app
 
 规则：
 
-- `logout --as user` 只清理 `user.token`
+- Authorization Code 模式的 `logout --as user` 只清理 `user.token`
+- Device 模式的 `logout --as user` 先撤销 Refresh Token family，成功后再清理 CredentialStore；撤销失败时保留本地凭据并明确报错
 - `logout --as app` 只清理 `app.token`，保留 `app_id/app_secret` 和对应 secret
 - 不传 `--as` 时，`auth logout` 默认处理 `user`
 
@@ -157,7 +214,9 @@ contract-cli auth use --as app
 
 存储约束：
 
-- `config.json` 保存 profile、identity 元数据和 token
+- `config.json` 保存 profile、identity 元数据；旧授权码模式仍保持原有 token 存储行为
+- Device Token 不写入 `config.json`：豆包写入会话工作区的 AES-256-GCM 密文，WorkBuddy 写入操作系统安全存储
+- 豆包加密 Device 凭证可包含恢复当前 Device profile 所需的非敏感快照；不包含 App 身份、旧 OAuth Token、手机号、企业 ID 或业务参数
 - `secrets.json` 只保存 app 的 `app_secret`
 - `user.token` 与 `app.token` 分离存储，不共享
 - 旧版平铺 OAuth 字段会自动迁移到 `identities.user`
@@ -168,6 +227,7 @@ contract-cli auth use --as app
 - 不要把 `app` 登出描述成“删除凭据”，当前实现只清 token、不删 `app_id/app_secret`
 - 不要让用户误以为 `default_identity` 会影响 `auth status` 或 `auth logout` 的默认目标，这两个命令未传 `--as` 时仍按 `user`
 - 涉及写入、清理本地凭据时，先确认是在当前 profile 上操作
+- 禁止在 stdout、stderr、日志或 Skill 回复中输出 `device_code`、Access Token、Refresh Token 和加密密钥
 
 ## 故障排查
 

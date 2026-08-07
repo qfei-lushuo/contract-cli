@@ -64,6 +64,17 @@ else
   LC_ALL=C tar -czf "$ASSET_DIR/$ARCHIVE_NAME" -C "$ASSET_BUILD_DIR" "$BINARY_NAME"
 fi
 
+node - "$ASSET_DIR/$ARCHIVE_NAME" "$ASSET_DIR/checksums.txt" <<'NODE'
+const crypto = require("crypto");
+const fs = require("fs");
+const path = require("path");
+
+const archivePath = process.argv[2];
+const checksumsPath = process.argv[3];
+const checksum = crypto.createHash("sha256").update(fs.readFileSync(archivePath)).digest("hex");
+fs.writeFileSync(checksumsPath, `${checksum}  ${path.basename(archivePath)}\n`);
+NODE
+
 env \
   CONTRACT_CLI_DOWNLOAD_BASE_URL_TEMPLATE="file://$ASSET_DIR" \
   npm_config_cache="$NPM_CACHE" \

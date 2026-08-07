@@ -122,6 +122,16 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 			},
 		},
 		{
+			name: "auth init restart guard",
+			args: []string{"auth", "init", "--help"},
+			contains: []string{
+				"auth init",
+				"qr_code_data_uri",
+				"--restart",
+				"仅在用户明确同意重新授权后替换旧 Device 会话",
+			},
+		},
+		{
 			name: "auth login flags",
 			args: []string{"auth", "login", "--help"},
 			contains: []string{
@@ -132,7 +142,7 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 			},
 		},
 		{
-			name: "config add production defaults",
+			name: "config add environment defaults",
 			args: []string{"config", "add", "--help"},
 			contains: []string{
 				"config add",
@@ -142,9 +152,7 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 				"默认 contract",
 				"contract-cli config add --env prod --name contract",
 			},
-			notContains: []string{
-				"dev",
-			},
+			notContains: []string{"--env <dev|prod>"},
 		},
 		{
 			name: "update check production example",
@@ -245,6 +253,8 @@ func TestAllCurrentHelpTopicsRender(t *testing.T) {
 		"config",
 		"config add",
 		"auth",
+		"auth init",
+		"auth complete",
 		"auth login",
 		"auth status",
 		"auth logout",

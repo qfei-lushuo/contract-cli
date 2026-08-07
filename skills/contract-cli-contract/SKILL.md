@@ -139,7 +139,9 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 ## 操作建议
 
 - 先确认 profile 已完成目标身份的登录：
-  - user 详情、user 搜索、user 创建、user 同步用户组、user 合同文本、user 分类查询、user 模板列表、user 模板详情、user 模板实例、user 文件上传和其他 user-only 命令：`auth login --as user`
+  - profile 的 `user.auth_mode=device` 时，按授权 Skill 执行一次 `auth init`，用户确认完成后再执行一次 `auth complete`；不要启动本机回调登录或持续轮询。
+  - 仅保留的 Authorization Code 模式使用 `auth login --as user`。
+  - user 身份覆盖详情、搜索、创建、同步用户组、合同文本、分类、模板、文件上传和其他 user-only 命令。
   - app 详情、app 搜索、app 创建、app 同步用户组、app 合同文本、app 分类查询、app 模板列表、app 模板详情、app 模板实例、app 文件上传、app 提交/重提/更新/删除/下载/打印/分享/协商查询/审批管理：`auth login --as app`
 - 复杂请求体优先用 `--input-file`
 - 需要脚本消费时加 `--output json`
@@ -150,6 +152,8 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - 交易方/我方主体、金额、期限、合同分类这几个字段最容易缺，优先核对
 
 ## 不要这样做
+
+- 写命令返回“执行结果不确定”时，不要立即重试创建、模板实例化、用户组同步或文件上传；先用查询命令确认结果。
 
 - 不要对 `contract enum` 传 `--as app`
 - 不要继续写 `--file contract.json`；JSON 请求体用 `--input-file`
