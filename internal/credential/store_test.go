@@ -3,6 +3,7 @@ package credential
 import (
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"os"
 	"path/filepath"
 	"strings"
@@ -134,17 +135,178 @@ func TestDeviceRuntimeRejectsRemovedDoubaoLocalEnvironment(t *testing.T) {
 	}
 }
 
+func TestDoubaoWorkTaskRuntimeUsesSessionAndCurrentDirectory(t *testing.T) {
+	workspace := t.TempDir()
+	runtimeContext, err := resolveDeviceRuntime(envLookup(map[string]string{
+		"SESSION_ID": "doubao-task-a",
+	}), func() (string, error) {
+		return workspace, nil
+	})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runtimeContext.Kind != DeviceRuntimeDoubaoWorkTask {
+		t.Fatalf("runtime kind = %q, want %q", runtimeContext.Kind, DeviceRuntimeDoubaoWorkTask)
+	}
+	if runtimeContext.Workspace != workspace {
+		t.Fatalf("runtime workspace = %q, want %q", runtimeContext.Workspace, workspace)
+	}
+	if runtimeContext.SessionID != "doubao-task-a" {
+		t.Fatalf("runtime session = %q", runtimeContext.SessionID)
+	}
+	if runtimeContext.SessionNamespace != deviceSessionNamespace("doubao-task-a") {
+		t.Fatalf("runtime namespace = %q", runtimeContext.SessionNamespace)
+	}
+}
+
+func TestDoubaoWorkTaskRuntimeRejectsInvalidCurrentDirectory(t *testing.T) {
+	lookupEnv := envLookup(map[string]string{"SESSION_ID": "doubao-task-a"})
+	for name, currentDir := range map[string]func() (string, error){
+		"lookup failure": func() (string, error) { return "", errors.New("cwd unavailable") },
+		"relative path":  func() (string, error) { return "relative/workspace", nil },
+	} {
+		t.Run(name, func(t *testing.T) {
+			if _, err := resolveDeviceRuntime(lookupEnv, currentDir); err == nil {
+				t.Fatal("invalid current directory unexpectedly accepted")
+			}
+		})
+	}
+}
+
+func TestDoubaoWorkTaskStoreEncryptsAndIsolatesSessions(t *testing.T) {
+	workspace := t.TempDir()
+	t.Chdir(workspace)
+
+	storeA, err := NewStore(Options{LookupEnv: envLookup(map[string]string{"SESSION_ID": "task-a"})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	stored := DeviceCredential{
+		Pending: &PendingTransaction{DeviceCode: "secret-device-code"},
+		Token:   &config.Token{AccessToken: "secret-access", RefreshToken: "secret-refresh"},
+		DeviceProfile: &DeviceProfile{
+			Name: "contract", Environment: "prod", OpenPlatformBaseURL: "https://open.qfei.cn",
+			Resource: "https://open.qfei.cn", BusinessType: "contract", DeviceClientID: "device-client",
+			DeviceScope: "contract:full", DeviceAuthorizationEndpoint: "https://myaccount.qfei.cn/device",
+			TokenEndpoint: "https://myaccount.qfei.cn/token",
+		},
+	}
+	if err := storeA.Save("contract", stored); err != nil {
+		t.Fatal(err)
+	}
+
+	credentialPath := filepath.Join(
+		workspace, ".contract-cli", "sessions", deviceSessionNamespace("task-a"), "credentials", profileFileName("contract"),
+	)
+	raw, err := os.ReadFile(credentialPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	credentialInfo, err := os.Stat(credentialPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := credentialInfo.Mode().Perm(); got != 0o600 {
+		t.Fatalf("credential permissions = %o, want 600", got)
+	}
+	sessionDir := filepath.Join(workspace, ".contract-cli", "sessions", deviceSessionNamespace("task-a"))
+	sessionInfo, err := os.Stat(sessionDir)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got := sessionInfo.Mode().Perm(); got != 0o700 {
+		t.Fatalf("session directory permissions = %o, want 700", got)
+	}
+	for _, plaintext := range []string{"task-a", "secret-device-code", "secret-access", "secret-refresh", "https://open.qfei.cn"} {
+		if strings.Contains(string(raw), plaintext) {
+			t.Fatalf("encrypted credential contains plaintext %q", plaintext)
+		}
+	}
+	loaded, err := storeA.Load("contract")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if loaded.Token == nil || loaded.Token.AccessToken != "secret-access" || loaded.Pending == nil || loaded.Pending.DeviceCode != "secret-device-code" {
+		t.Fatalf("unexpected loaded credential: %+v", loaded)
+	}
+
+	storeB, err := NewStore(Options{LookupEnv: envLookup(map[string]string{"SESSION_ID": "task-b"})})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := storeB.Load("contract"); !errors.Is(err, ErrCredentialNotFound) {
+		t.Fatalf("task-b load error = %v, want ErrCredentialNotFound", err)
+	}
+	if _, err := os.Stat(filepath.Join(workspace, ".contract-cli", "sessions", "task-a")); !errors.Is(err, os.ErrNotExist) {
+		t.Fatalf("raw session id unexpectedly used as path: %v", err)
+	}
+}
+
+func TestDoubaoWorkTaskStoreRejectsUnwritableCredentialRoot(t *testing.T) {
+	workspace := t.TempDir()
+	t.Chdir(workspace)
+	if err := os.WriteFile(filepath.Join(workspace, ".contract-cli"), []byte("blocks directory creation"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := NewStore(Options{LookupEnv: envLookup(map[string]string{"SESSION_ID": "task-a"})}); err == nil {
+		t.Fatal("unwritable credential root unexpectedly accepted")
+	}
+}
+
+func TestDoubaoWorkTaskStoreTightensExistingSessionDirectoryPermissions(t *testing.T) {
+	workspace := t.TempDir()
+	t.Chdir(workspace)
+	sessionDir := filepath.Join(workspace, ".contract-cli", "sessions", deviceSessionNamespace("task-a"))
+	credentialDir := filepath.Join(sessionDir, "credentials")
+	if err := os.MkdirAll(credentialDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(sessionDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.Chmod(credentialDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+
+	if _, err := NewStore(Options{LookupEnv: envLookup(map[string]string{"SESSION_ID": "task-a"})}); err != nil {
+		t.Fatal(err)
+	}
+	for _, dir := range []string{sessionDir, credentialDir} {
+		info, err := os.Stat(dir)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if got := info.Mode().Perm(); got != 0o700 {
+			t.Fatalf("directory %q permissions = %o, want 700", dir, got)
+		}
+	}
+}
+
 func TestDeviceRuntimeKeepsDoubaoCloudPrecedenceOverWorkBuddy(t *testing.T) {
 	workspace := t.TempDir()
 	runtimeContext, err := ResolveDeviceRuntime(envLookup(map[string]string{
 		"SKILL_SESSION_WORKSPACE": workspace,
 		"CODEBUDDY_SESSION_ID":    "workbuddy-task",
+		"SESSION_ID":              "doubao-task",
 	}))
 	if err != nil {
 		t.Fatal(err)
 	}
 	if runtimeContext.Kind != DeviceRuntimeDoubaoCloud || runtimeContext.Workspace != workspace {
 		t.Fatalf("runtime = %+v, want Doubao cloud workspace", runtimeContext)
+	}
+}
+
+func TestDeviceRuntimeKeepsWorkBuddyPrecedenceOverDoubaoWorkTask(t *testing.T) {
+	runtimeContext, err := ResolveDeviceRuntime(envLookup(map[string]string{
+		"CODEBUDDY_SESSION_ID": "workbuddy-task",
+		"SESSION_ID":           "doubao-task",
+	}))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if runtimeContext.Kind != DeviceRuntimeWorkBuddy || runtimeContext.SessionID != "workbuddy-task" {
+		t.Fatalf("runtime = %+v, want WorkBuddy", runtimeContext)
 	}
 }
 

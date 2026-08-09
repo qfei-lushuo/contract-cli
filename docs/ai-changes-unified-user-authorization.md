@@ -154,3 +154,11 @@
 - 授权 Skill 恢复定稿的二维码位置无关文案，明确豆包云端工作任务与 WorkBuddy 客户本机的真实运行边界，并删除平台强制结构化工具的错误断言。
 - Device Grant 状态机、CredentialStore、Token 刷新、业务请求、旧 OAuth 和 App 身份行为保持不变。
 - 本地 npm 安装校验改为给临时构建的当前版本制品生成独立 checksum，不再依赖工作区里恰好存在同版本历史制品，保证后续正式版本号升级仍能验证安装器验签链路。
+
+## 2026-08-09 豆包普通工作任务授权支持
+
+- 在 AgentKit 和 WorkBuddy 之后新增豆包普通工作任务运行时：仅当前两种平台标识都缺失时，才使用 `SESSION_ID` 识别当前任务，不改变原有优先级。
+- 不使用当前环境中指向无效目录的 `WORKSPACE`；以真实当前工作目录和 `SESSION_ID` 摘要建立任务级凭证、二维码和文件锁目录。
+- Device Token、Refresh Token、device code 和 profile 快照继续使用 AES-256-GCM 密文及原子写入；原始 `SESSION_ID` 不进入文件名、日志或 CLI 输出。
+- 同一任务多轮调用可复用 pending 会话和 Token，新任务使用新命名空间并必须重新授权；临时 HOME 丢失时可从同任务密文快照恢复 Device profile。
+- 普通工作任务没有平台 Secret API 或 Keyring；该密文方案用于避免明文落盘和正常对话泄露，不宣称能抵御同沙箱内恶意 Shell。AgentKit 显式密钥和 WorkBuddy 操作系统安全存储行为保持不变。

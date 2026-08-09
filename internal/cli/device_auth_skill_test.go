@@ -45,7 +45,10 @@ func TestDeviceAuthSkillsEnforceWorkBuddyTurnBoundaries(t *testing.T) {
 		"先执行 `auth status --profile <profile> --as user`",
 		"根据真实状态选择复用现有会话、普通 `auth init` 或带 `--restart` 的 `auth init`",
 		"auth status` 不支持 `--output",
-		"豆包工作任务运行在云端任务环境",
+		"豆包 AgentKit / Skills Sandbox 运行在云端 Skill 环境",
+		"豆包普通工作任务使用 `SESSION_ID`",
+		"必须从任务初始工作目录执行",
+		"不能抵御同一沙箱内具有文件和进程访问能力的 Shell",
 		"macOS Keychain",
 		"必须提供 `SKILL_SESSION_WORKSPACE`",
 		"WorkBuddy 运行在客户本机",
@@ -60,7 +63,7 @@ func TestDeviceAuthSkillsEnforceWorkBuddyTurnBoundaries(t *testing.T) {
 	if strings.Contains(auth, "固定为 320×320") {
 		t.Fatal("auth skill still renders the WorkBuddy QR code at the oversized 320x320 display size")
 	}
-	for _, forbidden := range []string{"DOUBAO_SESSION_ID", "DOUBAO_TASK_ID", "豆包本地 Skill 必须提供", "豆包 Skill 只暴露固定子命令和结构化参数"} {
+	for _, forbidden := range []string{"DOUBAO_SESSION_ID", "DOUBAO_TASK_ID", "豆包本地 Skill 必须提供", "豆包 Skill 只暴露固定子命令和结构化参数", "普通 Shell 无法读取"} {
 		if strings.Contains(auth, forbidden) {
 			t.Fatalf("auth skill still documents removed Doubao local runtime contract %q", forbidden)
 		}
@@ -72,7 +75,7 @@ func TestDeviceAuthSkillsEnforceWorkBuddyTurnBoundaries(t *testing.T) {
 	}
 	for _, required := range []string{
 		"WorkBuddy 使用 `show_widget` 内联展示二维码",
-		"豆包继续使用 `qr_code_path`",
+		"AgentKit 和豆包普通工作任务继续使用 `qr_code_path`",
 		"Skill / 模型层不得重试任何 OAuth 命令",
 		"CLI 内部仅对 `auth init` 的 TCP `dial` 失败自动重试一次",
 		"请求已发送后的超时、HTTP 5xx、响应中断或解析失败不重试",

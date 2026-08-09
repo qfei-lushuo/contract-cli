@@ -293,8 +293,9 @@ func TestWorkBuddyTasksUseIsolatedCredentialOperationLocks(t *testing.T) {
 	defer lockB.Unlock()
 }
 
-func TestRemovedDoubaoLocalRuntimeCannotCreateLockOrQRCode(t *testing.T) {
-	t.Setenv("HOME", t.TempDir())
+func TestDoubaoWorkTaskUsesSessionIsolatedLockAndQRCodePaths(t *testing.T) {
+	workspace := t.TempDir()
+	t.Chdir(workspace)
 	app, _, _ := newDeviceTokenTestApp(t, &config.Token{
 		AccessToken: "old-access", RefreshToken: "refresh-one", Expiry: deviceTokenTestNow().Add(time.Hour),
 	}, func(request *http.Request) (*http.Response, error) {
@@ -302,17 +303,52 @@ func TestRemovedDoubaoLocalRuntimeCannotCreateLockOrQRCode(t *testing.T) {
 		return nil, nil
 	})
 	app.lookupEnv = func(name string) (string, bool) {
-		if name == "DOUBAO_SESSION_ID" {
-			return "removed-local-session", true
+		if name == "SESSION_ID" {
+			return "doubao-task-a", true
 		}
 		return "", false
 	}
 
-	if _, err := app.deviceAuthorizationLock("contract"); err == nil {
-		t.Fatal("DOUBAO_SESSION_ID unexpectedly created a device authorization lock")
+	lockA, err := app.deviceAuthorizationLock("contract")
+	if err != nil {
+		t.Fatal(err)
 	}
-	if _, err := app.writeAuthorizationQRCode("contract", "https://auth.example/device?user_code=a"); err == nil {
-		t.Fatal("DOUBAO_SESSION_ID unexpectedly created an authorization QR code")
+	locked, err := lockA.TryLock()
+	if err != nil || !locked {
+		t.Fatalf("task-a TryLock() = %v, %v", locked, err)
+	}
+	defer lockA.Unlock()
+	qrA, err := app.writeAuthorizationQRCode("contract", "https://auth.example/device?user_code=a")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	app.lookupEnv = func(name string) (string, bool) {
+		if name == "SESSION_ID" {
+			return "doubao-task-b", true
+		}
+		return "", false
+	}
+	lockB, err := app.deviceAuthorizationLock("contract")
+	if err != nil {
+		t.Fatal(err)
+	}
+	locked, err = lockB.TryLock()
+	if err != nil || !locked {
+		t.Fatalf("task-b TryLock() = %v, %v; Doubao tasks must use isolated locks", locked, err)
+	}
+	defer lockB.Unlock()
+	qrB, err := app.writeAuthorizationQRCode("contract", "https://auth.example/device?user_code=b")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if qrA.Path == qrB.Path {
+		t.Fatalf("Doubao work tasks share QR path %q", qrA.Path)
+	}
+	for _, path := range []string{qrA.Path, qrB.Path} {
+		if !strings.HasPrefix(path, filepath.Join(workspace, ".contract-cli", "sessions")+string(filepath.Separator)) {
+			t.Fatalf("QR path %q is outside task workspace", path)
+		}
 	}
 }
 

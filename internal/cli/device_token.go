@@ -243,10 +243,14 @@ func (a *App) deviceCredentialOperationLock(profileName string) (*flock.Flock, e
 	}
 	baseDir := ""
 	namespace := profileName
-	if runtimeContext.Kind == credential.DeviceRuntimeDoubaoCloud {
+	switch runtimeContext.Kind {
+	case credential.DeviceRuntimeDoubaoCloud:
 		baseDir = filepath.Join(runtimeContext.Workspace, ".contract-cli", "locks")
 		namespace = runtimeContext.Workspace + ":" + namespace
-	} else {
+	case credential.DeviceRuntimeDoubaoWorkTask:
+		baseDir = filepath.Join(runtimeContext.DataDir, "locks")
+		namespace = runtimeContext.SessionNamespace + ":" + namespace
+	case credential.DeviceRuntimeWorkBuddy:
 		cacheDir, err := os.UserCacheDir()
 		if err != nil {
 			return nil, fmt.Errorf("resolve device credential operation lock directory: %w", err)
@@ -254,6 +258,8 @@ func (a *App) deviceCredentialOperationLock(profileName string) (*flock.Flock, e
 		baseDir = filepath.Join(cacheDir, "contract-cli", "locks")
 		// Keep the existing WorkBuddy namespace stable for backward compatibility.
 		namespace = runtimeContext.SessionID + ":" + namespace
+	default:
+		return nil, fmt.Errorf("unsupported Device runtime %q", runtimeContext.Kind)
 	}
 	if err := os.MkdirAll(baseDir, 0o700); err != nil {
 		return nil, fmt.Errorf("create device operation lock directory: %w", err)

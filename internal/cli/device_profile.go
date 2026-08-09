@@ -19,8 +19,21 @@ func (a *App) loadDeviceAwareProfile(profileName string) (config.Profile, error)
 	}
 
 	normalizedProfileName := strings.TrimSpace(profileName)
-	workspace, inDoubao := a.lookupEnv("SKILL_SESSION_WORKSPACE")
-	if normalizedProfileName == "" || !inDoubao || strings.TrimSpace(workspace) == "" {
+	if normalizedProfileName == "" {
+		return config.Profile{}, profileNotFoundError(profileName)
+	}
+	agentKitWorkspace, inAgentKit := a.lookupEnv("SKILL_SESSION_WORKSPACE")
+	workTaskSession, inDoubaoWorkTask := a.lookupEnv("SESSION_ID")
+	hasAgentKitWorkspace := inAgentKit && strings.TrimSpace(agentKitWorkspace) != ""
+	hasDoubaoWorkTask := inDoubaoWorkTask && strings.TrimSpace(workTaskSession) != ""
+	if !hasAgentKitWorkspace && !hasDoubaoWorkTask {
+		return config.Profile{}, profileNotFoundError(profileName)
+	}
+	runtimeContext, err := credential.ResolveDeviceRuntime(a.lookupEnv)
+	if err != nil {
+		return config.Profile{}, err
+	}
+	if runtimeContext.Kind != credential.DeviceRuntimeDoubaoCloud && runtimeContext.Kind != credential.DeviceRuntimeDoubaoWorkTask {
 		return config.Profile{}, profileNotFoundError(profileName)
 	}
 

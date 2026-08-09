@@ -350,9 +350,12 @@ func (a *App) writeAuthorizationQRCode(profileName, verificationURI string) (aut
 	}
 	baseDir := ""
 	artifactNamespace := profileName
-	if runtimeContext.Kind == credential.DeviceRuntimeDoubaoCloud {
+	switch runtimeContext.Kind {
+	case credential.DeviceRuntimeDoubaoCloud:
 		baseDir = filepath.Join(runtimeContext.Workspace, ".contract-cli", "artifacts")
-	} else {
+	case credential.DeviceRuntimeDoubaoWorkTask:
+		baseDir = filepath.Join(runtimeContext.DataDir, "artifacts")
+	case credential.DeviceRuntimeWorkBuddy:
 		cacheDir, err := os.UserCacheDir()
 		if err != nil {
 			return authorizationQRCode{}, fmt.Errorf("resolve qr cache directory: %w", err)
@@ -360,6 +363,8 @@ func (a *App) writeAuthorizationQRCode(profileName, verificationURI string) (aut
 		baseDir = filepath.Join(cacheDir, "contract-cli", "artifacts")
 		// Keep the existing WorkBuddy namespace stable for backward compatibility.
 		artifactNamespace += "\x00" + runtimeContext.SessionID
+	default:
+		return authorizationQRCode{}, fmt.Errorf("unsupported Device runtime %q", runtimeContext.Kind)
 	}
 	if err := os.MkdirAll(baseDir, 0o700); err != nil {
 		return authorizationQRCode{}, fmt.Errorf("create qr directory: %w", err)

@@ -25,7 +25,10 @@ const (
 	envSkillSessionWorkspace = "SKILL_SESSION_WORKSPACE"
 	envCredentialKey         = "CONTRACT_CLI_CREDENTIAL_KEY_V1"
 	envWorkBuddySessionID    = "CODEBUDDY_SESSION_ID"
+	envDoubaoWorkTaskSession = "SESSION_ID"
 	keyringService           = "cn.qfei.contract-cli"
+	doubaoWorkTaskKeyPurpose = "cn.qfei.contract-cli/doubao-work-task/credential-key/v1\x00"
+	doubaoWorkTaskNSPurpose  = "cn.qfei.contract-cli/doubao-work-task/session-namespace/v1\x00"
 )
 
 var ErrCredentialNotFound = errors.New("device credential not found")
@@ -100,17 +103,24 @@ type Options struct {
 type DeviceRuntimeKind string
 
 const (
-	DeviceRuntimeDoubaoCloud DeviceRuntimeKind = "doubao_cloud"
-	DeviceRuntimeWorkBuddy   DeviceRuntimeKind = "workbuddy"
+	DeviceRuntimeDoubaoCloud    DeviceRuntimeKind = "doubao_cloud"
+	DeviceRuntimeWorkBuddy      DeviceRuntimeKind = "workbuddy"
+	DeviceRuntimeDoubaoWorkTask DeviceRuntimeKind = "doubao_work_task"
 )
 
 type DeviceRuntime struct {
-	Kind      DeviceRuntimeKind
-	Workspace string
-	SessionID string
+	Kind             DeviceRuntimeKind
+	Workspace        string
+	SessionID        string
+	SessionNamespace string
+	DataDir          string
 }
 
 func ResolveDeviceRuntime(lookupEnv func(string) (string, bool)) (DeviceRuntime, error) {
+	return resolveDeviceRuntime(lookupEnv, os.Getwd)
+}
+
+func resolveDeviceRuntime(lookupEnv func(string) (string, bool), currentDir func() (string, error)) (DeviceRuntime, error) {
 	if lookupEnv == nil {
 		lookupEnv = os.LookupEnv
 	}
@@ -122,7 +132,32 @@ func ResolveDeviceRuntime(lookupEnv func(string) (string, bool)) (DeviceRuntime,
 	if workBuddySessionID != "" {
 		return DeviceRuntime{Kind: DeviceRuntimeWorkBuddy, SessionID: workBuddySessionID}, nil
 	}
-	return DeviceRuntime{}, errors.New("SKILL_SESSION_WORKSPACE or CODEBUDDY_SESSION_ID is required for Device credential isolation")
+
+	doubaoSessionID := lookupTrimmedEnv(lookupEnv, envDoubaoWorkTaskSession)
+	if doubaoSessionID != "" {
+		workspace, err := currentDir()
+		if err != nil {
+			return DeviceRuntime{}, fmt.Errorf("resolve Doubao work task directory: %w", err)
+		}
+		workspace = strings.TrimSpace(workspace)
+		if !filepath.IsAbs(workspace) {
+			return DeviceRuntime{}, fmt.Errorf("Doubao work task directory must be absolute: %q", workspace)
+		}
+		info, err := os.Stat(workspace)
+		if err != nil {
+			return DeviceRuntime{}, fmt.Errorf("inspect Doubao work task directory: %w", err)
+		}
+		if !info.IsDir() {
+			return DeviceRuntime{}, fmt.Errorf("Doubao work task directory is not a directory: %q", workspace)
+		}
+		namespace := deviceSessionNamespace(doubaoSessionID)
+		return DeviceRuntime{
+			Kind: DeviceRuntimeDoubaoWorkTask, Workspace: workspace, SessionID: doubaoSessionID,
+			SessionNamespace: namespace,
+			DataDir:          filepath.Join(workspace, ".contract-cli", "sessions", namespace),
+		}, nil
+	}
+	return DeviceRuntime{}, errors.New("SKILL_SESSION_WORKSPACE, CODEBUDDY_SESSION_ID, or SESSION_ID is required for Device credential isolation")
 }
 
 func lookupTrimmedEnv(lookupEnv func(string) (string, bool), name string) string {
@@ -154,6 +189,16 @@ func NewStore(options Options) (Store, error) {
 		return &encryptedFileStore{
 			dir: filepath.Join(runtimeContext.Workspace, ".contract-cli", "credentials"),
 			key: key,
+		}, nil
+	}
+	if runtimeContext.Kind == DeviceRuntimeDoubaoWorkTask {
+		dir := filepath.Join(runtimeContext.DataDir, "credentials")
+		if err := ensureWritableCredentialDirectory(dir); err != nil {
+			return nil, err
+		}
+		return &encryptedFileStore{
+			dir: dir,
+			key: deriveDoubaoWorkTaskCredentialKey(runtimeContext.SessionID),
 		}, nil
 	}
 
@@ -335,4 +380,43 @@ func decryptCredential(key, ciphertext []byte) ([]byte, error) {
 func profileFileName(profileName string) string {
 	digest := sha256.Sum256([]byte(profileName))
 	return hex.EncodeToString(digest[:]) + ".json.enc"
+}
+
+func deviceSessionNamespace(sessionID string) string {
+	digest := sha256.Sum256([]byte(doubaoWorkTaskNSPurpose + sessionID))
+	return hex.EncodeToString(digest[:])
+}
+
+func deriveDoubaoWorkTaskCredentialKey(sessionID string) []byte {
+	digest := sha256.Sum256([]byte(doubaoWorkTaskKeyPurpose + sessionID))
+	return append([]byte(nil), digest[:]...)
+}
+
+func ensureWritableCredentialDirectory(dir string) error {
+	if err := os.MkdirAll(dir, 0o700); err != nil {
+		return fmt.Errorf("create Doubao work task credential directory: %w", err)
+	}
+	for _, privateDir := range []string{filepath.Dir(dir), dir} {
+		if err := os.Chmod(privateDir, 0o700); err != nil {
+			return fmt.Errorf("secure Doubao work task credential directory: %w", err)
+		}
+	}
+	probe, err := os.CreateTemp(dir, ".write-probe-*")
+	if err != nil {
+		return fmt.Errorf("verify Doubao work task credential directory: %w", err)
+	}
+	probePath := probe.Name()
+	if err := probe.Chmod(0o600); err != nil {
+		_ = probe.Close()
+		_ = os.Remove(probePath)
+		return fmt.Errorf("secure Doubao work task credential probe: %w", err)
+	}
+	if err := probe.Close(); err != nil {
+		_ = os.Remove(probePath)
+		return fmt.Errorf("close Doubao work task credential probe: %w", err)
+	}
+	if err := os.Remove(probePath); err != nil {
+		return fmt.Errorf("remove Doubao work task credential probe: %w", err)
+	}
+	return nil
 }

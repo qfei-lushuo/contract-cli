@@ -6,6 +6,7 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -1764,6 +1765,45 @@ func TestAuthDeviceInitQRCodeFailureDoesNotSwitchLegacyProfile(t *testing.T) {
 	}
 }
 
+func TestDoubaoWorkTaskAuthInitRejectsUnwritableCredentialRootBeforeRemoteRequest(t *testing.T) {
+	workspace := t.TempDir()
+	t.Chdir(workspace)
+	if err := os.WriteFile(filepath.Join(workspace, ".contract-cli"), []byte("not a directory"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store := config.NewStore(t.TempDir())
+	profile := config.Profile{
+		Name: "contract", Environment: "prod", Resource: "https://open.qfei.cn",
+		Identities: config.Identities{User: config.UserIdentity{
+			DeviceAuthorizationEndpoint: "https://auth.example/device", TokenEndpoint: "https://auth.example/token/contract",
+			DeviceClientID: "device-client", DeviceScope: "contract:full",
+		}},
+	}
+	if err := store.UpsertProfile(profile, true); err != nil {
+		t.Fatal(err)
+	}
+	requestCount := 0
+	app := cli.New(cli.Options{
+		Store: store,
+		LookupEnv: func(name string) (string, bool) {
+			if name == "SESSION_ID" {
+				return "doubao-task-a", true
+			}
+			return "", false
+		},
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+			requestCount++
+			return nil, errors.New("remote request must not run")
+		})},
+	})
+	if err := app.Run(context.Background(), []string{"auth", "init", "--profile", "contract", "--output", "json"}); err == nil {
+		t.Fatal("auth init unexpectedly accepted an unwritable credential root")
+	}
+	if requestCount != 0 {
+		t.Fatalf("remote request count = %d, want 0", requestCount)
+	}
+}
+
 func TestAuthDeviceInitAndCompleteDoNotExposeCredentialSecrets(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
@@ -1953,6 +1993,115 @@ func TestDoubaoRebuildRestoresEncryptedDeviceProfileAndContinuesBusinessRequest(
 		if strings.Contains(string(rawCredential), plaintext) {
 			t.Fatalf("workspace credential contains plaintext %q", plaintext)
 		}
+	}
+}
+
+func TestDoubaoWorkTaskRestoresDeviceProfileFromTaskCredential(t *testing.T) {
+	workspace := t.TempDir()
+	t.Chdir(workspace)
+	lookupEnv := func(name string) (string, bool) {
+		if name == "SESSION_ID" {
+			return "doubao-task-a", true
+		}
+		return "", false
+	}
+	credentials, err := credential.NewStore(credential.Options{LookupEnv: lookupEnv})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expiresAt := fixedCLINow().Add(10 * time.Minute)
+	if err := credentials.Save("contract", credential.DeviceCredential{
+		Pending: &credential.PendingTransaction{
+			Status: credential.PendingStatusPending, DeviceCode: "secret-device", ClientID: "device-client",
+			TokenEndpoint: "https://auth.example/token/contract", ExpiresAt: expiresAt,
+		},
+		DeviceProfile: &credential.DeviceProfile{
+			Name: "contract", Environment: "prod", OpenPlatformBaseURL: "https://open.qfei.cn",
+			Resource: "https://open.qfei.cn", BusinessType: "contract", ClientName: "contract-cli",
+			DeviceClientID: "device-client", DeviceScope: "contract:full",
+			DeviceAuthorizationEndpoint: "https://auth.example/device",
+			TokenEndpoint:               "https://auth.example/token/contract", RevocationEndpoint: "https://auth.example/revoke/contract",
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	store := config.NewStore(t.TempDir())
+	stdout := &bytes.Buffer{}
+	app := cli.New(cli.Options{
+		Stdout: stdout, Store: store, LookupEnv: lookupEnv, Now: fixedCLINow,
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path != "/token/contract" {
+				t.Fatalf("unexpected URL: %s", req.URL)
+			}
+			return jsonResponse(`{"access_token":"secret-access","refresh_token":"secret-refresh","token_type":"Bearer","scope":"contract:full","expires_in":3600}`), nil
+		})},
+	})
+	if err := app.Run(context.Background(), []string{"auth", "complete", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), `"status":"succeeded"`) {
+		t.Fatalf("unexpected auth output: %s", stdout.String())
+	}
+	restored, err := store.GetProfile("contract")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restored.Identities.User.AuthMode != config.UserAuthModeDevice || restored.Identities.User.Token != nil {
+		t.Fatalf("unexpected restored profile: %+v", restored)
+	}
+}
+
+func TestDoubaoWorkTaskReusesPendingWithinTaskAndIsolatesNewTask(t *testing.T) {
+	workspace := t.TempDir()
+	t.Chdir(workspace)
+	store := config.NewStore(t.TempDir())
+	profile := config.Profile{
+		Name: "contract", Environment: "prod", Resource: "https://open.qfei.cn",
+		Identities: config.Identities{User: config.UserIdentity{
+			DeviceAuthorizationEndpoint: "https://auth.example/device", TokenEndpoint: "https://auth.example/token/contract",
+			DeviceClientID: "device-client", DeviceScope: "contract:full",
+		}},
+	}
+	if err := store.UpsertProfile(profile, true); err != nil {
+		t.Fatal(err)
+	}
+	sessionID := "doubao-task-a"
+	lookupEnv := func(name string) (string, bool) {
+		if name == "SESSION_ID" {
+			return sessionID, true
+		}
+		return "", false
+	}
+	requestCount := 0
+	newApp := func() *cli.App {
+		return cli.New(cli.Options{
+			Stdout: &bytes.Buffer{}, Store: store, LookupEnv: lookupEnv, Now: fixedCLINow,
+			HTTPClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+				requestCount++
+				return jsonResponse(fmt.Sprintf(
+					`{"device_code":"device-%d","user_code":"user-%d","verification_uri":"https://auth.example/device","verification_uri_complete":"https://auth.example/device?user_code=user-%d","expires_in":600}`,
+					requestCount, requestCount, requestCount,
+				)), nil
+			})},
+		})
+	}
+
+	for range 2 {
+		if err := newApp().Run(context.Background(), []string{"auth", "init", "--profile", "contract", "--output", "json"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if requestCount != 1 {
+		t.Fatalf("same-task init requests = %d, want 1", requestCount)
+	}
+
+	sessionID = "doubao-task-b"
+	if err := newApp().Run(context.Background(), []string{"auth", "init", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatal(err)
+	}
+	if requestCount != 2 {
+		t.Fatalf("new-task init requests = %d, want 2", requestCount)
 	}
 }
 

@@ -106,8 +106,9 @@ contract-cli contract get <contract-id> --profile contract --output json
 - `denied` / `expired` / `restart_required` 为终态；先询问用户是否重新授权。只有收到新的用户消息明确同意后，才执行 `auth init --profile <profile> --output json --restart`，随后再次立即结束当前轮次。
 - `auth status` 不支持 `--output`，禁止自动附加该参数。
 - Refresh Token 返回 `invalid_grant` 时也必须先询问用户；CLI 会清理失效 Token，但会保留可能存在的 pending 会话。只有收到新的用户消息明确同意后，才先执行 `auth status --profile <profile> --as user`，再根据真实状态选择复用现有会话、普通 `auth init` 或带 `--restart` 的 `auth init`；不要直接重复未确认结果的写请求。
-- 豆包工作任务运行在云端任务环境，必须提供 `SKILL_SESSION_WORKSPACE` 和格式正确的 `CONTRACT_CLI_CREDENTIAL_KEY_V1`。
-- `auth init` 成功后，CLI 会把 Device 运行所需的非敏感 profile 快照与 pending transaction 一起加密保存。豆包用同一个会话工作区重建沙箱、临时 HOME 中没有本地 profile 时，CLI 只会在命令显式携带 `--profile contract` 且快照完整匹配时恢复 profile。
+- 豆包 AgentKit / Skills Sandbox 运行在云端 Skill 环境，必须提供 `SKILL_SESSION_WORKSPACE` 和格式正确的 `CONTRACT_CLI_CREDENTIAL_KEY_V1`。
+- 豆包普通工作任务使用 `SESSION_ID` 做任务级隔离；所有 CLI 命令必须从任务初始工作目录执行，不得在授权前后切换到其他目录。凭证以 AES-256-GCM 密文保存到当前任务目录，只在同一任务内复用，新建任务必须重新授权。
+- `auth init` 成功后，CLI 会把 Device 运行所需的非敏感 profile 快照与 pending transaction 一起加密保存。AgentKit 同一会话工作区或豆包普通工作任务的任务目录仍存在、但临时 HOME 中没有本地 profile 时，CLI 只会在命令显式携带 `--profile contract` 且快照完整匹配时恢复 profile。
 - 恢复只写入当前沙箱临时 HOME；不会把 `config.json`、`secrets.json`、App Secret 或明文 profile 写进会话工作区。快照缺失或损坏时，按错误提示重新执行 `config add` 和 `auth init`，禁止猜测环境、scope、client 或 endpoint。
 - WorkBuddy 运行在客户本机，必须提供 `CODEBUDDY_SESSION_ID`；macOS 使用 macOS Keychain，Windows 使用 Credential Manager，Linux 使用 Secret Service。任一条件缺失都直接失败，不降级成明文文件。
 
@@ -215,8 +216,9 @@ contract-cli auth use --as app
 存储约束：
 
 - `config.json` 保存 profile、identity 元数据；旧授权码模式仍保持原有 token 存储行为
-- Device Token 不写入 `config.json`：豆包写入会话工作区的 AES-256-GCM 密文，WorkBuddy 写入操作系统安全存储
+- Device Token 不写入 `config.json`：AgentKit 写入会话工作区的 AES-256-GCM 密文，豆包普通工作任务写入任务目录的 AES-256-GCM 密文，WorkBuddy 写入操作系统安全存储
 - 豆包加密 Device 凭证可包含恢复当前 Device profile 所需的非敏感快照；不包含 App 身份、旧 OAuth Token、手机号、企业 ID 或业务参数
+- 豆包普通工作任务没有平台 CredentialStore；任务级加密用于避免明文落盘和正常对话泄露，但不能抵御同一沙箱内具有文件和进程访问能力的 Shell，禁止宣称存在进程级 Secret 隔离
 - `secrets.json` 只保存 app 的 `app_secret`
 - `user.token` 与 `app.token` 分离存储，不共享
 - 旧版平铺 OAuth 字段会自动迁移到 `identities.user`
