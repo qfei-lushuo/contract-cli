@@ -346,8 +346,11 @@ func TestDoubaoWorkTaskUsesSessionIsolatedLockAndQRCodePaths(t *testing.T) {
 		t.Fatalf("Doubao work tasks share QR path %q", qrA.Path)
 	}
 	for _, path := range []string{qrA.Path, qrB.Path} {
-		if !strings.HasPrefix(path, filepath.Join(workspace, ".contract-cli", "sessions")+string(filepath.Separator)) {
-			t.Fatalf("QR path %q is outside task workspace", path)
+		if filepath.Dir(path) != workspace {
+			t.Fatalf("QR path %q is not in the visible task root %q", path, workspace)
+		}
+		if !strings.HasPrefix(filepath.Base(path), "contract-cli-device-auth-") {
+			t.Fatalf("QR file %q does not use the visible artifact prefix", path)
 		}
 	}
 }

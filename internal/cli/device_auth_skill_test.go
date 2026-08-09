@@ -36,7 +36,9 @@ func TestDeviceAuthSkillsEnforceWorkBuddyTurnBoundaries(t *testing.T) {
 		"最终回复必须同时包含",
 		"[打开授权页面](<verification_uri_complete>)",
 		"WorkBuddy 主路径",
-		"豆包继续将 `qr_code_path` 对应的 PNG 作为图片展示",
+		"豆包普通工作任务必须将 `qr_code_path` 对应的 PNG 作为图片附件或图片产物交付",
+		"实际出现图片缩略图或图片产物卡片",
+		"未实际出现图片时不得声称二维码已经展示",
 		"降级为可点击授权链接和 `qr_code_path` 对应的 PNG 产物卡片",
 		"不得只返回授权链接或只返回二维码",
 		"二维码内联展示失败，请点击图片卡片或授权链接",
@@ -75,7 +77,8 @@ func TestDeviceAuthSkillsEnforceWorkBuddyTurnBoundaries(t *testing.T) {
 	}
 	for _, required := range []string{
 		"WorkBuddy 使用 `show_widget` 内联展示二维码",
-		"AgentKit 和豆包普通工作任务继续使用 `qr_code_path`",
+		"AgentKit 继续使用 `qr_code_path`",
+		"豆包普通工作任务必须把 `qr_code_path` 作为图片附件或图片产物交付",
 		"Skill / 模型层不得重试任何 OAuth 命令",
 		"CLI 内部仅对 `auth init` 的 TCP `dial` 失败自动重试一次",
 		"请求已发送后的超时、HTTP 5xx、响应中断或解析失败不重试",

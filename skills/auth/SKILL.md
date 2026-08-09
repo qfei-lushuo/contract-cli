@@ -95,7 +95,8 @@ contract-cli contract get <contract-id> --profile contract --output json
   必须直接使用 CLI 返回的 `expires_at_display`，并按模板加粗显示。不得向用户展示 `expires_at` 的 RFC3339 原值，不得出现 `T` 或 `+08:00`，不得使用反引号或代码样式展示时间。回复关键词“已授权”必须使用 Markdown `**已授权**` 加粗，逗号不放入加粗范围。
 - `show_widget` 成功后，正文仍必须包含 `[打开授权页面](<verification_uri_complete>)` 和 `expires_at_display`，不得只返回授权链接或只返回二维码。
 - `show_widget` 明确失败时，才允许额外调用一次 `present_files(files: ["<qr_code_path>"])`，降级为可点击授权链接和 `qr_code_path` 对应的 PNG 产物卡片，并原样告知“二维码内联展示失败，请点击图片卡片或授权链接”；不得声称二维码已经展示。
-- 豆包不要求 `show_widget`；豆包继续将 `qr_code_path` 对应的 PNG 作为图片展示，并在正文中同时提供可点击链接和过期时间。
+- 豆包 AgentKit 不要求 `show_widget`，继续按平台能力展示 `qr_code_path` 对应的 PNG。豆包普通工作任务必须将 `qr_code_path` 对应的 PNG 作为图片附件或图片产物交付，并在正文中同时提供可点击链接和过期时间。
+- 豆包普通工作任务必须在最终回复前确认对话中实际出现图片缩略图或图片产物卡片；未实际出现图片时不得声称二维码已经展示，应明确告知图片交付失败并保留可点击授权链接。
 - `auth init` 返回后只能调用一次授权展示工具；仅前述 `show_widget` 明确失败时可追加一次 `present_files`。除此之外，禁止执行 `auth complete`、再次执行 `auth init`、业务命令、轮询或网络重试。
 - CLI 内部的单次安全重试不算第二次 `auth init` 命令；该重试只允许发生在明确的 TCP `dial` 失败、能够确认请求尚未发出时。
 - `auth init` 最终失败后，禁止额外执行 `curl`、`auth status` 或其他探测命令；如实告知失败原因并明确询问用户是否重新发起授权。

@@ -162,3 +162,11 @@
 - Device Token、Refresh Token、device code 和 profile 快照继续使用 AES-256-GCM 密文及原子写入；原始 `SESSION_ID` 不进入文件名、日志或 CLI 输出。
 - 同一任务多轮调用可复用 pending 会话和 Token，新任务使用新命名空间并必须重新授权；临时 HOME 丢失时可从同任务密文快照恢复 Device profile。
 - 普通工作任务没有平台 Secret API 或 Keyring；该密文方案用于避免明文落盘和正常对话泄露，不宣称能抵御同沙箱内恶意 Shell。AgentKit 显式密钥和 WorkBuddy 操作系统安全存储行为保持不变。
+
+## 2026-08-09 豆包普通工作任务二维码产物交付修复
+
+- 根据豆包普通工作任务实测结果，将该运行时的二维码 PNG 从隐藏会话目录调整到任务初始工作目录根部，使用 `contract-cli-device-auth-<摘要>.png` 可见文件名，便于平台识别并交付图片产物。
+- 文件摘要继续包含任务命名空间和 profile，不使用原始 `SESSION_ID`；不同任务和不同 profile 不共享二维码文件。
+- 凭证密文和授权锁继续保留在 `.contract-cli/sessions/<摘要>` 隐藏目录，未改变 Token、pending、profile 快照或任务隔离规则。
+- 授权 Skill 强制要求将 `qr_code_path` 作为图片附件或图片产物交付；只有对话中实际出现图片缩略图或产物卡片时，才能声称二维码已经展示。
+- AgentKit 的二维码路径以及 WorkBuddy 的二维码路径、文件名摘要和 `show_widget` 展示逻辑保持不变。

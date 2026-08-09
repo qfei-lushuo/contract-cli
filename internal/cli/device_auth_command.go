@@ -350,11 +350,14 @@ func (a *App) writeAuthorizationQRCode(profileName, verificationURI string) (aut
 	}
 	baseDir := ""
 	artifactNamespace := profileName
+	filePrefix := "device-auth-"
 	switch runtimeContext.Kind {
 	case credential.DeviceRuntimeDoubaoCloud:
 		baseDir = filepath.Join(runtimeContext.Workspace, ".contract-cli", "artifacts")
 	case credential.DeviceRuntimeDoubaoWorkTask:
-		baseDir = filepath.Join(runtimeContext.DataDir, "artifacts")
+		baseDir = runtimeContext.Workspace
+		artifactNamespace = runtimeContext.SessionNamespace + "\x00" + profileName
+		filePrefix = "contract-cli-device-auth-"
 	case credential.DeviceRuntimeWorkBuddy:
 		cacheDir, err := os.UserCacheDir()
 		if err != nil {
@@ -370,7 +373,7 @@ func (a *App) writeAuthorizationQRCode(profileName, verificationURI string) (aut
 		return authorizationQRCode{}, fmt.Errorf("create qr directory: %w", err)
 	}
 	digest := sha256.Sum256([]byte(artifactNamespace))
-	path := filepath.Join(baseDir, "device-auth-"+hex.EncodeToString(digest[:8])+".png")
+	path := filepath.Join(baseDir, filePrefix+hex.EncodeToString(digest[:8])+".png")
 	pngBytes, err := qrcode.Encode(verificationURI, qrcode.Medium, authorizationQRCodeSize)
 	if err != nil {
 		return authorizationQRCode{}, fmt.Errorf("encode authorization qr code: %w", err)
