@@ -170,3 +170,10 @@
 - 凭证密文和授权锁继续保留在 `.contract-cli/sessions/<摘要>` 隐藏目录，未改变 Token、pending、profile 快照或任务隔离规则。
 - 授权 Skill 强制要求将 `qr_code_path` 作为图片附件或图片产物交付；只有对话中实际出现图片缩略图或产物卡片时，才能声称二维码已经展示。
 - AgentKit 的二维码路径以及 WorkBuddy 的二维码路径、文件名摘要和 `show_widget` 展示逻辑保持不变。
+
+## 2026-08-09 豆包普通工作任务授权展示降级
+
+- 根据普通工作任务实测结果，本地 PNG 无法通过稳定的平台接口转换为对话图片产物，因此该运行模式授权时只展示完整可点击 HTTPS 链接和过期时间，不再尝试复制、重新编码或交付二维码。
+- 授权 Skill 禁止普通工作任务读取或处理 `qr_code_path`、`qr_code_data_uri`，也禁止为二维码调用代码执行、图片处理或图片交付工具；返回链接后立即结束当前轮次。
+- WorkBuddy 继续通过 `show_widget` 展示二维码，AgentKit 继续使用平台的 `qr_code_path` 能力，二者行为不变。
+- CLI 继续生成并返回 `qr_code_path` 和 `qr_code_data_uri`，保持 JSON 接口、Device Grant 状态机和后续恢复二维码展示的兼容性。

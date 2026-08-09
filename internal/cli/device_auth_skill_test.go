@@ -11,6 +11,7 @@ func TestDeviceAuthSkillsEnforceWorkBuddyTurnBoundaries(t *testing.T) {
 	root := filepath.Join("..", "..")
 	auth := readDeviceAuthSkillFile(t, filepath.Join(root, "skills", "auth", "SKILL.md"))
 	shared := readDeviceAuthSkillFile(t, filepath.Join(root, "skills", "contract-cli-shared", "SKILL.md"))
+	readme := readDeviceAuthSkillFile(t, filepath.Join(root, "README.md"))
 
 	for _, required := range []string{
 		"`qr_code_data_uri`",
@@ -36,9 +37,10 @@ func TestDeviceAuthSkillsEnforceWorkBuddyTurnBoundaries(t *testing.T) {
 		"最终回复必须同时包含",
 		"[打开授权页面](<verification_uri_complete>)",
 		"WorkBuddy 主路径",
-		"豆包普通工作任务必须将 `qr_code_path` 对应的 PNG 作为图片附件或图片产物交付",
-		"实际出现图片缩略图或图片产物卡片",
-		"未实际出现图片时不得声称二维码已经展示",
+		"豆包普通工作任务只展示可点击的完整 HTTPS 授权链接和 `expires_at_display`",
+		"禁止读取、复制、修改或交付 `qr_code_path`",
+		"禁止调用代码执行、图片处理或图片交付工具处理二维码",
+		"返回授权链接和过期时间后立即结束当前轮次",
 		"降级为可点击授权链接和 `qr_code_path` 对应的 PNG 产物卡片",
 		"不得只返回授权链接或只返回二维码",
 		"二维码内联展示失败，请点击图片卡片或授权链接",
@@ -75,10 +77,20 @@ func TestDeviceAuthSkillsEnforceWorkBuddyTurnBoundaries(t *testing.T) {
 			t.Fatalf("auth skill still uses layout-dependent QR copy %q", ambiguous)
 		}
 	}
+	for _, removed := range []string{
+		"豆包普通工作任务必须将 `qr_code_path` 对应的 PNG 作为图片附件或图片产物交付",
+		"实际出现图片缩略图或图片产物卡片",
+		"未实际出现图片时不得声称二维码已经展示",
+	} {
+		if strings.Contains(auth, removed) {
+			t.Fatalf("auth skill still requires unsupported Doubao work-task QR delivery %q", removed)
+		}
+	}
 	for _, required := range []string{
 		"WorkBuddy 使用 `show_widget` 内联展示二维码",
 		"AgentKit 继续使用 `qr_code_path`",
-		"豆包普通工作任务必须把 `qr_code_path` 作为图片附件或图片产物交付",
+		"豆包普通工作任务只展示可点击授权链接和过期时间",
+		"不处理 `qr_code_path` 或 `qr_code_data_uri`",
 		"Skill / 模型层不得重试任何 OAuth 命令",
 		"CLI 内部仅对 `auth init` 的 TCP `dial` 失败自动重试一次",
 		"请求已发送后的超时、HTTP 5xx、响应中断或解析失败不重试",
@@ -86,6 +98,22 @@ func TestDeviceAuthSkillsEnforceWorkBuddyTurnBoundaries(t *testing.T) {
 	} {
 		if !strings.Contains(shared, required) {
 			t.Fatalf("shared skill missing required OAuth retry boundary %q", required)
+		}
+	}
+	for _, removed := range []string{
+		"豆包普通工作任务必须把 `qr_code_path` 作为图片附件或图片产物交付",
+		"未实际出现图片时不得声称已经展示二维码",
+	} {
+		if strings.Contains(shared, removed) {
+			t.Fatalf("shared skill still requires unsupported Doubao work-task QR delivery %q", removed)
+		}
+	}
+	for _, required := range []string{
+		"豆包普通工作任务只展示 `verification_uri_complete` 和 `expires_at_display`，不展示二维码",
+		"WorkBuddy 使用 `qr_code_data_uri` 内联二维码，AgentKit 使用 `qr_code_path`",
+	} {
+		if !strings.Contains(readme, required) {
+			t.Fatalf("README missing Device Grant presentation contract %q", required)
 		}
 	}
 	for _, required := range []string{

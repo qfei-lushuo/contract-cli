@@ -43,7 +43,7 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 ## 共享约束
 
 - Device 模式业务命令提示未授权时，按 [../auth/SKILL.md](../auth/SKILL.md) 执行 `auth init`；用户明确完成授权后只执行一次 `auth complete`。
-- `auth init` 返回后严格执行授权 Skill 的展示契约：WorkBuddy 使用 `show_widget` 内联展示二维码，AgentKit 继续使用 `qr_code_path`；豆包普通工作任务必须把 `qr_code_path` 作为图片附件或图片产物交付。交付成功的同一条最终回复必须同时提供可点击授权链接、二维码和过期时间，未实际出现图片时不得声称已经展示二维码。
+- `auth init` 返回后严格执行授权 Skill 的展示契约：WorkBuddy 使用 `show_widget` 内联展示二维码，AgentKit 继续使用 `qr_code_path`；豆包普通工作任务只展示可点击授权链接和过期时间，不处理 `qr_code_path` 或 `qr_code_data_uri`，也不调用代码执行或图片工具。展示完成后立即结束当前轮次。
 - WorkBuddy 授权回复统一使用 [../auth/SKILL.md](../auth/SKILL.md) 中的面向用户文案和 220×220 显示尺寸，不向用户暴露 `user 身份未授权`、CLI 命令或内部状态。
 - WorkBuddy 时间文案只使用 CLI 返回的 `expires_at_display`，不展示 RFC3339 原值；授权回复必须使用授权 Skill 中的三步编号模板，并将 `**已授权**` 加粗。
 - WorkBuddy 正常路径只允许一次 `show_widget`；仅内联展示明确失败时，才允许额外使用一次 PNG 产物卡片。展示完成后禁止继续调用授权或业务工具。

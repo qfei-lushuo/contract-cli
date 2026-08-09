@@ -87,7 +87,7 @@ contract-cli config add --env prod --name contract
 # 2. 本地环境可继续使用旧 user 授权码模式
 contract-cli auth login --profile contract --as user
 
-# 3. 豆包 / WorkBuddy 使用 Device Grant：init 立即返回链接和二维码
+# 3. 豆包 / WorkBuddy 使用 Device Grant：init 立即返回授权信息
 contract-cli auth init --profile contract --output json
 # 用户完成手机号和企业授权后，只查询一次
 contract-cli auth complete --profile contract --output json
@@ -143,10 +143,12 @@ contract-cli config add --env prod --name contract
 
 ```bash
 contract-cli auth init --profile contract --output json
-# Agent 展示 verification_uri_complete；WorkBuddy 使用 qr_code_data_uri 内联二维码，豆包使用 qr_code_path，用户明确完成授权后：
+# Agent 展示授权信息，用户明确完成授权后：
 contract-cli auth complete --profile contract --output json
 contract-cli auth status --profile contract --as user
 ```
+
+WorkBuddy 使用 `qr_code_data_uri` 内联二维码，AgentKit 使用 `qr_code_path`。豆包普通工作任务只展示 `verification_uri_complete` 和 `expires_at_display`，不展示二维码，也不读取或交付二维码文件。
 
 `auth init` 和 `auth complete` 都只请求一次。`complete` 返回 `pending` 时不持续轮询；请用户完成授权后再主动查询。返回 `uncertain`、`denied`、`expired` 或 `restart_required` 时禁止自动重试；用户明确同意重新授权后，才执行 `auth init --profile contract --output json --restart`。
 
