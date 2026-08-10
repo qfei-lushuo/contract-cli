@@ -85,6 +85,7 @@ contract-cli contract enum list --profile contract --type contract_status
 - 合同分类树：看 [category-fields.md](category-fields.md)
 - 分享和协商响应：看 [share-cooperation-fields.md](share-cooperation-fields.md)
 - 上传、下载、提交、重提、删除：看 [contract-actions-fields.md](contract-actions-fields.md)
+- 审批发起请求体：看 [approval-fields.md](approval-fields.md)
 - 新增 app-only 补齐接口命令：看 [openapi-gap-commands.md](openapi-gap-commands.md)
 
 ## 新增 app-only 补齐命令
@@ -190,3 +191,5 @@ contract-cli contract approval get process_123 --profile contract --as app --not
 - `cooperation file download`：`GET /open-apis/contract/v1/contracts/cooperation/{file_id}/download_file`
 - `approval start`：`POST /open-apis/contract/v1/process_instances/{process_instance_id}/task_approval`
 - `approval get`：`GET /open-apis/contract/v1/process_instances/{process_instance_id}`
+
+审批发起请求体字段：看 [approval-fields.md](approval-fields.md)

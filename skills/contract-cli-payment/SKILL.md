@@ -34,6 +34,13 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - 查询付款记录详情：`payment record get <payment-record-id> --contract <contract-id> --payment <payment-id>`
 - 按付款计划查询付款记录：`payment record list --plan <payment-plan-uuid>`
 
+## 字段文档导航
+
+- 付款申请创建/更新请求体：读 [references/payment-fields.md](references/payment-fields.md)
+- 付款计划同步/搜索请求体：读 [references/payment-plan-fields.md](references/payment-plan-fields.md)
+- 付款记录创建/更新请求体：读 [references/payment-record-fields.md](references/payment-record-fields.md)
+- 付款命令和路由总览：读 [references/commands.md](references/commands.md)
+
 ## 关键规则
 
 - 当前 `payment *` 全部仅支持 `--as app`。
@@ -67,6 +74,9 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - [internal/cli/payment_command.go](../../internal/cli/payment_command.go)
 - [internal/openplatform/payment/service.go](../../internal/openplatform/payment/service.go)
 - [references/commands.md](references/commands.md)
+- [references/payment-fields.md](references/payment-fields.md)
+- [references/payment-plan-fields.md](references/payment-plan-fields.md)
+- [references/payment-record-fields.md](references/payment-record-fields.md)
 
 ## 操作建议
 

@@ -104,6 +104,83 @@ func TestContractSkillCommandsDoNotSuggestPatchTitleShortcut(t *testing.T) {
 	}
 }
 
+func TestPaymentAndApprovalSkillFieldReferencesCoverJSONBodyCommands(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..")
+	paymentSkillContent := readTextFile(t, filepath.Join(root, "skills", "contract-cli-payment", "SKILL.md"))
+	contractSkillContent := readTextFile(t, filepath.Join(root, "skills", "contract-cli-contract", "SKILL.md"))
+
+	referenceChecks := map[string]struct {
+		skillContent string
+		path         string
+		fragments    []string
+	}{
+		"payment-fields.md": {
+			skillContent: paymentSkillContent,
+			path:         filepath.Join(root, "skills", "contract-cli-payment", "references", "payment-fields.md"),
+			fragments: []string{
+				"contract-cli payment create",
+				"contract-cli payment update",
+				"payment_status_code",
+				"finance_system_code",
+				"apply_amount",
+			},
+		},
+		"payment-plan-fields.md": {
+			skillContent: paymentSkillContent,
+			path:         filepath.Join(root, "skills", "contract-cli-payment", "references", "payment-plan-fields.md"),
+			fragments: []string{
+				"contract-cli payment plan notify",
+				"contract-cli payment plan search",
+				"payment_lines",
+				"must_conditions",
+				"operator_type_code",
+			},
+		},
+		"payment-record-fields.md": {
+			skillContent: paymentSkillContent,
+			path:         filepath.Join(root, "skills", "contract-cli-payment", "references", "payment-record-fields.md"),
+			fragments: []string{
+				"contract-cli payment record create",
+				"contract-cli payment record update",
+				"transaction_amount",
+				"succeed_amount",
+				"department_lark_id",
+			},
+		},
+		"approval-fields.md": {
+			skillContent: contractSkillContent,
+			path:         filepath.Join(root, "skills", "contract-cli-contract", "references", "approval-fields.md"),
+			fragments: []string{
+				"contract-cli contract approval start",
+				"task_instance_id",
+				"command_type",
+				"reject_info",
+				"reject_return_code",
+			},
+		},
+	}
+
+	for name, check := range referenceChecks {
+		name := name
+		check := check
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			if !strings.Contains(check.skillContent, "references/"+name) {
+				t.Fatalf("skill must link references/%s", name)
+			}
+			content := readTextFile(t, check.path)
+			for _, fragment := range check.fragments {
+				if !strings.Contains(content, fragment) {
+					t.Fatalf("%s missing %q", name, fragment)
+				}
+			}
+		})
+	}
+}
+
 func readTextFile(t *testing.T, path string) string {
 	t.Helper()
 

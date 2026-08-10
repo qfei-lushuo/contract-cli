@@ -16,6 +16,8 @@ contract-cli payment list --contract 7023646046559404327 --profile contract --as
 - `get`：`GET /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}`
 - `list`：`GET /open-apis/contract/v1/contracts/{contract_id}/payments`
 
+请求体字段：看 [payment-fields.md](payment-fields.md)
+
 ## 付款计划
 
 ```bash
@@ -27,6 +29,8 @@ contract-cli payment plan search --profile contract --as app --input-file paymen
 
 - `notify`：`POST /open-apis/contract/v1/payment/notify`
 - `search`：`POST /open-apis/contract/v1/payments/search`
+
+请求体字段：看 [payment-plan-fields.md](payment-plan-fields.md)
 
 ## 付款记录
 
@@ -43,3 +47,5 @@ contract-cli payment record list --plan payment_plan_uuid_123 --profile contract
 - `record update`：`PATCH /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}/payment_records/{payment_record_id}`
 - `record get`：`GET /open-apis/contract/v1/contracts/{contract_id}/payments/{payment_id}/payment_records/{payment_record_id}`
 - `record list`：`GET /open-apis/contract/v1/contracts/payments/{payment_plan_uuid}/payment_records`
+
+请求体字段：看 [payment-record-fields.md](payment-record-fields.md)

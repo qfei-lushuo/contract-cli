@@ -77,6 +77,7 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - 合同分类树：读 [references/category-fields.md](references/category-fields.md)
 - 分享和协商响应：读 [references/share-cooperation-fields.md](references/share-cooperation-fields.md)
 - 上传、下载、提交、重提、删除等轻量动作：读 [references/contract-actions-fields.md](references/contract-actions-fields.md)
+- 审批发起请求体：读 [references/approval-fields.md](references/approval-fields.md)
 - 新增 app-only 补齐接口命令：读 [references/openapi-gap-commands.md](references/openapi-gap-commands.md)
 - `contract sync-user-groups`、`contract text`、`contract enum list` 当前只补命令级约束；本技能未找到可补到 `contract create` 级别的官方字段页
 
@@ -163,6 +164,7 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - [references/share-cooperation-fields.md](references/share-cooperation-fields.md)
 - [references/contract-actions-fields.md](references/contract-actions-fields.md)
 - [references/openapi-gap-commands.md](references/openapi-gap-commands.md)
+- [references/approval-fields.md](references/approval-fields.md)
 
 ## 操作建议
 
