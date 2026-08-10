@@ -7,11 +7,24 @@
 - [查看合同详情](https://docs.qfei.cn/366437223e0)
 - [搜索合同](https://docs.qfei.cn/366415247e0)
 
+## 目录
+
+- [CLI 命令面](#1-cli-命令面)
+- [搜索响应差异](#2-搜索响应差异)
+- [合同基础字段](#3-合同基础字段)
+- [人员与时间字段](#4-人员与时间字段)
+- [主体字段](#5-主体字段)
+- [表单、模板与关联字段](#6-表单模板与关联字段)
+- [付款与预算字段](#7-付款与预算字段)
+- [使用建议](#8-使用建议)
+
 ## 1. CLI 命令面
 
 ```bash
 contract-cli contract get <contract-id> --profile contract --as app --output json
+contract-cli contract search --profile contract --as user --input-file search-user.json --output json
 contract-cli contract search --profile contract --as app --input-file contract-search.json --output json
+contract-cli contract search-v2 --profile contract --as app --input-file search-v2.json --output json
 ```
 
 读取路径：
@@ -19,7 +32,34 @@ contract-cli contract search --profile contract --as app --input-file contract-s
 - `contract get`：重点看 `data.contract`
 - `contract search`：重点看 `data.items[]`
 
-## 2. 合同基础字段
+## 2. 搜索响应差异
+
+| 接口 | 列表与分页 | 额外字段/行为 |
+| --- | --- | --- |
+| user MCP `contract search --as user` | `data.items[]`、`has_more`、`page_token`、`pagination` | ID 展示字段按 MCP schema 返回 string；包含状态展示策略字段。 |
+| app V1 `contract search --as app` | `data.items[]`、`has_more`、`page_token` | 顶层编号精确查询最多一条，固定不翻页；未命中返回 `110107`。 |
+| app V2 `contract search-v2 --as app` | `data.items[]`、`has_more`、`page_token` | 顶层编号可返回多条；未命中成功返回空列表。 |
+
+user MCP 的 `data.pagination`：
+
+| 字段 | 类型 | 必填性 | 含义 |
+| --- | --- | --- | --- |
+| `unit` | string | 必填 | 固定 `CONTRACT_GROUP`。 |
+| `page_index` | integer | 必填 | 当前页索引。 |
+| `requested_size` | integer | 必填 | 请求页大小。 |
+| `returned_units` | integer | 必填 | 本页返回合同分组数。 |
+| `returned_items` | integer | 必填 | 本页返回合同条目数。 |
+| `total_units` | integer | 必填 | 命中合同分组总数。 |
+
+user MCP 列表项额外状态字段：
+
+| 字段 | 类型 | 含义 |
+| --- | --- | --- |
+| `contract_status_display_name` | string | 面向用户展示的状态名称。 |
+| `contract_status_display_name_source` | string | 当前枚举值为 `CLM_WEB_STATUS_POLICY`。 |
+| `contract_status_display_policy_version` | string | 状态展示策略版本。 |
+
+## 3. 合同基础字段
 
 | 字段 | 类型 | 业务含义 |
 | --- | --- | --- |
@@ -48,15 +88,18 @@ contract-cli contract search --profile contract --as app --input-file contract-s
 | `source_type_code` | `integer` | 来源类型编码。 |
 | `remark` | `string` | 备注。 |
 
-## 3. 人员与时间字段
+## 4. 人员与时间字段
 
 | 字段 | 类型 | 业务含义 |
 | --- | --- | --- |
 | `create_user_id` | `string` | 创建人 id。 |
 | `create_user_name` | `string` | 创建人名称。 |
-| `create_employee_id` | `number` | 创建员工 id。 |
+| `create_employee_id` | `string|number` | 创建员工 id；user MCP 搜索 schema 为 string。 |
 | `create_employee_name` | `string|null` | 创建员工名称。 |
-| `owner_employee_id` | `number` | 归属员工 id。 |
+| `owner_employee_id` | `string|number` | 归属员工 id；user MCP 搜索 schema 为 string。 |
+| `submitter_user_name` | `string|null` | 提交人展示名称，user MCP 搜索可能返回。 |
+| `saas_department_id` | `string|null` | SaaS 部门 id，user MCP 搜索可能返回。 |
+| `saas_demand_employee_department_map` | `object|null` | 需求人与部门映射，user MCP 搜索可能返回。 |
 | `department_id` | `string|null` | 合同创建部门 id。 |
 | `department_name` | `string|null` | 合同创建部门名称。 |
 | `create_time` | `string` | 创建时间。 |
@@ -67,7 +110,7 @@ contract-cli contract search --profile contract --as app --input-file contract-s
 | `archived_time` | `string` | 归档完成时间。 |
 | `end_date` | `string` | 合同终止日期。 |
 
-## 4. 主体字段
+## 5. 主体字段
 
 `counter_party_list` 表示对方主体：
 
@@ -95,18 +138,18 @@ contract-cli contract search --profile contract --as app --input-file contract-s
 | `legal_entity_code` | `string` | 法人实体 code。 |
 | `legal_entity_name` | `string` | 法人实体名称。 |
 
-## 5. 表单、模板与关联字段
+## 6. 表单、模板与关联字段
 
 | 字段 | 类型 | 业务含义 |
 | --- | --- | --- |
-| `form_id` | `number` | 合同表单 id。 |
+| `form_id` | `string|number` | 合同表单 id；user MCP 搜索 schema 为 string。 |
 | `form` | `string` | 合同表单 JSON 字符串，字段控件内容。 |
 | `template_id` | `number|string` | 合同模板 id。 |
-| `group_id` | `number` | 合同分组 id。 |
+| `group_id` | `string|number` | 合同分组 id；user MCP 搜索 schema 为 string。 |
 | `relation.relation_contracts[]` | `array<object>` | 关联的合同。 |
 | `relation.related_contract_ids[]` | `array<string>` | 被关联的合同 id 列表。 |
 
-## 6. 付款与预算字段
+## 7. 付款与预算字段
 
 `payment_plan_list[]` 常用字段：
 
@@ -137,7 +180,7 @@ contract-cli contract search --profile contract --as app --input-file contract-s
 | `tax_rate` | `number` | 税率。 |
 | `tax_amount` | `number` | 税额。 |
 
-## 7. 使用建议
+## 8. 使用建议
 
 - 后续要提交、删除、打印、分享或查协商信息时，优先保存 `contract_id`
 - 后续要按模板创建合同，优先保存 `template_id` / `template_number`

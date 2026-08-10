@@ -1,7 +1,7 @@
 ---
 name: contract-cli-contract
-version: 1.0.3
-description: "contract-cli 合同命令技能：支持 user/app 双身份下的合同详情、合同搜索、合同创建、同步用户组、读取合同文本、查询合同分类、列出模板、查看模板详情、创建模板实例、文件上传，app 身份下的合同搜索 V2、字段更新、电子签转纸质签、签署链接、流程字段、合同授权、电子签认证链接、提交/重提/更新/删除合同、下载/生成文件、分享记录与批量分享、协商列表/信息/文件查询下载和审批管理，以及 user 身份下的枚举查询。内含合同搜索、详情响应、模板、打印文件、分类、分享协商等字段参考。当用户要使用 `contract-cli contract ...` 操作合同能力时触发。"
+version: 1.0.4
+description: "contract-cli 合同命令技能：支持 user/app 双身份下的合同详情、合同搜索、合同创建、同步用户组、读取合同文本、查询合同分类、列出模板、查看模板详情、创建模板实例、文件上传，区分 user MCP 搜索、app V1 精确/组合搜索和 app V2 编号模糊搜索的参数契约；并支持 app 身份下的字段更新、电子签转纸质签、签署链接、流程字段、合同授权、电子签认证链接、提交/重提/更新/删除合同、下载/生成文件、分享记录与批量分享、协商列表/信息/文件查询下载和审批管理，以及 user 身份下的枚举查询。当用户要使用 `contract-cli contract ...` 操作合同能力时触发。"
 ---
 
 # contract-cli Contract
@@ -48,8 +48,9 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 ## 快速决策
 
 - 想直接拿合同详情：用 `contract get`
-- 想按条件查合同列表：用 `contract search`
-- 想用新版搜索条件：用 `contract search-v2 --as app`
+- 想以当前 OAuth 用户的可见权限做 PC 兼容关键词或结构化筛选：用 `contract search --as user`
+- 想以 app 按合同编号精确查单条，或使用旧组合/逻辑条件：用 `contract search --as app`
+- 想以 app 按合同编号做 ES 模糊或分号批量搜索：用 `contract search-v2 --as app`
 - 想更新字段选项、拿签署链接、查询流程字段、合同授权、电子签链接或协商列表：读 [references/openapi-gap-commands.md](references/openapi-gap-commands.md)
 - 想直接透传创建合同请求体：用 `contract create`
 - 想拿正文文本：用 `contract text`
@@ -67,7 +68,10 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 
 ## 字段文档导航
 
-- 合同搜索请求体：读 [references/search-contract-fields.md](references/search-contract-fields.md)
+- 合同搜索接口选择：先读 [references/search-contract-fields.md](references/search-contract-fields.md)
+- user MCP 搜索参数、约束和示例：读 [references/search-user-parameters.md](references/search-user-parameters.md)
+- app V1 精确/组合搜索参数、约束和示例：读 [references/search-app-parameters.md](references/search-app-parameters.md)
+- app V2 编号模糊搜索参数、约束和示例：读 [references/search-v2-parameters.md](references/search-v2-parameters.md)
 - 合同详情和搜索响应字段：读 [references/contract-response-fields.md](references/contract-response-fields.md)
 - 合同创建请求体：读 [references/create-contract-fields.md](references/create-contract-fields.md)、[references/create-contract-field-tree.md](references/create-contract-field-tree.md)、[references/create-contract-enums.md](references/create-contract-enums.md)
 - 合同更新文件/归档字段：读 [references/patch-contract-fields.md](references/patch-contract-fields.md)
@@ -112,12 +116,14 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - `contract get --as app` 走开放平台标准接口 `/open-apis/contract/v1/contracts/{contract_id}`
 - `--user-id-type` / `--user-id` 是通用 query 参数：
   - `--user-id-type` 不传时默认拼接 `user_id_type=user_id`
-  - 显式传 `--user-id-type <type>` 时会覆盖默认值
+  - app 标准接口中，显式传 `--user-id-type <type>` 会覆盖默认值
+  - user MCP 工具当前将 `user_id_type` 固定为 `user_id`，显式 flag 暂不能覆盖；不要在 user 搜索中声称已支持 `union_id`
   - `--user-id` 传了就原样拼到底层接口，不传就不带
-  - 不区分 `user` / `app`
   - 不做命令级校验
 - `contract search` 会把 `--contract-number`、`--page-size`、`--page-token` 合并进 `--input-file/--data` 里的 JSON 对象
+- `contract search --as user` 走 `/open-apis/contract/v1/mcp/contracts/search`；支持 `condition_units` / `filter_units`，并由服务端注入当前用户权限
 - `contract search --as app` 走开放平台标准接口 `/open-apis/contract/v1/contracts/search`
+- `contract search --as app` 的顶层 `contract_number` 是精确查询，最多返回一条；未命中返回 `110107`
 - `contract sync-user-groups --as app` 走 `/open-apis/contract/v1/contracts/user-groups/sync`
 - `contract text --as app` 走 `GET /open-apis/contract/v1/contracts/{contract_id}/text`
 - `contract category list --as app` 走 `/open-apis/contract/v1/contract_categorys`
@@ -133,7 +139,7 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - `contract upload-file` 不接受 `--input-file` / `--data`
 - `contract upload-file` 本地限制文件大小小于等于 `200MB`
 - `contract submit --as app` 走 `POST /open-apis/contract/v1/contracts/{contract_id}/submit`，`--input-file` / `--data` 可选
-- `contract search-v2 --as app` 走 `POST /open-apis/contract/v1/contracts/searchV2`，`--input-file` / `--data` 必填
+- `contract search-v2 --as app` 走 `POST /open-apis/contract/v1/contracts/searchV2`，`--input-file` / `--data` 必填；顶层 `contract_number` 走 ES 模糊搜索，且忽略 `condition_units` / `filter_units`
 - `contract field update --as app` 走 `PUT /open-apis/contract/v1/attribute_definition`，请求体直接透传
 - `contract sign switch-to-paper --as app` 走 `POST /open-apis/contract/v1/contracts/signType/switchToPaper`，用 query `business_id` 和 `business_type_code`
 - `contract sign-url get --as app` 走 `GET /open-apis/contract/v1/contracts/{contract_id}/sign_url`
@@ -167,6 +173,9 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - [internal/openplatform/contract/service.go](../../internal/openplatform/contract/service.go)
 - [references/commands.md](references/commands.md)
 - [references/search-contract-fields.md](references/search-contract-fields.md)
+- [references/search-user-parameters.md](references/search-user-parameters.md)
+- [references/search-app-parameters.md](references/search-app-parameters.md)
+- [references/search-v2-parameters.md](references/search-v2-parameters.md)
 - [references/contract-response-fields.md](references/contract-response-fields.md)
 - [references/create-contract-fields.md](references/create-contract-fields.md)
 - [references/create-contract-field-tree.md](references/create-contract-field-tree.md)

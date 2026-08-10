@@ -1,6 +1,11 @@
 # AI 变更记录
 
 - 2026-08-10
+  变更摘要：将合同搜索 Skill 升级为 user MCP、app V1、app V2 三套独立参数契约。
+  涉及文件/模块：`skills/contract-cli-contract` 搜索 references、响应字段、agent 元数据，shared 约束与 CLI 文档契约测试。
+  关键逻辑/决策：按实际身份路由拆分字段类型、必填性、枚举、分页和请求示例；明确 app V1 精确查询、V2 ES 模糊查询及 MCP 结构化筛选边界，并记录当前 CLI user_id_type/字段发现限制。
+
+- 2026-08-10
   变更摘要：补齐 P3 33 个新接口的独立参数参考。
   涉及文件/模块：合同、MDM、事件、审批矩阵 Skills 的 `references/*-parameters.md`、Skill 导航与元数据、文档契约测试。
   关键逻辑/决策：以官方 OpenAPI 为字段主档，补充 CLI/CLM 的本地校验和差异；逐字段记录类型、必填性、枚举与约束，动态主数据字段明确要求查询租户配置。

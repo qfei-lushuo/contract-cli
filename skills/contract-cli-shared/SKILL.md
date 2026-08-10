@@ -1,6 +1,6 @@
 ---
 name: contract-cli-shared
-version: 1.0.0
+version: 1.0.1
 description: "contract-cli 开放平台共享约定技能：在 `contract`、`payment`、`mdm`、`event` 和 `rule` 模块间做选择，并遵守 `contract/v1/mcp` user-only 限制、`--input-file` 请求体输入、输出格式和 profile 选择规则。当用户要操作开放平台 CLI 但尚未明确命令模块、需要更新 contract-cli，或看到 JSON 输出中的 `_notice` / `_notice.update` 时触发。"
 ---
 
@@ -67,7 +67,7 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 - 若命中 `/open-apis/contract/v1/mcp/` 且未传 `--as`，CLI 会默认按 `user` 解析，不看 `default_identity`
 - 这批命令不暴露 `--operator`
 - 请求体文件输入统一使用 `--input-file`
-- `--user-id-type` / `--user-id` 是开放平台通用 query 参数：结构化命令支持；`--user-id-type` 不传时默认拼接 `user_id_type=user_id`，显式传值会覆盖默认值；`--user-id` 传了就透传，不传就不带。例外：`mdm vendor create/update` 与 `mdm legal create/update` 写接口会本地要求 `--user-id`
+- `--user-id-type` / `--user-id` 是开放平台通用 query 参数：结构化命令支持；`--user-id-type` 不传时默认拼接 `user_id_type=user_id`，app 标准接口允许显式传值覆盖；部分 user-only MCP tool spec 会固定 query 默认值，例如 `contract search --as user` 当前固定 `user_id`，以模块 Skill 为准。`--user-id` 传了就透传，不传就不带。例外：`mdm vendor create/update` 与 `mdm legal create/update` 写接口会本地要求 `--user-id`
 - `--file` 现在只用于真实二进制文件上传，例如 `contract upload-file`
 - `contract download-file` 下载二进制响应，默认弹窗保存；Agent/CI/远程环境优先传 `--output-file`，管道场景用 `--raw`
 - JSON 请求体文件输入始终使用 `--input-file`，不要把 `--file` 当 JSON 请求体参数
