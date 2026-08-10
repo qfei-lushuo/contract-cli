@@ -737,7 +737,7 @@ func (a *App) runRuleTableRowList(ctx context.Context, args []string) error {
 }
 
 func (a *App) runRuleTableRowSearch(ctx context.Context, args []string) error {
-	parsed, err := parseArgs(args, structuredValueFlags("--product-id", "--group-id", "--table-id"), commonBoolFlags())
+	parsed, err := parseArgs(args, structuredValueFlags("--product-id", "--group-id", "--table-id", "--page-size", "--page-token"), commonBoolFlags())
 	if err != nil {
 		return err
 	}
@@ -753,7 +753,11 @@ func (a *App) runRuleTableRowSearch(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	return a.executeAppOpenPlatformRequest(ctx, options, http.MethodPost, ruleTablePath(productID, groupID, tableID)+"/table_rows/search", nil, body)
+	query, err := pageQuery(parsed)
+	if err != nil {
+		return err
+	}
+	return a.executeAppOpenPlatformRequest(ctx, options, http.MethodPost, ruleTablePath(productID, groupID, tableID)+"/table_rows/search", query, body)
 }
 
 func (a *App) runRuleTableRowUpdate(ctx context.Context, args []string) error {

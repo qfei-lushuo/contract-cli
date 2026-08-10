@@ -196,6 +196,16 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 			},
 		},
 		{
+			name: "rule table row search help",
+			args: []string{"rule", "table", "row", "search", "--help"},
+			contains: []string{
+				"rule table row search",
+				"--page-size <n>",
+				"--page-token <token>",
+				"--input-file <path>",
+			},
+		},
+		{
 			name: "mdm vendor list flags",
 			args: []string{"mdm", "vendor", "list", "--help"},
 			contains: []string{

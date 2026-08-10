@@ -1,6 +1,6 @@
 ---
 name: contract-cli-contract
-version: 1.0.2
+version: 1.0.3
 description: "contract-cli 合同命令技能：支持 user/app 双身份下的合同详情、合同搜索、合同创建、同步用户组、读取合同文本、查询合同分类、列出模板、查看模板详情、创建模板实例、文件上传，app 身份下的合同搜索 V2、字段更新、电子签转纸质签、签署链接、流程字段、合同授权、电子签认证链接、提交/重提/更新/删除合同、下载/生成文件、分享记录与批量分享、协商列表/信息/文件查询下载和审批管理，以及 user 身份下的枚举查询。内含合同搜索、详情响应、模板、打印文件、分类、分享协商等字段参考。当用户要使用 `contract-cli contract ...` 操作合同能力时触发。"
 ---
 
@@ -80,6 +80,21 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - 审批发起请求体：读 [references/approval-fields.md](references/approval-fields.md)
 - 新增 app-only 补齐接口命令：读 [references/openapi-gap-commands.md](references/openapi-gap-commands.md)
 - `contract sync-user-groups`、`contract text`、`contract enum list` 当前只补命令级约束；本技能未找到可补到 `contract create` 级别的官方字段页
+
+### P3 接口参数参考
+
+- 搜索 V2：[references/search-v2-parameters.md](references/search-v2-parameters.md)
+- 字段更新：[references/field-update-parameters.md](references/field-update-parameters.md)
+- 电子签转纸质签：[references/sign-switch-to-paper-parameters.md](references/sign-switch-to-paper-parameters.md)
+- 签署链接：[references/sign-url-get-parameters.md](references/sign-url-get-parameters.md)
+- 流程字段：[references/form-attribute-list-parameters.md](references/form-attribute-list-parameters.md)
+- 合同授权：[references/authorization-grant-parameters.md](references/authorization-grant-parameters.md)
+- 个人实名认证链接：[references/esign-personal-auth-url-parameters.md](references/esign-personal-auth-url-parameters.md)
+- 企业实名认证链接：[references/esign-org-auth-url-parameters.md](references/esign-org-auth-url-parameters.md)
+- 批量分享：[references/share-batch-create-parameters.md](references/share-batch-create-parameters.md)
+- 协商搜索：[references/cooperation-search-parameters.md](references/cooperation-search-parameters.md)
+- 协商文件信息：[references/cooperation-file-get-parameters.md](references/cooperation-file-get-parameters.md)
+- 协商文件下载：[references/cooperation-file-download-parameters.md](references/cooperation-file-download-parameters.md)
 
 ## 关键规则
 
@@ -165,6 +180,7 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - [references/contract-actions-fields.md](references/contract-actions-fields.md)
 - [references/openapi-gap-commands.md](references/openapi-gap-commands.md)
 - [references/approval-fields.md](references/approval-fields.md)
+- P3 接口的完整类型、必填项、枚举与约束：按“P3 接口参数参考”选择对应文档
 
 ## 操作建议
 

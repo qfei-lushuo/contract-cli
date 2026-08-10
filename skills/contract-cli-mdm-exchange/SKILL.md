@@ -1,6 +1,6 @@
 ---
 name: contract-cli-mdm-exchange
-version: 1.0.0
+version: 1.0.1
 description: "contract-cli 固定汇率技能：用 app 身份查询或更新 `/open-apis/mdm/v1/fixed_exchange_rate`。当用户要使用 `contract-cli mdm fixed-exchange-rate get|update` 查询、维护固定汇率时触发。"
 ---
 
@@ -26,6 +26,11 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - `get` 的 CLI flag `--effective-date` 会映射到底层 query `date`；`update` 请求体仍使用字段 `effective_date`
 - `get` 不接受 `--input-file` / `--data`
 - `update` 必须通过 `--input-file` 或 `--data` 传 JSON
+
+## 参数文档
+
+- 查询固定汇率：[references/fixed-exchange-rate-get-parameters.md](references/fixed-exchange-rate-get-parameters.md)
+- 更新固定汇率：[references/fixed-exchange-rate-update-parameters.md](references/fixed-exchange-rate-update-parameters.md)
 
 ## 示例
 

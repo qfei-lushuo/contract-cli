@@ -186,7 +186,7 @@ func (a *App) Run(ctx context.Context, args []string) error {
 		return nil
 	}
 
-	a.logger.Info("run command", "args", strings.Join(args, " "))
+	a.logger.Info("run command", "args", redactCommandArgs(args))
 	a.maybePrepareUpdateNotice(ctx, args)
 
 	switch args[0] {

@@ -1,6 +1,6 @@
 ---
 name: contract-cli-mdm-legal
-version: 1.0.0
+version: 1.0.1
 description: "contract-cli 法人实体主数据技能：列出法人实体候选列表、按 ID 获取详情、按编码查询，或用 app 身份创建、更新法人实体。当用户要使用 `contract-cli mdm legal ...` 操作合同域法人实体数据时触发。"
 ---
 
@@ -45,6 +45,10 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
   - 先读 [references/entity-query-guide.md](references/entity-query-guide.md) 选查询场景
   - 再读 [references/entity-query-parameters.md](references/entity-query-parameters.md) 查请求参数映射
   - 最后读 [references/commands.md](references/commands.md) 抄命令示例
+- P3 命令按需读取完整参数文档：
+  - 创建：[references/legal-create-parameters.md](references/legal-create-parameters.md)
+  - 更新：[references/legal-update-parameters.md](references/legal-update-parameters.md)
+  - 按编码查询：[references/legal-get-by-code-parameters.md](references/legal-get-by-code-parameters.md)
 
 ## 实现来源
 
@@ -53,6 +57,9 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - [references/entity-query-guide.md](references/entity-query-guide.md)
 - [references/entity-query-parameters.md](references/entity-query-parameters.md)
 - [references/commands.md](references/commands.md)
+- [references/legal-create-parameters.md](references/legal-create-parameters.md)
+- [references/legal-update-parameters.md](references/legal-update-parameters.md)
+- [references/legal-get-by-code-parameters.md](references/legal-get-by-code-parameters.md)
 
 ## 操作建议
 

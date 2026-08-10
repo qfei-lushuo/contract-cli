@@ -20,6 +20,7 @@ func TestOpenAPIGapSkillsCoverNewCommands(t *testing.T) {
 				"contract-cli contract search-v2",
 				"contract-cli contract field update",
 				"contract-cli contract cooperation file download",
+				"--force",
 			},
 		},
 		{
@@ -59,6 +60,7 @@ func TestOpenAPIGapSkillsCoverNewCommands(t *testing.T) {
 			fragments: []string{
 				"contract-cli mdm file download",
 				"/open-apis/mdm/v1/file/download/{file_id}",
+				"--force",
 			},
 		},
 		{
@@ -74,6 +76,7 @@ func TestOpenAPIGapSkillsCoverNewCommands(t *testing.T) {
 			fragments: []string{
 				"contract-cli rule table list",
 				"contract-cli rule table row create",
+				"`--page-size` / `--page-token` 作为 query 参数",
 				"/open-apis/rule_engine/v1",
 			},
 		},

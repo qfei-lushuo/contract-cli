@@ -119,4 +119,4 @@ contract-cli contract cooperation file download <file-id> --profile contract --a
 - 这些命令全部是 app-only，不要传 `--as user`。
 - `contract sign switch-to-paper` 的 `business_type_code` 常用值：`0` 合同申请、`2` 合同变更、`3` 合同终止。
 - `contract form attribute list` 的 `business_type_code` 常用值：`0` 申请、`1` 变更、`2` 终止、`3` 合同组申请。
-- 下载类命令在 Agent/CI/远程环境优先传 `--output-file`；管道场景用 `--raw`。
+- 下载类命令在 Agent/CI/远程环境优先传 `--output-file`；目标文件已存在时显式传 `--force`，管道场景用 `--raw`。

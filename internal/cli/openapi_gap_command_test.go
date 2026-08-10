@@ -242,10 +242,10 @@ func TestOpenAPIGapCommandsUseExpectedEndpointsAsBot(t *testing.T) {
 		},
 		{
 			name:       "rule table row search",
-			args:       []string{"rule", "table", "row", "search", "--profile", "contract", "--product-id", "prod-1", "--group-id", "group-1", "--table-id", "table-1", "--data", `{"filter_criteria":[]}`},
+			args:       []string{"rule", "table", "row", "search", "--profile", "contract", "--product-id", "prod-1", "--group-id", "group-1", "--table-id", "table-1", "--page-size", "5", "--page-token", "next", "--data", `{"filter_criteria":[]}`},
 			wantMethod: http.MethodPost,
 			wantPath:   "/open-apis/rule_engine/v1/products/prod-1/groups/group-1/rule_tables/table-1/table_rows/search",
-			wantQuery:  map[string]string{"user_id_type": "user_id"},
+			wantQuery:  map[string]string{"page_size": "5", "page_token": "next", "user_id_type": "user_id"},
 			wantBody:   `{"filter_criteria":[]}`,
 		},
 		{

@@ -1,6 +1,6 @@
 ---
 name: contract-cli-mdm-vendor
-version: 1.0.0
+version: 1.0.1
 description: "contract-cli 交易方主数据技能：列出交易方候选列表、按 ID 获取详情，或用 app 身份创建、更新、全量分页查询、按证件 ID 查询交易方。当用户要使用 `contract-cli mdm vendor ...` 操作合同域交易方数据时触发。"
 ---
 
@@ -46,6 +46,11 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
   - 先读 [references/vendor-query-guide.md](references/vendor-query-guide.md) 选查询场景
   - 再读 [references/vendor-query-parameters.md](references/vendor-query-parameters.md) 查请求参数映射
   - 最后读 [references/commands.md](references/commands.md) 抄命令示例
+- P3 命令按需读取完整参数文档：
+  - 创建：[references/vendor-create-parameters.md](references/vendor-create-parameters.md)
+  - 更新：[references/vendor-update-parameters.md](references/vendor-update-parameters.md)
+  - 全量分页：[references/vendor-list-all-parameters.md](references/vendor-list-all-parameters.md)
+  - 按证件查询：[references/vendor-query-by-cert-parameters.md](references/vendor-query-by-cert-parameters.md)
 
 ## 实现来源
 
@@ -54,6 +59,10 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - [references/vendor-query-guide.md](references/vendor-query-guide.md)
 - [references/vendor-query-parameters.md](references/vendor-query-parameters.md)
 - [references/commands.md](references/commands.md)
+- [references/vendor-create-parameters.md](references/vendor-create-parameters.md)
+- [references/vendor-update-parameters.md](references/vendor-update-parameters.md)
+- [references/vendor-list-all-parameters.md](references/vendor-list-all-parameters.md)
+- [references/vendor-query-by-cert-parameters.md](references/vendor-query-by-cert-parameters.md)
 
 ## 操作建议
 

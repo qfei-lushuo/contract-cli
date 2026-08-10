@@ -1,6 +1,21 @@
 # AI 变更记录
 
 - 2026-08-10
+  变更摘要：补齐 P3 33 个新接口的独立参数参考。
+  涉及文件/模块：合同、MDM、事件、审批矩阵 Skills 的 `references/*-parameters.md`、Skill 导航与元数据、文档契约测试。
+  关键逻辑/决策：以官方 OpenAPI 为字段主档，补充 CLI/CLM 的本地校验和差异；逐字段记录类型、必填性、枚举与约束，动态主数据字段明确要求查询租户配置。
+
+- 2026-08-10
+  变更摘要：修复审批矩阵规则行搜索无法传递分页参数的问题。
+  涉及文件/模块：`internal/cli` 的 rule table row search、帮助、请求与 Skill 回归测试。
+  关键逻辑/决策：新增 `--page-size` / `--page-token`，复用分页 Query 构造并保持筛选 JSON body 不变。
+
+- 2026-08-10
+  变更摘要：修复 CLI 命令日志明文暴露 app secret 等敏感参数的问题。
+  涉及文件/模块：`internal/cli` 命令入口、skills 子命令日志及回归测试。
+  关键逻辑/决策：统一脱敏 secret/token/password/authorization、header 和 `--data`，兼容 `--flag value`、`--flag=value` 及下划线参数名。
+
+- 2026-08-10
   变更摘要：修正 `release` 合入 `cli-p3` 后的文档与 Skill 冲突拼接问题。
   涉及文件/模块：`docs/cli-command-reference.md`、`skills/contract-cli-contract`、`internal/cli/command_reference_doc_test.go`。
   关键逻辑/决策：保留 release 的付款/审批字段资料与 cli-p3 的补齐命令；审批章节和能力清单只保留一份，授权继续由 `contract authorization grant` 处理，新增冲突回归测试。

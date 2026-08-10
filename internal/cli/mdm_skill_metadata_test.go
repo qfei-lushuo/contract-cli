@@ -23,6 +23,9 @@ func TestMDMSkillAgentMetadataMatchesAppIdentityRoutes(t *testing.T) {
 				"user or app",
 				"vendor candidates",
 				"vendor details",
+				"create",
+				"update",
+				"certificate",
 			},
 		},
 		{
@@ -32,6 +35,9 @@ func TestMDMSkillAgentMetadataMatchesAppIdentityRoutes(t *testing.T) {
 				"user or app",
 				"legal entity candidates",
 				"legal entity details",
+				"create",
+				"update",
+				"code",
 			},
 		},
 		{
