@@ -1,6 +1,11 @@
 # AI 变更记录
 
 - 2026-08-10
+  变更摘要：修正 user MCP 合同搜索结构化筛选值的类型与约束说明。
+  涉及文件/模块：`skills/contract-cli-contract` user 搜索参数参考及 CLI 文档契约测试。
+  关键逻辑/决策：按当前 CLI 默认 legacy profile 和 CLM processor 区分实际可用值与推荐数组形态；明确外部 user/department ID、0/1 integer、盖章份数、枚举及自定义字段 JSON 类型，保留 legacy 单边范围和币种单值兼容。
+
+- 2026-08-10
   变更摘要：将合同搜索 Skill 升级为 user MCP、app V1、app V2 三套独立参数契约。
   涉及文件/模块：`skills/contract-cli-contract` 搜索 references、响应字段、agent 元数据，shared 约束与 CLI 文档契约测试。
   关键逻辑/决策：按实际身份路由拆分字段类型、必填性、枚举、分页和请求示例；明确 app V1 精确查询、V2 ES 模糊查询及 MCP 结构化筛选边界，并记录当前 CLI user_id_type/字段发现限制。

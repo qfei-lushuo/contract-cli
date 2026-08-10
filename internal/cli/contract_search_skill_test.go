@@ -146,3 +146,40 @@ func TestContractSearchReferencesUseRunnableIdentitySpecificExamples(t *testing.
 		}
 	}
 }
+
+func TestContractSearchUserFilterValueContractsMatchCurrentCLIProfile(t *testing.T) {
+	t.Parallel()
+
+	content := readTextFile(t, filepath.Join(
+		"..", "..", "skills", "contract-cli-contract", "references", "search-user-parameters.md",
+	))
+
+	required := []string{
+		"当前 `contract-cli` 不发送 `X-MCP-Response-Profile`",
+		"`CONTRACT_SUBMIT_ID` / `submitterEmployeeId` | `string` / `array<string>` | 飞书 `user_id`",
+		"`CONTRACT_AMOUNT` / `contractAmount` | `array` | 恰好两个元素 `[start,end]`",
+		"`CONTRACT_CURRENCY` / `contractCurrency` | `string` / `integer` / `array`",
+		"`CONTRACT_SEAL_NUMBER` / `contractSealNumber` | `integer` / `array<integer>`",
+		"`CONTRACT_FORM_FIELDS_OPTION` / `contractFormFieldsOption` | `string` / `array<string>`",
+		"`CONTRACT_FORM_FIELDS_EMPLOYEE_DEPARTMENT_ID` / `contractFormFieldsEmployeeDepartmentId` | `string` / `array<string>`",
+		"JSON integer `0` 或 `1`",
+		"不传 JSON boolean",
+		"盖章份数",
+	}
+	for _, fragment := range required {
+		if !strings.Contains(content, fragment) {
+			t.Errorf("search-user-parameters.md missing filter value contract %q", fragment)
+		}
+	}
+
+	forbidden := []string{
+		"`0/1` 或 boolean",
+		"印章编号 string",
+		"单个 employeeId",
+	}
+	for _, fragment := range forbidden {
+		if strings.Contains(content, fragment) {
+			t.Errorf("search-user-parameters.md contains obsolete filter value contract %q", fragment)
+		}
+	}
+}

@@ -125,50 +125,54 @@
 
 ## 结构化筛选 `filter_units`
 
-单项结构与 `condition_units` 相同，但默认 `union_type=MUST`。自定义字段必须同时传 `filter_unique_key=attribute_key`。
+当前 `contract-cli` 不发送 `X-MCP-Response-Profile`，服务端按默认 `clm-web-status-v1.0`（legacy）处理。下表描述当前 CLI 实际可用的取值；其中标记为单值或数组的字段，Agent 优先使用字段发现接口返回的数组形态，兼容更严格的 MCP profile。
+
+单项结构与 `condition_units` 相同，但默认 `union_type=MUST`。自定义字段必须同时传 `filter_unique_key=attribute_key`。范围值固定包含两个位置；当前 legacy 路径允许用 `null` 表示单边范围，但不能两端同时为 `null`，两端都有值时应满足 `start<=end`。
 
 固定字段：
 
-| 枚举名 / PC 字段名 | `search_value` 类型与约束 |
-| --- | --- |
-| `CONTRACT_SUBMIT_ID` / `submitterEmployeeId` | 单个 employeeId。 |
-| `DEPARTMENT_AUTHORITY` / `departmentAuthority` | 部门 OPENID 数组；不是部门名称搜索。 |
-| `CONTRACT_DEMAND_PERSON` / `demandEmployeeId` | 单个 employeeId。 |
-| `CONTRACT_DEMAND_PERSON_DEPARTMENT` / `demandDepartmentIds` | 需求部门 ID 数组。 |
-| `CONTRACT_AMOUNT` / `contractAmount` | 二元数值范围 `[start,end]`，单边可用 `null`。 |
-| `CONTRACT_CURRENCY` / `contractCurrency` | `"CNY"`、数字 code，或多值数组；无效币种返回空结果。 |
-| `CONTRACT_LEGAL_ENTITY_NAME_PRECISE` / `contractLegalEntityNamePrecise` | 我方主体筛选值。 |
-| `CONTRACT_TRADING_PARTY` / `contractTradingParty` | 交易方筛选值。 |
-| `CONTRACT_ASSOCIATION_PARTY` / `contractAssociationParty` | 关联交易方筛选值。 |
-| `CONTRACT_ANTI_DATED` / `antiDated` | 单值倒签标识。 |
-| `CONTRACT_ANTI_DATED_MULTI` / `antiDatedMulti` | 倒签标识数组。 |
-| `CONTRACT_SCAN_EXISTS` / `contractScanExists` | `0/1` 或 boolean。 |
-| `CONTRACT_OWNER_EQUALS_SUBMITTER` / `ownerEqualsSubmitter` | `0/1` 或 boolean。 |
-| `CONTRACT_SHARE_TO_ME` / `contractShareToMe` | 分享给我的筛选值。 |
-| `CONTRACT_STANDARD_FRAMEWORK_AGREEMENT` / `contractFrameworkParentFlag` | `0/1` 或 boolean。 |
-| `CONTRACT_SIGNED_DATE` / `signedDate` | 毫秒时间戳范围 `[start,end]`。 |
-| `CONTRACT_FIRST_SIGNER` / `contractFirstSigner` | 首签方筛选值。 |
-| `CONTRACT_SIGN_PLATFORM_TYPE` / `contractSignPlatformType` | 签署平台类型。 |
-| `CONTRACT_SEAL_NUMBER` / `contractSealNumber` | 印章编号 string。 |
-| `CONTRACT_TEMPLATE_MULTI_CONTRACT` / `contractTemplateMultiContract` | 模板多合同筛选值。 |
-| `CONTRACT_EFFECTIVE_STATUS` / `contractEffectiveStatus` | 生效状态数组。 |
-| `CONTRACT_NODE_OCR_USAGE` / `contractNodeOcrUsage` | OCR 使用状态数字枚举 code。 |
-| `CONTRACT_OWNER_AUTHORIZED_EMPLOYEES` / `ownerAuthorizedEmployeeId` | employeeId 数组。 |
-| `CONTRACT_PRE_AUTHORIZED_EMPLOYEES` / `preAuthorizedEmployeeId` | employeeId 数组。 |
+| 枚举名 / PC 字段名 | `search_value` JSON 类型 | 约束 |
+| --- | --- | --- |
+| `CONTRACT_SUBMIT_ID` / `submitterEmployeeId` | `string` / `array<string>` | 飞书 `user_id`；legacy 支持单值或非空数组，Agent 优先传数组。服务端再解析为内部 employeeId。 |
+| `DEPARTMENT_AUTHORITY` / `departmentAuthority` | `string` / `array<string>` | 部门 OPENID；不是部门名称。Agent 优先传非空数组。 |
+| `CONTRACT_DEMAND_PERSON` / `demandEmployeeId` | `string` / `array<string>` | 需求人的飞书 `user_id`；Agent 优先传非空数组。 |
+| `CONTRACT_DEMAND_PERSON_DEPARTMENT` / `demandDepartmentIds` | `string` / `array<string>` | 需求部门 OPENID；Agent 优先传非空数组。 |
+| `CONTRACT_AMOUNT` / `contractAmount` | `array` | 恰好两个元素 `[start,end]`；元素为 number 或 `null`，legacy 单边可用 `null`，至少一端必须是有限 number。 |
+| `CONTRACT_CURRENCY` / `contractCurrency` | `string` / `integer` / `array` | 支持英文币种码或数字 code；数组元素为 string 或 integer，且不得为空。无效币种在 legacy 路径返回空结果。 |
+| `CONTRACT_LEGAL_ENTITY_NAME_PRECISE` / `contractLegalEntityNamePrecise` | `string` | 非空我方主体名称。 |
+| `CONTRACT_TRADING_PARTY` / `contractTradingParty` | `string` | 非空交易方筛选值。 |
+| `CONTRACT_ASSOCIATION_PARTY` / `contractAssociationParty` | `integer` | 关联交易枚举 code；使用字段元数据返回的 `value_scopes[].value`。 |
+| `CONTRACT_ANTI_DATED` / `antiDated` | `integer` | JSON integer `0` 或 `1`。 |
+| `CONTRACT_ANTI_DATED_MULTI` / `antiDatedMulti` | `array<integer>` | 非空倒签类型枚举数组；值取字段元数据。 |
+| `CONTRACT_SCAN_EXISTS` / `contractScanExists` | `integer` | JSON integer `0` 或 `1`。 |
+| `CONTRACT_OWNER_EQUALS_SUBMITTER` / `ownerEqualsSubmitter` | `integer` | JSON integer `0` 或 `1`。 |
+| `CONTRACT_SHARE_TO_ME` / `contractShareToMe` | `integer` | JSON integer `0` 或 `1`。 |
+| `CONTRACT_STANDARD_FRAMEWORK_AGREEMENT` / `contractFrameworkParentFlag` | `integer` | JSON integer `0` 或 `1`。 |
+| `CONTRACT_SIGNED_DATE` / `signedDate` | `array` | 恰好两个毫秒时间戳或 `null`：`[start,end]`；legacy 单边可用 `null`。 |
+| `CONTRACT_FIRST_SIGNER` / `contractFirstSigner` | `integer` | `0` 未指定、`1` 对方先签、`2` 我方先签。 |
+| `CONTRACT_SIGN_PLATFORM_TYPE` / `contractSignPlatformType` | `integer` / `array<integer>` | `0` 无、`1` 纸质签、`2` 电子牵、`3` DocuSign、`4` e签宝、`5` 法大大；以租户字段元数据中启用的值为准。 |
+| `CONTRACT_SEAL_NUMBER` / `contractSealNumber` | `integer` / `array<integer>` | 盖章份数，不是印章编号；Agent 优先传非空数组，例如 `[2]`。 |
+| `CONTRACT_TEMPLATE_MULTI_CONTRACT` / `contractTemplateMultiContract` | `integer` | JSON integer `0` 或 `1`。 |
+| `CONTRACT_EFFECTIVE_STATUS` / `contractEffectiveStatus` | `array<integer>` | 非空数组：`0` 未生效、`1` 生效中、`2` 已失效。 |
+| `CONTRACT_NODE_OCR_USAGE` / `contractNodeOcrUsage` | `integer` | `0` 全部使用或不涉及 OCR、`1` 部分未使用 OCR。 |
+| `CONTRACT_OWNER_AUTHORIZED_EMPLOYEES` / `ownerAuthorizedEmployeeId` | `string` / `array<string>` | 授权人的飞书 `user_id`；Agent 优先传非空数组。 |
+| `CONTRACT_PRE_AUTHORIZED_EMPLOYEES` / `preAuthorizedEmployeeId` | `string` / `array<string>` | 预授权人的飞书 `user_id`；Agent 优先传非空数组。 |
+
+上述 `0/1` 字段不传 JSON boolean `true/false`；当前 legacy processor 按 `Integer` 消费这些值。
 
 自定义字段：
 
-| 枚举名 / PC 字段名 | `search_value` | 额外约束 |
+| 枚举名 / PC 字段名 | `search_value` JSON 类型 | 额外约束 |
 | --- | --- | --- |
-| `CONTRACT_FORM_FIELDS_TEXT` / `contractFormFieldsText` | 文本值 | 必传 `filter_unique_key`。 |
-| `CONTRACT_FORM_FIELDS_DOUBLE` / `contractFormFieldsDouble` | `[start,end]` | 单边可为 `null`；必传唯一 key。 |
-| `CONTRACT_FORM_FIELDS_DATE` / `contractFormFieldsDate` | 毫秒时间戳范围 | 不传日期字符串；必传唯一 key。 |
-| `CONTRACT_FORM_FIELDS_OPTION` / `contractFormFieldsOption` | 选项 label | 必传唯一 key。 |
-| `CONTRACT_FORM_FIELDS_OPTION_ID` / `contractFormFieldsOptionId` | 选项原始 value/id | 必传唯一 key。 |
-| `CONTRACT_FORM_FIELDS_EMPLOYEE_DEPARTMENT` / `contractFormFieldsEmployeeDepartment` | 人员/部门显示名 | 必传唯一 key。 |
-| `CONTRACT_FORM_FIELDS_EMPLOYEE_DEPARTMENT_ID` / `contractFormFieldsEmployeeDepartmentId` | 人员/部门 ID | 必传唯一 key。 |
-| `CONTRACT_FORM_FIELDS_CURRENCY` / `contractFormFieldsCurrency` | 币种值 | 必传唯一 key。 |
-| `CONTRACT_HYPERLINK` / `contractHyperlink` | `{"url":"https://example.com","title":"标题"}` | 必传唯一 key。 |
+| `CONTRACT_FORM_FIELDS_TEXT` / `contractFormFieldsText` | `string` | 非空文本；必传 `filter_unique_key`。 |
+| `CONTRACT_FORM_FIELDS_DOUBLE` / `contractFormFieldsDouble` | `array` | 恰好两个 number 或 `null`；legacy 单边可为 `null`；必传唯一 key。 |
+| `CONTRACT_FORM_FIELDS_DATE` / `contractFormFieldsDate` | `array` | 恰好两个毫秒时间戳或 `null`，不传日期字符串；必传唯一 key。 |
+| `CONTRACT_FORM_FIELDS_OPTION` / `contractFormFieldsOption` | `string` / `array<string>` | 选项 label；Agent 优先使用字段元数据返回的非空数组；必传唯一 key。 |
+| `CONTRACT_FORM_FIELDS_OPTION_ID` / `contractFormFieldsOptionId` | `string` / `integer` / `array` | legacy 选项原始 value/id；数组元素为 string 或 integer。新请求不要手选本字段，优先使用字段元数据返回的 `CONTRACT_FORM_FIELDS_OPTION` label 数组；必传唯一 key。 |
+| `CONTRACT_FORM_FIELDS_EMPLOYEE_DEPARTMENT` / `contractFormFieldsEmployeeDepartment` | `string` / `array<string>` | legacy 人员/部门显示名搜索；新请求不要手选本字段，使用下一行的外部 ID 形式；必传唯一 key。 |
+| `CONTRACT_FORM_FIELDS_EMPLOYEE_DEPARTMENT_ID` / `contractFormFieldsEmployeeDepartmentId` | `string` / `array<string>` | 人员字段传飞书 `user_id`，部门字段传部门 OPENID；Agent 优先传非空数组；必传唯一 key。 |
+| `CONTRACT_FORM_FIELDS_CURRENCY` / `contractFormFieldsCurrency` | `integer` / `array<integer>` | 保留的 legacy 名称；新请求不要手选本字段，字段元数据会使用 `CONTRACT_FORM_FIELDS_OPTION` 并返回币种 code 数组；必传唯一 key。 |
+| `CONTRACT_HYPERLINK` / `contractHyperlink` | `object` | legacy 至少读取非空 string `url` / `title` 之一；Agent 应同时传两者且不附加其他键；必传唯一 key。 |
 
 ## 排序与分页
 
@@ -211,6 +215,8 @@ PC 聚合状态：已作废=`1,19`，签订中=`6,12,13`，其余使用对应单
 - 自定义 filter 字段必须传 `filter_unique_key`。
 - `DEPARTMENT_AUTHORITY` 传部门 ID 数组；按部门名称搜索使用 `condition_units.CONTRACT_DEPARTMENT_NAME`。
 - 日期型 filter 传毫秒时间戳范围，不传 `YYYY-MM-DD` 字符串。
+- `0/1` filter 传 JSON integer，不传 boolean；范围数组固定两个位置，单边范围只在当前 legacy profile 使用 `null`。
+- 固定/自定义枚举优先使用字段元数据的 `value_scopes[].value`；不要凭展示文案反推 code。
 - 不传 `search_tab_code` 时默认 `0`；非法页签、排序字段或排序方向返回参数错误。
 
 ## 动态字段发现
