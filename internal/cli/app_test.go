@@ -2303,7 +2303,7 @@ func TestAuthDeviceStatusAndLogoutUseCredentialStoreAndRevoke(t *testing.T) {
 	store := config.NewStore(t.TempDir())
 	credentials := &memoryDeviceCredentialStore{values: map[string]credential.DeviceCredential{
 		"contract": {Token: &config.Token{
-			AccessToken: "secret-access", RefreshToken: "secret-refresh", Scope: "contract:full", Expiry: fixedCLINow().Add(time.Hour),
+			AccessToken: "secret-access", RefreshToken: "secret-refresh", Scope: "contract:full contract-review:full", Expiry: fixedCLINow().Add(time.Hour),
 		}},
 	}}
 	profile := config.Profile{
@@ -2333,7 +2333,9 @@ func TestAuthDeviceStatusAndLogoutUseCredentialStoreAndRevoke(t *testing.T) {
 	if err := app.Run(context.Background(), []string{"auth", "status", "--profile", "contract", "--as", "user"}); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.Contains(stdout.String(), "Authorization: authorized") || strings.Contains(stdout.String(), "secret-") {
+	if !strings.Contains(stdout.String(), "Authorization: authorized") ||
+		!strings.Contains(stdout.String(), "Scope: contract:full contract-review:full") ||
+		strings.Contains(stdout.String(), "secret-") {
 		t.Fatalf("status output = %s", stdout.String())
 	}
 	stdout.Reset()
