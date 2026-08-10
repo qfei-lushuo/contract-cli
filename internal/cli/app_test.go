@@ -875,7 +875,7 @@ func TestConfigAddUsesProdPresetByDefault(t *testing.T) {
 	if savedProfile.Identities.User.DeviceClientID != "zscli_892efdadc11a3f53" {
 		t.Fatalf("device client id = %q", savedProfile.Identities.User.DeviceClientID)
 	}
-	if savedProfile.Identities.User.DeviceScope != "contract:full" {
+	if savedProfile.Identities.User.DeviceScope != "contract:full contract-review:full" {
 		t.Fatalf("device scope = %q", savedProfile.Identities.User.DeviceScope)
 	}
 	if savedProfile.Identities.User.DeviceAuthorizationEndpoint != "https://myaccount.qfei.cn/api/public/oauth/device-authorization/contract" {

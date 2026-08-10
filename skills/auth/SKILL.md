@@ -1,6 +1,6 @@
 ---
 name: auth
-version: 1.1.7
+version: 1.1.8
 description: "contract-cli 登录与身份切换技能：初始化 profile、通过 Device Grant 展示手机号授权链接/二维码并单次查询结果、保留旧 user OAuth 授权码模式、登录 app 身份、查看状态与退出。当用户需要 `auth init/complete/login/status/logout/use` 时触发。"
 ---
 
@@ -52,6 +52,8 @@ contract-cli config add --env prod --name contract
 
 - `auth login --as user`：保留的 Authorization Code + PKCE 模式，token 继续使用旧 profile 存储。
 - `auth init` + `auth complete`：豆包/WorkBuddy 使用的 Device Grant 模式，token 只进入 CredentialStore，不写入 profile。
+
+Device Grant 一次授权同时包含合同与智审平台访问范围；本 Skill 只负责授权，不提供智审业务命令或智审业务操作说明。
 
 额外还有一个默认身份指针：
 

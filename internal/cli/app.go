@@ -568,7 +568,7 @@ func resolveEnvironment(name string) (environmentPreset, error) {
 			BusinessType:                   "contract",
 			ClientName:                     "contract-cli",
 			DeviceClientID:                 "zscli_892efdadc11a3f53",
-			DeviceScope:                    "contract:full",
+			DeviceScope:                    "contract:full contract-review:full",
 		}, nil
 	default:
 		return environmentPreset{}, fmt.Errorf("unsupported environment %q; supported environments: prod", name)

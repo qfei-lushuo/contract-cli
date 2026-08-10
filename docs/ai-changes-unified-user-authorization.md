@@ -177,3 +177,10 @@
 - 授权 Skill 禁止普通工作任务读取或处理 `qr_code_path`、`qr_code_data_uri`，也禁止为二维码调用代码执行、图片处理或图片交付工具；返回链接后立即结束当前轮次。
 - WorkBuddy 继续通过 `show_widget` 展示二维码，AgentKit 继续使用平台的 `qr_code_path` 能力，二者行为不变。
 - CLI 继续生成并返回 `qr_code_path` 和 `qr_code_data_uri`，保持 JSON 接口、Device Grant 状态机和后续恢复二维码展示的兼容性。
+
+## 2026-08-10 统一授权扩展至智审平台
+
+- 生产环境 Device profile 的固定授权范围调整为 `contract:full contract-review:full`，顺序固定；`auth init` 将该组合 scope 原样提交给统一授权服务。
+- 继续复用既有 Device client、business type、resource、Token 存储和刷新流程，不新增 Token 导出、通用 HTTP 调用或智审业务命令。
+- Auth Skill 补充说明一次授权同时包含合同与智审平台访问范围，但不提供智审业务操作说明或智审 Skill。
+- WorkBuddy、豆包普通工作任务和 AgentKit 的运行时识别、凭证隔离、授权展示与单次 `auth init` / `auth complete` 状态机保持不变。

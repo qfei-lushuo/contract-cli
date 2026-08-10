@@ -56,6 +56,7 @@ func TestDeviceAuthSkillsEnforceWorkBuddyTurnBoundaries(t *testing.T) {
 		"macOS Keychain",
 		"必须提供 `SKILL_SESSION_WORKSPACE`",
 		"WorkBuddy 运行在客户本机",
+		"一次授权同时包含合同与智审平台访问范围",
 	} {
 		if !strings.Contains(auth, required) {
 			t.Fatalf("auth skill missing required WorkBuddy rule %q", required)
