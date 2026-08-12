@@ -7,9 +7,10 @@
 
 这套 skill 文档以后不依赖旧的 YAML 接口清单。`contract create` 的说明顺序固定为：
 
-1. 先看本文件，选场景和最小请求体
-2. 需要精确查嵌套对象时，看 [create-contract-field-tree.md](create-contract-field-tree.md)
-3. 需要确认 code 取值时，看 [create-contract-enums.md](create-contract-enums.md)
+1. 先看 [category-fields.md](category-fields.md)，查询当前身份可用的合同分类简称
+2. 再看本文件，选场景和最小请求体
+3. 需要精确查嵌套对象时，看 [create-contract-field-tree.md](create-contract-field-tree.md)
+4. 需要确认 code 取值时，看 [create-contract-enums.md](create-contract-enums.md)
 
 ## 1. CLI 命令面与硬约束
 
@@ -48,6 +49,45 @@ contract-cli contract create \
 - CLI 只透传请求体，不做字段级本地校验，不自动补默认值
 - `text_file_id`、`contract_cause_file_id_list`、`attachment_file_id_list`、`scan_file_id` 都必须传平台文件 id，不能传本地路径
 - CLI 不自动创建模板实例；模板模式需要你先拿到 `template_instance_id`
+
+### 1.1 `contract_category_abbreviation` 的来源
+
+`contract_category_abbreviation` 不是固定枚举，也不能根据分类名称猜测。创建合同前，必须用与创建命令相同的 `--profile` 和 `--as` 查询合同分类：
+
+```bash
+# 后续使用 --as user 创建
+contract-cli contract category list --profile contract --as user --lang zh-CN
+
+# 后续使用 --as app 创建
+contract-cli contract category list --profile contract --as app --lang zh-CN
+```
+
+从返回的分类树中选择当前身份可用的末级分类。二级分类的常见读取路径是：
+
+```text
+data.contract_category_resource_vo.category_resources[].children[].abbreviation
+```
+
+将返回的 `abbreviation` 原样写入创建请求体：
+
+```json
+{
+  "contract_category_abbreviation": "CATEGORY_ABBREVIATION_FROM_LIST"
+}
+```
+
+`CATEGORY_ABBREVIATION_FROM_LIST` 是文档占位值，执行前必须替换成分类查询的真实返回值。不要使用以下字段代替：
+
+- `name`：仅用于展示分类名称
+- `number`：常用于模板列表的 `category_number`
+- `id` / `contract_category_id`：可以作为辅助信息，但当前创建链路仍要求 `contract_category_abbreviation`
+
+若返回 `code=111717`、`msg="合同分类简称参数非法"`，优先检查：
+
+- 是否遗漏了 `contract_category_abbreviation`
+- 是否误用了示例占位值、分类名称、分类编号或分类 id
+- 是否选择了非末级分类
+- 该分类是否属于当前租户，并且对创建命令使用的身份可见
 
 ## 2. 场景配方
 
@@ -94,7 +134,7 @@ contract-cli contract create \
 ```json
 {
   "create_user_id": "ou_xxx",
-  "contract_category_abbreviation": "PROCUREMENT",
+  "contract_category_abbreviation": "CATEGORY_ABBREVIATION_FROM_LIST",
   "contract_name": "示例采购合同",
   "our_party_list": [
     {
@@ -159,7 +199,7 @@ contract-cli contract create \
 ```json
 {
   "create_user_id": "ou_xxx",
-  "contract_category_abbreviation": "PROCUREMENT",
+  "contract_category_abbreviation": "CATEGORY_ABBREVIATION_FROM_LIST",
   "contract_name": "示例模板合同",
   "our_party_list": [
     {
@@ -216,7 +256,7 @@ contract-cli contract create \
   "business_type_code": "2",
   "previous_contract_id": "contract_prev_xxx",
   "change_remark": "金额条款更新",
-  "contract_category_abbreviation": "PROCUREMENT",
+  "contract_category_abbreviation": "CATEGORY_ABBREVIATION_FROM_LIST",
   "contract_name": "示例采购合同补充协议",
   "our_party_list": [
     {
@@ -272,7 +312,7 @@ contract-cli contract create \
   "termination_remark": "双方协商一致终止",
   "termination_date": "2026-06-30",
   "termination_date_type_code": 1,
-  "contract_category_abbreviation": "PROCUREMENT",
+  "contract_category_abbreviation": "CATEGORY_ABBREVIATION_FROM_LIST",
   "contract_name": "示例采购合同终止协议",
   "our_party_list": [
     {
@@ -338,7 +378,8 @@ contract-cli contract enum list --profile contract --type contract_status_code
 
 ## 5. 推荐阅读顺序
 
-- 先按场景挑一套最小 JSON
+- 先查询当前身份可用的合同分类，取得末级分类 `abbreviation`
+- 再按场景挑一套最小 JSON，并替换 `CATEGORY_ABBREVIATION_FROM_LIST`
 - 再去字段树附录补齐复杂对象
 - 最后去枚举附录确认 code 值
 - 如果请求体很长，优先用 `--input-file`

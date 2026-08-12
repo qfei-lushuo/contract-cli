@@ -106,6 +106,40 @@ func TestContractSkillCommandsDoNotSuggestPatchTitleShortcut(t *testing.T) {
 	}
 }
 
+func TestContractCreateSkillExplainsCategoryAbbreviationSource(t *testing.T) {
+	t.Parallel()
+
+	root := filepath.Join("..", "..", "skills", "contract-cli-contract")
+	skillContent := readTextFile(t, filepath.Join(root, "SKILL.md"))
+	createContent := readTextFile(t, filepath.Join(root, "references", "create-contract-fields.md"))
+	fieldTreeContent := readTextFile(t, filepath.Join(root, "references", "create-contract-field-tree.md"))
+	categoryContent := readTextFile(t, filepath.Join(root, "references", "category-fields.md"))
+
+	assertContainsAll(t, "contract skill", skillContent, []string{
+		"创建合同前",
+		"category-fields.md",
+		"contract_category_abbreviation",
+	})
+	assertContainsAll(t, "create-contract-fields.md", createContent, []string{
+		"contract-cli contract category list",
+		"data.contract_category_resource_vo.category_resources[].children[].abbreviation",
+		"CATEGORY_ABBREVIATION_FROM_LIST",
+		"111717",
+	})
+	if strings.Contains(createContent, `"contract_category_abbreviation": "PROCUREMENT"`) {
+		t.Fatalf("create-contract-fields.md must not present PROCUREMENT as a reusable category abbreviation")
+	}
+	assertContainsAll(t, "create-contract-field-tree.md", fieldTreeContent, []string{
+		"不是固定枚举",
+		"不能替代 `contract_category_abbreviation`",
+	})
+	assertContainsAll(t, "category-fields.md", categoryContent, []string{
+		"不是固定枚举",
+		"相同的 `--profile` 和 `--as`",
+		"末级分类",
+	})
+}
+
 func TestPaymentAndApprovalSkillFieldReferencesCoverJSONBodyCommands(t *testing.T) {
 	t.Parallel()
 
@@ -191,4 +225,14 @@ func readTextFile(t *testing.T, path string) string {
 		t.Fatalf("ReadFile(%s) error = %v", path, err)
 	}
 	return string(content)
+}
+
+func assertContainsAll(t *testing.T, label string, content string, fragments []string) {
+	t.Helper()
+
+	for _, fragment := range fragments {
+		if !strings.Contains(content, fragment) {
+			t.Fatalf("%s missing %q", label, fragment)
+		}
+	}
 }

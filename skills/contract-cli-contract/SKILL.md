@@ -1,6 +1,5 @@
 ---
 name: contract-cli-contract
-version: 1.0.5
 description: "contract-cli 合同命令技能：支持 user/app 双身份下的合同详情、合同搜索、合同创建、同步用户组、读取合同文本、查询合同分类、列出模板、查看模板详情、创建模板实例、文件上传，区分 user MCP 搜索、app V1 精确/组合搜索和 app V2 编号模糊搜索的参数契约；并支持 app 身份下的字段更新、电子签转纸质签、签署链接、流程字段、合同授权、电子签认证链接、提交/重提/更新/删除合同、下载/生成文件、分享记录与批量分享、协商列表/信息/文件查询下载和审批管理，以及 user 身份下的枚举查询。当用户要使用 `contract-cli contract ...` 操作合同能力时触发。"
 ---
 
@@ -73,7 +72,7 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - app V1 精确/组合搜索参数、约束和示例：读 [references/search-app-parameters.md](references/search-app-parameters.md)
 - app V2 编号模糊搜索参数、约束和示例：读 [references/search-v2-parameters.md](references/search-v2-parameters.md)
 - 合同详情和搜索响应字段：读 [references/contract-response-fields.md](references/contract-response-fields.md)
-- 合同创建请求体：读 [references/create-contract-fields.md](references/create-contract-fields.md)、[references/create-contract-field-tree.md](references/create-contract-field-tree.md)、[references/create-contract-enums.md](references/create-contract-enums.md)
+- 合同创建请求体与分类来源：先读 [references/category-fields.md](references/category-fields.md) 获取 `contract_category_abbreviation`，再读 [references/create-contract-fields.md](references/create-contract-fields.md)、[references/create-contract-field-tree.md](references/create-contract-field-tree.md)、[references/create-contract-enums.md](references/create-contract-enums.md)
 - 合同更新文件/归档字段：读 [references/patch-contract-fields.md](references/patch-contract-fields.md)
 - 模板列表和模板详情字段：读 [references/template-fields.md](references/template-fields.md)
 - 模板实例请求体：读 [references/template-instance-fields.md](references/template-instance-fields.md)
@@ -109,8 +108,9 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - `contract create --as app` 走 `POST /open-apis/contract/v1/contracts`
 - `contract create --as app` 的请求体必须自己带 `create_user_id`
 - `contract create` 的推荐阅读顺序是：
-  - 先读 [references/create-contract-fields.md](references/create-contract-fields.md) 选场景和最小请求体
-  - 再读 [references/create-contract-field-tree.md](references/create-contract-field-tree.md) 查嵌套对象和 JSON Path
+  - 创建合同前，先读 [references/category-fields.md](references/category-fields.md)，用与创建命令相同的 `--profile` 和 `--as` 查询分类树，取当前身份可用末级分类的 `abbreviation` 作为 `contract_category_abbreviation`
+  - 再读 [references/create-contract-fields.md](references/create-contract-fields.md) 选场景和最小请求体
+  - 然后读 [references/create-contract-field-tree.md](references/create-contract-field-tree.md) 查嵌套对象和 JSON Path
   - 最后读 [references/create-contract-enums.md](references/create-contract-enums.md) 确认 code 取值
 - 这三份文档一起构成 `contract create` 的完整参数主档，不需要再回查旧接口清单
 - `contract get --as app` 走开放平台标准接口 `/open-apis/contract/v1/contracts/{contract_id}`
@@ -200,6 +200,7 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 - 需要脚本消费时加 `--output json`
 - 需要对照后端原始 envelope 时加 `--raw`
 - 创建合同前，先根据是“文件正文模式”“模板实例模式”“合同变更”还是“合同终止”选主文档里的场景配方
+- 创建合同前，必须先查询合同分类；`contract_category_abbreviation` 不是固定枚举，不要使用分类 `name`、`number` 或只传 `contract_category_id` 代替
 - 复杂对象不要平铺查表，直接去字段树附录按 JSON Path 找
 - 遇到 code 型字段，不要凭印象写值，直接看枚举附录
 - 交易方/我方主体、金额、期限、合同分类这几个字段最容易缺，优先核对

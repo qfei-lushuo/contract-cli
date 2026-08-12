@@ -1,5 +1,10 @@
 # AI 变更记录
 
+- 2026-08-12
+  变更摘要：补齐创建合同 `contract_category_abbreviation` 的动态来源与错误排查说明。
+  涉及文件/模块：`skills/contract-cli-contract` 创建、分类 references、主 Skill 导航及文档契约测试。
+  关键逻辑/决策：要求用与创建相同的 profile/身份查询分类树并取可用末级 `abbreviation`；明确名称、编号和分类 id 不能替代，用显式占位值替换易误抄的 `PROCUREMENT` 示例，并移除不被 Skill 校验器接受的自定义 frontmatter `version`。
+
 - 2026-08-10
   变更摘要：修正 user MCP 合同搜索结构化筛选值的类型与约束说明。
   涉及文件/模块：`skills/contract-cli-contract` user 搜索参数参考及 CLI 文档契约测试。
