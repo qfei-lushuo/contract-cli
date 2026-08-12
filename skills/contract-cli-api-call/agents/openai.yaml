@@ -1,7 +1,7 @@
 interface:
   display_name: "Contract CLI API Call"
-  short_description: "Use raw open-platform API calls for unsupported or exact-path scenarios"
-  default_prompt: "Use $contract-cli-api-call when the user gives an exact /open-apis path or when structured contract-cli commands do not yet cover the needed endpoint."
+  short_description: "Disabled raw open-platform API call skill metadata kept for historical context"
+  default_prompt: "Do not invoke this disabled skill. Use opened structured contract-cli commands; if an endpoint is not covered, add a structured command and matching skill first."
 
 policy:
-  allow_implicit_invocation: true
+  allow_implicit_invocation: false

@@ -1,5 +1,6 @@
 ---
 name: contract-cli-payment
+version: 1.0.0
 description: "contract-cli 付款命令技能：支持 app 身份下创建/更新/查看/查询付款申请、同步/搜索付款计划、创建/更新/查看/按付款计划查询付款记录。当用户要使用 `contract-cli payment ...` 操作付款能力时触发。"
 ---
 

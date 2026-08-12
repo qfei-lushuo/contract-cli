@@ -27,7 +27,7 @@ var hiddenBundledSkillDirs = map[string]struct{}{
 }
 
 func (a *App) runSkills(_ context.Context, args []string) error {
-	a.logger.Info("skills command started", "args", strings.Join(args, " "))
+	a.logger.Info("skills command started", "args", redactCommandArgs(args))
 
 	if len(args) == 0 {
 		return errors.New("missing skills subcommand")

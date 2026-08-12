@@ -812,6 +812,25 @@ GET /open-apis/mdm/v1/legal_entities/{legal_entity_id}
 
 - app 路由会同时带 path 参数和同名 query `legal_entity_id`。
 
+### 5.14.1 法人主体按编码查询
+
+```bash
+contract-cli mdm legal get --profile "$PROFILE" --as app --code "$LEGAL_ENTITY_CODE" --page-size 10 --output json
+contract-cli mdm legal get --profile "$PROFILE" --as app --code "$LEGAL_ENTITY_CODE" --page-token "<page-token>" --output json
+```
+
+预期底层接口：
+
+```text
+GET /open-apis/mdm/v1/legal_entities
+```
+
+检查点：
+
+- 当前仅支持 app 身份。
+- `--code` 映射为 query `legalEntity`。
+- 该接口不同于法人主体列表的 `/open-apis/mdm/v1/legal_entities/list_all`。
+
 ### 5.15 字段配置
 
 ```bash
@@ -830,7 +849,47 @@ GET /open-apis/mdm/v1/config/config_list
 - `legal_entity` 会在 app 路由下映射为 query `biz_line=legalEntity`。
 - `vendor_risk` 当前不支持 app，执行 `--as app --biz-line vendor_risk` 应在本地报错且不发 HTTP。
 
-### 5.16 app 不支持命令的负向验证
+### 5.16 MDM 写接口
+
+```bash
+contract-cli mdm vendor create --profile "$PROFILE" --as app --user-id "$USER_ID" --input-file /tmp/vendor-create.json --output json
+contract-cli mdm vendor update "$VENDOR_ID" --profile "$PROFILE" --as app --user-id "$USER_ID" --input-file /tmp/vendor-update.json --output json
+contract-cli mdm legal create --profile "$PROFILE" --as app --user-id "$USER_ID" --input-file /tmp/legal-create.json --output json
+contract-cli mdm legal update "$LEGAL_ENTITY_ID" --profile "$PROFILE" --as app --user-id "$USER_ID" --input-file /tmp/legal-update.json --output json
+```
+
+检查点：
+
+- 四个写接口当前仅支持 app 身份，且必须传 `--user-id`。
+- `vendor create` 请求体不要带后端生成的 `vendor` 编码；`vendor update` 请求体必须带后端返回的 `id` 和 `vendor` 编码。
+- `legal create` 请求体不要带后端生成的 `legalEntity` / `legal_entity` 编码；`legal update` 请求体必须带后端返回的 `id` 和 camelCase `legalEntity` 编码。
+- 不传 `--user-id`、create 传生成编码、update 缺少生成 `id` / 编码时应在本地报错且不发 HTTP。
+
+### 5.17 固定汇率
+
+```bash
+contract-cli mdm fixed-exchange-rate get --profile "$PROFILE" --as app --source-currency CNY --target-currency USD --effective-date 2026-06-01 --output json
+contract-cli mdm fixed-exchange-rate update --profile "$PROFILE" --as app --input-file /tmp/fixed-exchange-rate.json --output json
+```
+
+检查点：
+
+- `get` 走 `GET /open-apis/mdm/v1/fixed_exchange_rate`，CLI flag `--effective-date` 映射到底层 query `date`。
+- `update` 走 `PUT /open-apis/mdm/v1/fixed_exchange_rate`，请求体仍使用字段 `effective_date`。
+
+### 5.18 事件出口 IP
+
+```bash
+contract-cli event outbound-ip list --profile "$PROFILE" --as app --page-size 10 --output json
+contract-cli event outbound-ip list --profile "$PROFILE" --as app --page-size 3 --output json
+```
+
+检查点：
+
+- 正常分页走 `GET /open-apis/event/v1/outbound_ip`。
+- `--page-size` 传入时必须在 `10` 到 `50` 之间；`--page-size 3` 应本地报错且不发 HTTP。
+
+### 5.19 app 不支持命令的负向验证
 
 ```bash
 contract-cli contract enum list --profile "$PROFILE" --as app --type contract_status

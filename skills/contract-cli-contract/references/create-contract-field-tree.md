@@ -165,8 +165,8 @@ $
 | 字段 | 类型 | 必填性 | 业务含义 | 联动/注意 |
 | --- | --- | --- | --- | --- |
 | `create_user_id` | `string` | 条件必填 | 合同申请人 id。 | `--as app` 时必填；这是请求体字段，不是 query 参数。 |
-| `contract_category_abbreviation` | `string` | 必填 | 合同分类缩写。 | 创建合同最核心的分类定位字段。 |
-| `contract_category_id` | `string` | 可选 | 合同分类 id。 | 分类缩写有歧义时，用它进一步唯一定位。 |
+| `contract_category_abbreviation` | `string` | 必填 | 合同分类缩写。 | 不是固定枚举；创建前用相同 profile/身份执行 `contract category list`，取当前可用末级分类的 `abbreviation`。 |
+| `contract_category_id` | `string` | 可选 | 合同分类 id。 | 仅作辅助信息，当前创建链路中不能替代 `contract_category_abbreviation`。 |
 | `contract_name` | `string` | 必填 | 合同名称。 | 若 `generate_contract_name_by_rule=true`，名称可能由平台规则生成。 |
 | `contract_number` | `string` | 条件必填 | 合同编号。 | `contract_status_code=9` 时必填；`business_type_code=2/3` 时通常不填。 |
 | `remark` | `string` | 可选 | 合同说明。 | 纯备注，不影响模式分支。 |

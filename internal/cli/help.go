@@ -203,6 +203,10 @@ func helpRegistry() map[string]helpTopic {
 		{"contract-cli mdm vendor <subcommand> [flags]", "交易方主数据命令"},
 		{"contract-cli mdm legal <subcommand> [flags]", "法人主体主数据命令"},
 		{"contract-cli mdm fields list [flags]", "字段配置查询"},
+		{"contract-cli mdm fixed-exchange-rate <subcommand> [flags]", "固定汇率命令"},
+		{"contract-cli mdm file download <file-id> [flags]", "主数据附件下载"},
+		{"contract-cli event outbound-ip list [flags]", "事件出口 IP 查询"},
+		{"contract-cli rule table <subcommand> [flags]", "审批矩阵规则表命令"},
 	}
 
 	registry := map[string]helpTopic{
@@ -238,6 +242,8 @@ func helpRegistry() map[string]helpTopic {
 	addContractHelp(registry)
 	addPaymentHelp(registry)
 	addMDMHelp(registry)
+	addEventHelp(registry)
+	addRuleHelp(registry)
 	return registry
 }
 
@@ -437,10 +443,17 @@ func addContractHelp(registry map[string]helpTopic) {
 		Usage: []string{"contract-cli contract <subcommand> [flags]"},
 		Commands: []helpCommand{
 			{"contract-cli contract search [flags]", "搜索合同"},
+			{"contract-cli contract search-v2 [flags]", "app 身份搜索合同 V2"},
 			{"contract-cli contract get <contract-id> [flags]", "获取合同详情"},
 			{"contract-cli contract sync-user-groups [flags]", "同步用户分组"},
 			{"contract-cli contract text <contract-id> [flags]", "获取合同文本"},
 			{"contract-cli contract create [flags]", "创建合同"},
+			{"contract-cli contract field update [flags]", "app 身份更新合同字段信息"},
+			{"contract-cli contract sign switch-to-paper [flags]", "app 身份将电子签合同转纸质签"},
+			{"contract-cli contract sign-url get <contract-id> [flags]", "app 身份获取签署链接"},
+			{"contract-cli contract form attribute list [flags]", "app 身份获取合同流程字段"},
+			{"contract-cli contract authorization grant [flags]", "app 身份授予合同权限"},
+			{"contract-cli contract esign <subcommand> [flags]", "app 身份获取电子签认证授权链接"},
 			{"contract-cli contract upload-file [flags]", "上传合同文件"},
 			{"contract-cli contract submit <contract-id> [flags]", "app 身份提交合同"},
 			{"contract-cli contract resubmit <contract-id> [flags]", "app 身份重新提交合同"},
@@ -471,6 +484,20 @@ func addContractHelp(registry map[string]helpTopic) {
 			"user: /open-apis/contract/v1/mcp/contracts/search",
 			"app: /open-apis/contract/v1/contracts/search",
 			"--input-file / --data 可选；查询 flag 会合并进 JSON body。",
+		},
+	}
+	registry["contract search-v2"] = helpTopic{
+		Name:    "contract search-v2",
+		Summary: "app 身份搜索合同 V2，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli contract search-v2 --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli contract search-v2 --profile contract --as app --input-file search-v2.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 POST /open-apis/contract/v1/contracts/searchV2。",
+			"复杂条件如 combine_condition、logic_search 直接放入 JSON body。",
 		},
 	}
 	registry["contract get"] = helpTopic{
@@ -649,11 +676,178 @@ func addContractHelp(registry map[string]helpTopic) {
 			"--input-file / --data 必填且互斥。",
 		},
 	}
+	registry["contract field"] = helpTopic{
+		Name:  "contract field",
+		Usage: []string{"contract-cli contract field <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli contract field update [flags]", "app 身份更新合同字段信息"},
+		},
+	}
+	registry["contract field update"] = helpTopic{
+		Name:    "contract field update",
+		Summary: "app 身份更新合同字段信息，目前主要用于修改下拉列表选项范围。",
+		Usage:   []string{"contract-cli contract field update --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli contract field update --profile contract --as app --input-file field-update.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 PUT /open-apis/contract/v1/attribute_definition。",
+			"最小 body 通常包含 module_name、attribute_name 和 value_scopes。",
+		},
+	}
+	registry["contract sign"] = helpTopic{
+		Name:  "contract sign",
+		Usage: []string{"contract-cli contract sign <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli contract sign switch-to-paper [flags]", "app 身份将电子签合同转纸质签"},
+		},
+	}
+	registry["contract sign switch-to-paper"] = helpTopic{
+		Name:    "contract sign switch-to-paper",
+		Summary: "app 身份将电子签合同转为纸质签。",
+		Usage:   []string{"contract-cli contract sign switch-to-paper --business-id <contract-id> --business-type-code <code> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
+			{"--business-id <contract-id>", "必填，合同 ID"},
+			{"--business-type-code <code>", "必填，业务类型编码：0 合同申请、2 合同变更、3 合同终止"},
+		}),
+		Examples: []string{
+			"contract-cli contract sign switch-to-paper --profile contract --as app --business-id <contract-id> --business-type-code 0",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 POST /open-apis/contract/v1/contracts/signType/switchToPaper。",
+			"不接受 --input-file / --data。",
+		},
+	}
+	registry["contract sign-url"] = helpTopic{
+		Name:  "contract sign-url",
+		Usage: []string{"contract-cli contract sign-url <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli contract sign-url get <contract-id> [flags]", "app 身份获取签署链接"},
+		},
+	}
+	registry["contract sign-url get"] = helpTopic{
+		Name:    "contract sign-url get",
+		Summary: "app 身份获取合同签署链接。",
+		Usage:   []string{"contract-cli contract sign-url get <contract-id> [flags]"},
+		Flags:   openPlatformCommonFlags(),
+		Examples: []string{
+			"contract-cli contract sign-url get <contract-id> --profile contract --as app",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 GET /open-apis/contract/v1/contracts/{contract_id}/sign_url。",
+			"不接受 --input-file / --data。",
+		},
+	}
+	registry["contract form"] = helpTopic{
+		Name:  "contract form",
+		Usage: []string{"contract-cli contract form <resource> <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli contract form attribute list [flags]", "app 身份获取合同流程字段"},
+		},
+	}
+	registry["contract form attribute"] = helpTopic{
+		Name:  "contract form attribute",
+		Usage: []string{"contract-cli contract form attribute <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli contract form attribute list [flags]", "app 身份获取合同流程字段"},
+		},
+	}
+	registry["contract form attribute list"] = helpTopic{
+		Name:    "contract form attribute list",
+		Summary: "app 身份按合同类型和流程类型获取流程字段。",
+		Usage:   []string{"contract-cli contract form attribute list --category-id <category-id> --business-type-code <code> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
+			{"--category-id <category-id>", "必填，合同类型 ID"},
+			{"--business-type-code <code>", "必填，流程类型：0 申请、1 变更、2 终止、3 合同组申请"},
+		}),
+		Examples: []string{
+			"contract-cli contract form attribute list --profile contract --as app --category-id <category-id> --business-type-code 0",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 GET /open-apis/contract/v1/form_definition/attribute。",
+			"不接受 --input-file / --data。",
+		},
+	}
+	registry["contract authorization"] = helpTopic{
+		Name:  "contract authorization",
+		Usage: []string{"contract-cli contract authorization <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli contract authorization grant [flags]", "app 身份授予合同权限"},
+		},
+	}
+	registry["contract authorization grant"] = helpTopic{
+		Name:    "contract authorization grant",
+		Summary: "app 身份授予合同权限，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli contract authorization grant --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli contract authorization grant --profile contract --as app --input-file authorization.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 POST /open-apis/contract/v1/authorizations。",
+			"最小 body 通常包含 business_id、authorized_user_id、start_time、end_time。",
+		},
+	}
+	registry["contract esign"] = helpTopic{
+		Name:  "contract esign",
+		Usage: []string{"contract-cli contract esign <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli contract esign personal-auth-url [flags]", "app 身份获取个人认证授权页面链接"},
+			{"contract-cli contract esign org-auth-url [flags]", "app 身份获取机构认证授权页面链接"},
+		},
+	}
+	registry["contract esign personal-auth-url"] = helpTopic{
+		Name:    "contract esign personal-auth-url",
+		Summary: "app 身份获取个人认证和授权页面链接。",
+		Usage:   []string{"contract-cli contract esign personal-auth-url --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli contract esign personal-auth-url --profile contract --as app --input-file psn-auth-url.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 POST /open-apis/esign/auth/psnAuthUrl。",
+		},
+	}
+	registry["contract esign org-auth-url"] = helpTopic{
+		Name:    "contract esign org-auth-url",
+		Summary: "app 身份获取机构认证和授权页面链接。",
+		Usage:   []string{"contract-cli contract esign org-auth-url --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli contract esign org-auth-url --profile contract --as app --input-file org-auth-url.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 POST /open-apis/esign/auth/orgAuthUrl。",
+		},
+	}
 	registry["contract share"] = helpTopic{
 		Name:  "contract share",
 		Usage: []string{"contract-cli contract share <subcommand> [flags]"},
 		Commands: []helpCommand{
 			{"contract-cli contract share get <contract-id> [flags]", "app 身份查询合同分享记录"},
+			{"contract-cli contract share batch-create [flags]", "app 身份批量分享合同"},
+		},
+	}
+	registry["contract share batch-create"] = helpTopic{
+		Name:    "contract share batch-create",
+		Summary: "app 身份批量分享合同，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli contract share batch-create --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli contract share batch-create --profile contract --as app --input-file batch-share.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 POST /open-apis/contract/v1/contracts/contract/batch_share。",
+			"最小 body 通常包含 contract_id 和 user_ids。",
 		},
 	}
 	registry["contract share get"] = helpTopic{
@@ -675,6 +869,9 @@ func addContractHelp(registry map[string]helpTopic) {
 		Commands: []helpCommand{
 			{"contract-cli contract cooperation link get <contract-id> [flags]", "app 身份查询合同协商邀请链接"},
 			{"contract-cli contract cooperation record get <contract-id> [flags]", "app 身份查询合同协商操作记录"},
+			{"contract-cli contract cooperation search [flags]", "app 身份查询协商列表"},
+			{"contract-cli contract cooperation file get <contract-id> [flags]", "app 身份查询合同协商文件信息"},
+			{"contract-cli contract cooperation file download <file-id> [flags]", "app 身份下载合同协商文件"},
 		},
 	}
 	registry["contract cooperation link get"] = helpTopic{
@@ -701,6 +898,60 @@ func addContractHelp(registry map[string]helpTopic) {
 		Notes: []string{
 			"app-only: 当前仅支持 --as app。",
 			"走 GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_record_info。",
+		},
+	}
+	registry["contract cooperation search"] = helpTopic{
+		Name:    "contract cooperation search",
+		Summary: "app 身份查询协商列表，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli contract cooperation search --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli contract cooperation search --profile contract --as app --input-file cooperation-search.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 POST /open-apis/contract/v1/cooperation/search。",
+			"最小 body 需要包含 user_id。",
+		},
+	}
+	registry["contract cooperation file"] = helpTopic{
+		Name:  "contract cooperation file",
+		Usage: []string{"contract-cli contract cooperation file <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli contract cooperation file get <contract-id> [flags]", "app 身份查询合同协商文件信息"},
+			{"contract-cli contract cooperation file download <file-id> [flags]", "app 身份下载合同协商文件"},
+		},
+	}
+	registry["contract cooperation file get"] = helpTopic{
+		Name:    "contract cooperation file get",
+		Summary: "app 身份查询合同协商文件信息。",
+		Usage:   []string{"contract-cli contract cooperation file get <contract-id> [flags]"},
+		Flags:   openPlatformCommonFlags(),
+		Examples: []string{
+			"contract-cli contract cooperation file get <contract-id> --profile contract --as app",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 GET /open-apis/contract/v1/contracts/{contract_id}/cooperation/file_info。",
+			"不接受 --input-file / --data。",
+		},
+	}
+	registry["contract cooperation file download"] = helpTopic{
+		Name:    "contract cooperation file download",
+		Summary: "app 身份下载合同协商文件。",
+		Usage:   []string{"contract-cli contract cooperation file download <file-id> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
+			{"--output-file <path>", "保存到指定文件；不传时默认拉起保存文件弹窗"},
+			{"--force", "覆盖已存在的 --output-file"},
+		}),
+		Examples: []string{
+			"contract-cli contract cooperation file download <file-id> --profile contract --as app --output-file ./cooperation.docx",
+			"contract-cli contract cooperation file download <file-id> --profile contract --as app --raw > cooperation.docx",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 GET /open-apis/contract/v1/contracts/cooperation/{file_id}/download_file。",
+			"--raw 会把文件内容写到 stdout，不打印额外提示。",
 		},
 	}
 	registry["contract approval"] = helpTopic{
@@ -1049,14 +1300,52 @@ func addMDMHelp(registry map[string]helpTopic) {
 			{"contract-cli mdm vendor <subcommand> [flags]", "交易方主数据"},
 			{"contract-cli mdm legal <subcommand> [flags]", "法人主体主数据"},
 			{"contract-cli mdm fields list [flags]", "字段配置查询"},
+			{"contract-cli mdm fixed-exchange-rate <subcommand> [flags]", "固定汇率"},
+			{"contract-cli mdm file download <file-id> [flags]", "主数据附件下载"},
 		},
 	}
 	registry["mdm vendor"] = helpTopic{
 		Name:  "mdm vendor",
 		Usage: []string{"contract-cli mdm vendor <subcommand> [flags]"},
 		Commands: []helpCommand{
+			{"contract-cli mdm vendor create [flags]", "app 身份创建交易方"},
+			{"contract-cli mdm vendor update <vendor-id> [flags]", "app 身份更新交易方"},
 			{"contract-cli mdm vendor list [flags]", "查询交易方列表"},
 			{"contract-cli mdm vendor get <vendor-id> [flags]", "查询交易方详情"},
+			{"contract-cli mdm vendor list-all [flags]", "app 身份查询交易方全量数据"},
+			{"contract-cli mdm vendor query-by-cert [flags]", "app 身份根据证件 ID 精确查询交易方"},
+		},
+	}
+	registry["mdm vendor create"] = helpTopic{
+		Name:    "mdm vendor create",
+		Summary: "app 身份创建交易方，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli mdm vendor create --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli mdm vendor create --profile contract --as app --user-id <operator-user-id> --input-file vendor-create.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"写接口必传 --user-id，用于提供当前操作人上下文。",
+			"走 POST /open-apis/mdm/v1/vendors。",
+			"创建请求体不要传后端生成的 vendor 编码。",
+			"交易方字段是否必填受后台动态配置影响，可先查 mdm fields list --biz-line vendor。",
+		},
+	}
+	registry["mdm vendor update"] = helpTopic{
+		Name:    "mdm vendor update",
+		Summary: "app 身份按 ID 更新交易方，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli mdm vendor update <vendor-id> --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli mdm vendor update <vendor-id> --profile contract --as app --user-id <operator-user-id> --input-file vendor-update.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"写接口必传 --user-id，用于提供当前操作人上下文。",
+			"走 PUT /open-apis/mdm/v1/vendors/{vendor_id}。",
+			"更新请求体必须包含后端返回的 id 和 vendor 编码。",
+			"其他字段是否必填受后台动态配置影响。",
 		},
 	}
 	registry["mdm vendor list"] = helpTopic{
@@ -1088,12 +1377,77 @@ func addMDMHelp(registry map[string]helpTopic) {
 			"app: /open-apis/mdm/v1/vendors/{vendor_id}",
 		},
 	}
+	registry["mdm vendor list-all"] = helpTopic{
+		Name:    "mdm vendor list-all",
+		Summary: "app 身份分页查询交易方全量数据。",
+		Usage:   []string{"contract-cli mdm vendor list-all [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), pageFlags()),
+		Examples: []string{
+			"contract-cli mdm vendor list-all --profile contract --as app --page-size 10",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 GET /open-apis/mdm/v1/vendors/list_all。",
+			"不接受 --input-file / --data。",
+		},
+	}
+	registry["mdm vendor query-by-cert"] = helpTopic{
+		Name:    "mdm vendor query-by-cert",
+		Summary: "app 身份根据证件 ID 和国家地区精确查询交易方。",
+		Usage:   []string{"contract-cli mdm vendor query-by-cert --certification-id <id> --ad-country <country> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
+			{"--certification-id <id>", "必填，证件 ID"},
+			{"--ad-country <country>", "必填，国家地区编码"},
+		}),
+		Examples: []string{
+			"contract-cli mdm vendor query-by-cert --profile contract --as app --certification-id 91110105 --ad-country CN",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 GET /open-apis/mdm/v1/vendors/query_vendors。",
+			"不接受 --input-file / --data。",
+		},
+	}
 	registry["mdm legal"] = helpTopic{
 		Name:  "mdm legal",
 		Usage: []string{"contract-cli mdm legal <subcommand> [flags]"},
 		Commands: []helpCommand{
+			{"contract-cli mdm legal create [flags]", "app 身份创建法人主体"},
+			{"contract-cli mdm legal update <legal-entity-id> [flags]", "app 身份更新法人主体"},
 			{"contract-cli mdm legal list [flags]", "查询法人主体列表"},
-			{"contract-cli mdm legal get <legal-entity-id> [flags]", "查询法人主体详情"},
+			{"contract-cli mdm legal get <legal-entity-id>|--code <code> [flags]", "查询法人主体详情或按编码查询"},
+		},
+	}
+	registry["mdm legal create"] = helpTopic{
+		Name:    "mdm legal create",
+		Summary: "app 身份创建法人主体，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli mdm legal create --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli mdm legal create --profile contract --as app --user-id <operator-user-id> --input-file legal-create.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"写接口必传 --user-id，用于提供当前操作人上下文。",
+			"走 POST /open-apis/mdm/v1/legal_entities。",
+			"创建请求体不要传后端生成的 legalEntity / legal_entity 编码。",
+			"法人字段是否必填受后台动态配置影响，可先查 mdm fields list --biz-line legal_entity。",
+		},
+	}
+	registry["mdm legal update"] = helpTopic{
+		Name:    "mdm legal update",
+		Summary: "app 身份按 ID 更新法人主体，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli mdm legal update <legal-entity-id> --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli mdm legal update <legal-entity-id> --profile contract --as app --user-id <operator-user-id> --input-file legal-update.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"写接口必传 --user-id，用于提供当前操作人上下文。",
+			"走 PUT /open-apis/mdm/v1/legal_entities/{legal_entity_id}。",
+			"更新请求体必须包含后端返回的 id 和 legalEntity 编码；字段名使用 camelCase legalEntity，不要用 legal_entity。",
+			"其他字段是否必填受后台动态配置影响。",
 		},
 	}
 	registry["mdm legal list"] = helpTopic{
@@ -1113,17 +1467,26 @@ func addMDMHelp(registry map[string]helpTopic) {
 	}
 	registry["mdm legal get"] = helpTopic{
 		Name:    "mdm legal get",
-		Summary: "查询法人主体详情。",
-		Usage:   []string{"contract-cli mdm legal get <legal-entity-id> [flags]"},
-		Flags:   openPlatformCommonFlags(),
+		Summary: "查询法人主体详情；传 --code 时按法人实体编码查询。",
+		Usage: []string{
+			"contract-cli mdm legal get <legal-entity-id> [flags]",
+			"contract-cli mdm legal get --code <code> [flags]",
+		},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
+			{"--code <code>", "法人实体编码；传入后走编码查询接口"},
+			{"--page-size <n>", "仅 --code 模式可用，分页大小"},
+			{"--page-token <token>", "仅 --code 模式可用，分页 token"},
+		}),
 		Examples: []string{
 			"contract-cli mdm legal get <legal-entity-id> --profile contract",
 			"contract-cli mdm legal get <legal-entity-id> --profile contract --as app --user-id-type employee_id",
+			"contract-cli mdm legal get --profile contract --as app --code L0001 --page-size 10",
 		},
 		Notes: []string{
-			"user: /open-apis/contract/v1/mcp/legal_entities/{legal_entity_id}",
-			"app: /open-apis/mdm/v1/legal_entities/{legal_entity_id}",
-			"app 路由会额外透传同名 query legal_entity_id。",
+			"按 ID 查询时 user: /open-apis/contract/v1/mcp/legal_entities/{legal_entity_id}",
+			"按 ID 查询时 app: /open-apis/mdm/v1/legal_entities/{legal_entity_id}，并额外透传同名 query legal_entity_id",
+			"按编码查询仅支持 app，走 GET /open-apis/mdm/v1/legal_entities，--code 映射 query legalEntity。",
+			"按编码查询不接受 --input-file / --data。",
 		},
 	}
 	registry["mdm fields"] = helpTopic{
@@ -1151,6 +1514,202 @@ func addMDMHelp(registry map[string]helpTopic) {
 			"app 后端当前只接受 vendor 或 legalEntity；CLI 会把 app 下的 legal_entity 映射为 legalEntity，vendor_risk 不支持 app。",
 		},
 	}
+	registry["mdm fixed-exchange-rate"] = helpTopic{
+		Name:  "mdm fixed-exchange-rate",
+		Usage: []string{"contract-cli mdm fixed-exchange-rate <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli mdm fixed-exchange-rate get [flags]", "app 身份查询固定汇率"},
+			{"contract-cli mdm fixed-exchange-rate update [flags]", "app 身份更新固定汇率"},
+		},
+	}
+	registry["mdm fixed-exchange-rate get"] = helpTopic{
+		Name:    "mdm fixed-exchange-rate get",
+		Summary: "app 身份按原始币种、目标币种、生效日期查询固定汇率。",
+		Usage:   []string{"contract-cli mdm fixed-exchange-rate get --source-currency <code> --target-currency <code> --effective-date <date> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
+			{"--source-currency <code>", "必填，原始币种"},
+			{"--target-currency <code>", "必填，目标币种"},
+			{"--effective-date <date>", "必填，生效日期"},
+		}),
+		Examples: []string{
+			"contract-cli mdm fixed-exchange-rate get --profile contract --as app --source-currency CNY --target-currency USD --effective-date 2026-06-01",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 GET /open-apis/mdm/v1/fixed_exchange_rate。",
+			"CLI flag --effective-date 会映射到底层 query 参数 date。",
+			"不接受 --input-file / --data。",
+		},
+	}
+	registry["mdm fixed-exchange-rate update"] = helpTopic{
+		Name:    "mdm fixed-exchange-rate update",
+		Summary: "app 身份新增或更新固定汇率，请求体必须是 JSON。",
+		Usage:   []string{"contract-cli mdm fixed-exchange-rate update --input-file <path>|--data <json> [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), jsonBodyFlags()),
+		Examples: []string{
+			"contract-cli mdm fixed-exchange-rate update --profile contract --as app --input-file fixed-exchange-rate.json",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 PUT /open-apis/mdm/v1/fixed_exchange_rate。",
+		},
+	}
+	registry["mdm file"] = helpTopic{
+		Name:  "mdm file",
+		Usage: []string{"contract-cli mdm file <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli mdm file download <file-id> [flags]", "app 身份下载主数据附件"},
+		},
+	}
+	registry["mdm file download"] = helpTopic{
+		Name:    "mdm file download",
+		Summary: "app 身份下载主数据附件。",
+		Usage:   []string{"contract-cli mdm file download <file-id> [flags]"},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
+			{"--output-file <path>", "保存到指定文件；不传时默认拉起保存文件弹窗"},
+			{"--force", "覆盖已存在的 --output-file"},
+		}),
+		Examples: []string{
+			"contract-cli mdm file download <file-id> --profile contract --as app --output-file ./attachment.bin",
+			"contract-cli mdm file download <file-id> --profile contract --as app --raw > attachment.bin",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 GET /open-apis/mdm/v1/file/download/{file_id}。",
+			"--raw 会把文件内容写到 stdout，不打印额外提示。",
+		},
+	}
+}
+
+func addEventHelp(registry map[string]helpTopic) {
+	registry["event"] = helpTopic{
+		Name:  "event",
+		Usage: []string{"contract-cli event <resource> <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli event outbound-ip list [flags]", "app 身份查询事件出口 IP"},
+		},
+	}
+	registry["event outbound-ip"] = helpTopic{
+		Name:  "event outbound-ip",
+		Usage: []string{"contract-cli event outbound-ip <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli event outbound-ip list [flags]", "app 身份查询事件出口 IP"},
+		},
+	}
+	registry["event outbound-ip list"] = helpTopic{
+		Name:    "event outbound-ip list",
+		Summary: "app 身份分页查询开放平台事件出口 IP。",
+		Usage:   []string{"contract-cli event outbound-ip list [flags]"},
+		Flags:   concatHelpFlags(openPlatformCommonFlags(), eventOutboundIPPageFlags()),
+		Examples: []string{
+			"contract-cli event outbound-ip list --profile contract --as app --page-size 10",
+		},
+		Notes: []string{
+			"app-only: 当前仅支持 --as app。",
+			"走 GET /open-apis/event/v1/outbound_ip。",
+			"不接受 --input-file / --data。",
+		},
+	}
+}
+
+func addRuleHelp(registry map[string]helpTopic) {
+	registry["rule"] = helpTopic{
+		Name:  "rule",
+		Usage: []string{"contract-cli rule <resource> <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli rule table <subcommand> [flags]", "app 身份操作审批矩阵规则表"},
+		},
+	}
+	registry["rule table"] = helpTopic{
+		Name:  "rule table",
+		Usage: []string{"contract-cli rule table <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli rule table list [flags]", "查询规则表列表"},
+			{"contract-cli rule table pre-release [flags]", "预发布规则表配置"},
+			{"contract-cli rule table release [flags]", "发布规则表配置"},
+			{"contract-cli rule table column-headers list [flags]", "查询规则表列头"},
+			{"contract-cli rule table row <subcommand> [flags]", "操作规则表行"},
+		},
+	}
+	registry["rule table list"] = ruleTableHelpTopic(
+		"rule table list",
+		"分页查询规则表列表。",
+		"contract-cli rule table list --product-id <id> --group-id <id> [flags]",
+		pageFlags(),
+		[]string{"contract-cli rule table list --profile contract --as app --product-id <product-id> --group-id <group-id> --page-size 10"},
+		[]string{"走 GET /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables。", "不接受 --input-file / --data。"},
+	)
+	registry["rule table pre-release"] = ruleTableHelpTopic(
+		"rule table pre-release",
+		"预发布规则表配置。",
+		"contract-cli rule table pre-release --product-id <id> --group-id <id> --table-id <id> [flags]",
+		concatHelpFlags(tableIDHelpFlags(), jsonBodyFlags()),
+		[]string{"contract-cli rule table pre-release --profile contract --as app --product-id <product-id> --group-id <group-id> --table-id <table-id>"},
+		[]string{"走 PATCH /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/pre_release。", "--input-file / --data 可选；自动化样例不发送请求体。"},
+	)
+	registry["rule table release"] = ruleTableHelpTopic(
+		"rule table release",
+		"发布规则表配置。",
+		"contract-cli rule table release --product-id <id> --group-id <id> --table-id <id> [flags]",
+		concatHelpFlags(tableIDHelpFlags(), jsonBodyFlags()),
+		[]string{"contract-cli rule table release --profile contract --as app --product-id <product-id> --group-id <group-id> --table-id <table-id>"},
+		[]string{"走 PATCH /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/release。", "--input-file / --data 可选；自动化样例不发送请求体。"},
+	)
+	registry["rule table column-headers"] = helpTopic{
+		Name:  "rule table column-headers",
+		Usage: []string{"contract-cli rule table column-headers <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli rule table column-headers list [flags]", "查询规则表列头"},
+		},
+	}
+	registry["rule table column-headers list"] = ruleTableHelpTopic(
+		"rule table column-headers list",
+		"查询规则表列头信息。",
+		"contract-cli rule table column-headers list --product-id <id> --group-id <id> --table-id <id> [flags]",
+		tableIDHelpFlags(),
+		[]string{"contract-cli rule table column-headers list --profile contract --as app --product-id <product-id> --group-id <group-id> --table-id <table-id>"},
+		[]string{"走 GET /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/table_columns/column_headers。", "不接受 --input-file / --data。"},
+	)
+	registry["rule table row"] = helpTopic{
+		Name:  "rule table row",
+		Usage: []string{"contract-cli rule table row <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli rule table row create [flags]", "创建规则表行"},
+			{"contract-cli rule table row get <row-id> [flags]", "查询规则表单行"},
+			{"contract-cli rule table row list [flags]", "分页查询规则表行"},
+			{"contract-cli rule table row search [flags]", "按筛选条件查询规则表行"},
+			{"contract-cli rule table row update <row-id> [flags]", "修改规则表行"},
+			{"contract-cli rule table row delete <row-id> [flags]", "删除规则表行"},
+		},
+	}
+	registry["rule table row create"] = ruleTableHelpTopic("rule table row create", "创建规则表行，请求体必须是 JSON。", "contract-cli rule table row create --product-id <id> --group-id <id> --table-id <id> --input-file <path>|--data <json> [flags]", concatHelpFlags(tableIDHelpFlags(), jsonBodyFlags()), []string{"contract-cli rule table row create --profile contract --as app --product-id <product-id> --group-id <group-id> --table-id <table-id> --input-file row.json"}, []string{"走 POST /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/table_rows。"})
+	registry["rule table row get"] = ruleTableHelpTopic("rule table row get", "查询规则表单行信息。", "contract-cli rule table row get <row-id> --product-id <id> --group-id <id> --table-id <id> [flags]", tableIDHelpFlags(), []string{"contract-cli rule table row get <row-id> --profile contract --as app --product-id <product-id> --group-id <group-id> --table-id <table-id>"}, []string{"走 GET /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/table_rows/{table_row_id}。", "不接受 --input-file / --data。"})
+	registry["rule table row list"] = ruleTableHelpTopic("rule table row list", "分页查询规则表行。", "contract-cli rule table row list --product-id <id> --group-id <id> --table-id <id> [flags]", concatHelpFlags(tableIDHelpFlags(), pageFlags()), []string{"contract-cli rule table row list --profile contract --as app --product-id <product-id> --group-id <group-id> --table-id <table-id> --page-size 10"}, []string{"走 GET /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/table_rows。", "不接受 --input-file / --data。"})
+	registry["rule table row search"] = ruleTableHelpTopic("rule table row search", "按筛选条件分页查询规则表行，请求体必须是 JSON。", "contract-cli rule table row search --product-id <id> --group-id <id> --table-id <id> --input-file <path>|--data <json> [flags]", concatHelpFlags(tableIDHelpFlags(), pageFlags(), jsonBodyFlags()), []string{"contract-cli rule table row search --profile contract --as app --product-id <product-id> --group-id <group-id> --table-id <table-id> --page-size 10 --input-file row-search.json"}, []string{"走 POST /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/table_rows/search。", "--page-size / --page-token 作为 query 参数传递，请求体保持不变。"})
+	registry["rule table row update"] = ruleTableHelpTopic("rule table row update", "修改规则表行，请求体必须是 JSON。", "contract-cli rule table row update <row-id> --product-id <id> --group-id <id> --table-id <id> --input-file <path>|--data <json> [flags]", concatHelpFlags(tableIDHelpFlags(), jsonBodyFlags()), []string{"contract-cli rule table row update <row-id> --profile contract --as app --product-id <product-id> --group-id <group-id> --table-id <table-id> --input-file row.json"}, []string{"走 PUT /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/table_rows/{table_row_id}。"})
+	registry["rule table row delete"] = ruleTableHelpTopic("rule table row delete", "删除规则表行。", "contract-cli rule table row delete <row-id> --product-id <id> --group-id <id> --table-id <id> [flags]", tableIDHelpFlags(), []string{"contract-cli rule table row delete <row-id> --profile contract --as app --product-id <product-id> --group-id <group-id> --table-id <table-id>"}, []string{"走 DELETE /open-apis/rule_engine/v1/products/{product_id}/groups/{group_id}/rule_tables/{rule_table_id}/table_rows/{table_row_id}。", "不接受 --input-file / --data。"})
+}
+
+func ruleTableHelpTopic(name string, summary string, usage string, extraFlags []helpFlag, examples []string, notes []string) helpTopic {
+	return helpTopic{
+		Name:    name,
+		Summary: summary,
+		Usage:   []string{usage},
+		Flags: concatHelpFlags(openPlatformCommonFlags(), []helpFlag{
+			{"--product-id <id>", "必填，规则引擎产品 ID"},
+			{"--group-id <id>", "必填，规则组 ID"},
+		}, extraFlags),
+		Examples: examples,
+		Notes: append([]string{
+			"app-only: 当前仅支持 --as app。",
+		}, notes...),
+	}
+}
+
+func tableIDHelpFlags() []helpFlag {
+	return []helpFlag{
+		{"--table-id <id>", "必填，规则表 ID"},
+	}
 }
 
 func openPlatformCommonFlags() []helpFlag {
@@ -1174,6 +1733,13 @@ func jsonBodyFlags() []helpFlag {
 func pageFlags() []helpFlag {
 	return []helpFlag{
 		{"--page-size <n>", "分页大小"},
+		{"--page-token <token>", "分页 token"},
+	}
+}
+
+func eventOutboundIPPageFlags() []helpFlag {
+	return []helpFlag{
+		{"--page-size <n>", "分页大小，10-50"},
 		{"--page-token <token>", "分页 token"},
 	}
 }

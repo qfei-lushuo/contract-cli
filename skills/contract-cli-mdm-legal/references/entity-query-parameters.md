@@ -1,6 +1,6 @@
 # Entity Query Parameters
 
-这份附录专门解决 `mdm legal list` / `mdm legal get` 的参数映射问题。
+这份附录专门解决 `mdm legal list` / `mdm legal get` 的参数映射问题，其中 `mdm legal get --code` 用于按法人实体编码查询。
 
 ## 1. 请求面导航
 
@@ -18,6 +18,9 @@ mdm legal list
 
 mdm legal get
 ├── <legal-entity-id> -> $path.legal_entity_id
+├── --code            -> $query.legalEntity
+├── --page-size       -> $query.page_size
+├── --page-token      -> $query.page_token
 ├── --profile         -> profile selector
 ├── --as              -> identity selector
 ├── --user-id         -> common query passthrough
@@ -50,23 +53,30 @@ mdm legal get
 
 请求形态：
 
-- 方法：`GET`
-- `--as user` 路径：`/open-apis/contract/v1/mcp/legal_entities/{legal_entity_id}`
-- `--as app` 路径：`/open-apis/mdm/v1/legal_entities/{legal_entity_id}`
+- 按 ID 查询方法：`GET`
+- 按 ID 查询 `--as user` 路径：`/open-apis/contract/v1/mcp/legal_entities/{legal_entity_id}`
+- 按 ID 查询 `--as app` 路径：`/open-apis/mdm/v1/legal_entities/{legal_entity_id}`
+- 按编码查询方法：`GET`
+- 按编码查询路径：`/open-apis/mdm/v1/legal_entities`
+- 按编码查询身份：仅支持 `--as app`
 
-| CLI 参数 | 请求位置 | 类型 | 必填性 | 业务含义 | 联动/注意 |
-| --- | --- | --- | --- | --- | --- |
-| `<legal-entity-id>` | `$path.legal_entity_id` | `string` | 必填 | 法人实体 id。 | `user` 走 MCP 路径；`app` 也会把同一值额外透传到 `$query.legal_entity_id`。 |
-| `--profile` | 本地上下文 | `string` | 可选 | 选择 profile。 | 未传时走默认 profile。 |
+| CLI 参数 | 请求位置 | 类型 | 必填性 | 业务含义 | 联动/注意                                                                       |
+| --- | --- | --- | --- | --- |-----------------------------------------------------------------------------|
+| `<legal-entity-id>` | `$path.legal_entity_id` | `string` | 条件必填 | 法人实体 id。 | 不传 `--code` 时必填；`user` 走 MCP 路径；`app` 也会把同一值额外透传到 `$query.legal_entity_id`。 |
+| `--code` | `$query.legalEntity` | `string` | 条件必填 | 法人实体编码。 | 按编码查询时必填；不能同时传 `<legal-entity-id>`；该模式只支持 app。                              |
+| `--page-size` | `$query.page_size` | `integer` | 可选 | 每页条数。 | 仅 `--code` 模式可用。                                                            |
+| `--page-token` | `$query.page_token` | `string` | 可选 | 分页令牌。 | 仅 `--code` 模式可用。                                                            |
+| `--profile` | 本地上下文 | `string` | 可选 | 选择 profile。 | 未传时走默认 profile。                                                             |
 | `--as` | 本地上下文 | `string` | 可选 | 选择身份。 | `user` 走 MCP 路径，`app` 走开放平台 `mdm/v1/legal_entities/{legal_entity_id}` 路径。 |
-| `--user-id` | `$query.user_id` | `string` | 可选 | 通用用户标识参数。 | 文档里未显式列出，但 CLI 仍按共享约定透传。 |
+| `--user-id` | `$query.user_id` | `string` | 可选 | 通用用户标识参数。 | 文档里未显式列出，但 CLI 仍按共享约定透传。                                                    |
 | `--user-id-type` | `$query.user_id_type` | `string` | 可选 | 通用用户标识类型。 | app 文档里显式列出；CLI 不做必填校验。 |
-| `--output` | CLI 输出 | `string` | 可选 | 输出格式。 | 常用 `json` / `yaml` / `table`。 |
-| `--raw` | CLI 输出 | `boolean` | 可选 | 返回原始 envelope。 | 排障时常用。 |
+| `--output` | CLI 输出 | `string` | 可选 | 输出格式。 | 常用 `json` / `yaml` / `table`。                                               |
+| `--raw` | CLI 输出 | `boolean` | 可选 | 返回原始 envelope。 | 排障时常用。                                                                      |
 
 ## 4. 使用建议
 
 - 先 `list` 拿候选，再 `get` 看详情，是最稳的两步走方式
+- 已知法人实体编码但没有 id 时，用 `mdm legal get --code`
 - 如果只是为合同选择我方主体，优先记住法人实体 id
 - 这组命令只做查询，不做本地字段裁剪或结构转换
-- `mdm legal list/get`、`mdm vendor list/get` 和 `mdm fields list` 现在都支持按身份自动路由；其中 `mdm fields list --as app` 仅支持 `vendor` / `legal_entity`，`vendor_risk` 走 user/MCP 路径
+- `mdm legal list/get`、`mdm vendor list/get` 和 `mdm fields list` 现在都支持按身份自动路由；`mdm legal get --code` 是 app-only；其中 `mdm fields list --as app` 仅支持 `vendor` / `legal_entity`，`vendor_risk` 走 user/MCP 路径

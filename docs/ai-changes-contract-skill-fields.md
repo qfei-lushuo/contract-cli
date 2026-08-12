@@ -25,19 +25,19 @@
 - 本地执行 `go test ./...`、`contract-cli skills list` 和 `contract-cli skills install --target <临时目录>`。
 - dev 环境命令验收单独记录每条命令的通过、失败或 fixture 缺失状态，不输出 token、app secret 或数据库密码。
 
-## 2026-05-26 dev user/bot 验收补充
+## 2026-05-26 dev user/app 验收补充
 
 环境结果：
 
 - `contract-dev` user OAuth 已授权。
-- `contract-dev` bot app credentials 已授权，tenant access token 换取成功。
+- `contract-dev` app credentials 已授权，tenant access token 换取成功。
 - dev 只读库 `clm_dev` 可查询 fixture；未直接修改数据库。
 
 验收结果：
 
 - user 通过：`contract category list`、`contract enum list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract search`、`contract get`、`contract text`。
-- bot 通过：`contract upload-file`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract search`、`contract submit`、`contract patch`、`contract print-file`、`contract download-file`、`contract delete`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`。
-- `contract upload-file --as user` 在 dev 后端返回 403，错误为 OAuth user token 不允许访问文件上传接口；同一命令用 bot 身份验证通过。
+- app 通过：`contract upload-file`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract search`、`contract submit`、`contract patch`、`contract print-file`、`contract download-file`、`contract delete`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`。
+- `contract upload-file --as user` 在 dev 后端返回 403，错误为 OAuth user token 不允许访问文件上传接口；同一命令用 app 身份验证通过。
 - `contract resubmit` 未安全闭环：专用 smoke 合同不能直接创建为已拒绝或已撤回状态，后端返回“合同状态参数非法”；不对普通业务合同执行重提。
 
 专用测试数据：

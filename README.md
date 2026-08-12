@@ -161,11 +161,16 @@ contract-cli mdm fields list --profile contract --as user --biz-line vendor
 | Skill | Description |
 | --- | --- |
 | `auth` | 初始化 profile、user/app 登录、状态查看、登出、身份切换和本地配置排障 |
-| `contract-cli-shared` | 在合同与 MDM 模块间做选择，说明身份边界、请求体输入、输出格式和 profile 规则 |
-| `contract-cli-contract` | 合同详情、搜索、创建、提交、重提、更新、删除、文本、分类、模板、文件、分享和协商命令 |
-| `contract-cli-mdm-vendor` | 交易方候选列表与详情查询 |
-| `contract-cli-mdm-legal` | 法人主体候选列表与详情查询 |
+| `contract-cli-shared` | 在 contract、payment、mdm、event 和 rule 模块间做选择，说明身份边界、请求体输入、输出格式和 profile 规则 |
+| `contract-cli-contract` | 合同详情、搜索、创建、字段、签署、授权、电子签、提交、更新、文件、分享、协商和审批命令 |
+| `contract-cli-payment` | 付款申请、付款计划和付款记录命令 |
+| `contract-cli-mdm-vendor` | 交易方列表、详情、创建、更新、全量分页和按证件查询 |
+| `contract-cli-mdm-legal` | 法人主体列表、详情、按编码查询、创建和更新 |
 | `contract-cli-mdm-fields` | vendor、legal_entity、vendor_risk 等字段配置查询 |
+| `contract-cli-mdm-exchange` | 固定汇率查询和更新 |
+| `contract-cli-mdm-file` | 主数据附件下载 |
+| `contract-cli-event` | 事件出口 IP 查询 |
+| `contract-cli-rule` | 审批矩阵规则表查询、行操作、预发布和发布 |
 
 推荐安装方式：
 
@@ -208,7 +213,7 @@ contract-cli auth logout --profile contract --as app
 - `config`、`version`、`update check`、`skills list/install` 不需要登录态。
 - `contract ...`、`mdm ...` 结构化命令会根据 `--as user|app` 选择对应底层路径。
 - 当前大部分 MCP 路径仍是 user-only；显式用 app 调用 user-only 路径会直接报错。
-- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get` 当前仅支持 app 身份。
+- `contract search-v2`、`contract field update`、`contract sign switch-to-paper`、`contract sign-url get`、`contract form attribute list`、`contract authorization grant`、`contract esign *`、`contract submit/resubmit/patch/download-file/delete/print-file`、`contract share get/batch-create`、`contract cooperation link/record/search/file`、`contract approval start/get`、`payment *`、`mdm vendor create/update/list-all/query-by-cert`、`mdm legal get --code/create/update`、`mdm fixed-exchange-rate get/update`、`mdm file download`、`event outbound-ip list` 和 `rule table *` 当前仅支持 app 身份。
 - 兼容旧身份值 `bot`，但新文档和新脚本统一使用 `app`。
 
 ## Command System
@@ -250,8 +255,10 @@ MDM 命令覆盖交易方、法人主体和字段配置。
 ```bash
 contract-cli mdm vendor list --profile contract --as user --name 供应商 --page-size 10
 contract-cli mdm vendor get <vendor-id> --profile contract --as app --user-id-type employee_id
+contract-cli mdm vendor create --profile contract --as app --user-id <operator-user-id> --input-file vendor-create.json
 contract-cli mdm legal list --profile contract --as user --name 主体A --page-size 10
 contract-cli mdm legal get <legal-entity-id> --profile contract --as app --user-id-type employee_id
+contract-cli mdm legal update <legal-entity-id> --profile contract --as app --user-id <operator-user-id> --input-file legal-update.json
 contract-cli mdm fields list --profile contract --as user --biz-line vendor
 contract-cli mdm fields list --profile contract --as app --biz-line legal_entity
 ```
@@ -300,7 +307,10 @@ contract-cli contract upload-file --profile contract --as app --file ./附件.pd
 contract-cli contract search --profile contract --as user --page-size 20
 contract-cli contract template list --profile contract --as app --page-size 20 --page-token <token>
 contract-cli mdm vendor list --profile contract --as user --page-size 10 --page-token <token>
+contract-cli event outbound-ip list --profile contract --as app --page-size 10
 ```
+
+`event outbound-ip list` 的 `--page-size` 必须在 `10` 到 `50` 之间。
 
 ### User Query Parameters
 
@@ -310,6 +320,8 @@ contract-cli mdm vendor list --profile contract --as user --page-size 10 --page-
 contract-cli contract get <contract-id> --profile contract --as app --user-id ou_xxx --user-id-type employee_id
 contract-cli mdm legal get <legal-entity-id> --profile contract --as app --user-id-type employee_id
 ```
+
+`mdm vendor create/update` 和 `mdm legal create/update` 会要求 `--user-id`，用于提供当前操作人上下文。
 
 ### Update Check
 

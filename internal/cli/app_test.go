@@ -59,6 +59,101 @@ func TestRunWithoutArgsPrintsTopLevelHelp(t *testing.T) {
 	}
 }
 
+func TestRunCommandLogRedactsSensitiveArguments(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name    string
+		args    []string
+		secrets []string
+	}{
+		{
+			name:    "separate app secret",
+			args:    []string{"unknown-command", "--app-secret", "cli-secret-value", "--profile", "contract"},
+			secrets: []string{"cli-secret-value"},
+		},
+		{
+			name:    "equals app secret",
+			args:    []string{"unknown-command", "--app-secret=equals-secret-value"},
+			secrets: []string{"equals-secret-value"},
+		},
+		{
+			name:    "underscore app secret",
+			args:    []string{"unknown-command", "--app_secret=underscore-secret-value"},
+			secrets: []string{"underscore-secret-value"},
+		},
+		{
+			name:    "authorization header",
+			args:    []string{"unknown-command", "--header", "Authorization: Bearer header-token-value"},
+			secrets: []string{"header-token-value"},
+		},
+		{
+			name:    "inline request body",
+			args:    []string{"unknown-command", "--data", `{"access_token":"body-token-value","password":"body-password-value"}`},
+			secrets: []string{"body-token-value", "body-password-value"},
+		},
+		{
+			name: "generic credential flags",
+			args: []string{
+				"unknown-command",
+				"--client-secret", "client-secret-value",
+				"--access-token=access-token-value",
+				"--refresh-token", "refresh-token-value",
+				"--token", "generic-token-value",
+				"--password", "password-value",
+				"--authorization", "Bearer authorization-value",
+			},
+			secrets: []string{
+				"client-secret-value",
+				"access-token-value",
+				"refresh-token-value",
+				"generic-token-value",
+				"password-value",
+				"authorization-value",
+			},
+		},
+		{
+			name:    "nested command logger",
+			args:    []string{"skills", "list", "--app-secret", "nested-secret-value"},
+			secrets: []string{"nested-secret-value"},
+		},
+	}
+
+	for _, tc := range testCases {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			stderr := &bytes.Buffer{}
+			app := cli.New(cli.Options{
+				Stdout: io.Discard,
+				Stderr: stderr,
+				Store:  config.NewStore(t.TempDir()),
+				LookupEnv: func(key string) (string, bool) {
+					if key == "CONTRACT_CLI_NO_UPDATE_CHECK" {
+						return "1", true
+					}
+					return "", false
+				},
+			})
+
+			if err := app.Run(context.Background(), tc.args); err == nil {
+				t.Fatal("Run() error = nil, want unknown command error")
+			}
+
+			logOutput := stderr.String()
+			if !strings.Contains(logOutput, "[REDACTED]") {
+				t.Fatalf("log should contain redaction marker: %s", logOutput)
+			}
+			for _, secret := range tc.secrets {
+				if strings.Contains(logOutput, secret) {
+					t.Fatalf("log exposes sensitive value %q: %s", secret, logOutput)
+				}
+			}
+		})
+	}
+}
+
 func TestVersionCommandPrintsBuildInfo(t *testing.T) {
 	t.Parallel()
 
@@ -1448,6 +1543,48 @@ func TestAuthStatusDefaultsToUserEvenWhenDefaultIdentityIsApp(t *testing.T) {
 	}
 	if !strings.Contains(stdout.String(), "\nIdentity: user\n") || strings.Contains(stdout.String(), "\nIdentity: app\n") {
 		t.Fatalf("unexpected default status identity output: %s", stdout.String())
+	}
+}
+
+func TestAuthStatusUserMarksExpiredToken(t *testing.T) {
+	t.Parallel()
+
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	dir := t.TempDir()
+	store := config.NewStore(dir)
+	profile := config.Profile{
+		Name:        "contract",
+		Environment: "dev",
+		Identities: config.Identities{
+			User: config.UserIdentity{
+				ClientID: "client-id",
+				Token: &config.Token{
+					AccessToken: "expired-user-token",
+					TokenType:   "Bearer",
+					Expiry:      time.Now().Add(-1 * time.Hour),
+				},
+			},
+		},
+	}
+	if err := store.UpsertProfile(profile, true); err != nil {
+		t.Fatalf("UpsertProfile() error = %v", err)
+	}
+	secrets := config.NewSecretsStore(dir)
+	app := cli.New(cli.Options{
+		Stdout:    stdout,
+		Stderr:    stderr,
+		Store:     store,
+		Secrets:   secrets,
+		LookupEnv: func(string) (string, bool) { return "", false },
+	})
+
+	if err := app.Run(context.Background(), []string{"auth", "status", "--profile", "contract", "--as", "user"}); err != nil {
+		t.Fatalf("auth status --as user error = %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "Authorization: expired") || !strings.Contains(output, "Expires At: ") {
+		t.Fatalf("unexpected expired user status output: %s", output)
 	}
 }
 

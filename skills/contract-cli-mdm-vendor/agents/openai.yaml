@@ -1,7 +1,7 @@
 interface:
   display_name: "Contract CLI MDM Vendor"
-  short_description: "List vendor candidates and fetch vendor details with user or app identity"
-  default_prompt: "Use $contract-cli-mdm-vendor to query vendor candidates or vendor details from contract-cli. Choose user or app according to the active profile and requested route."
+  short_description: "Query vendor candidates/details and create or update vendors"
+  default_prompt: "Use $contract-cli-mdm-vendor to query vendor candidates or vendor details with user or app identity, or create, update, list all, and query by certificate with app identity."
 
 policy:
   allow_implicit_invocation: true
