@@ -1,6 +1,11 @@
 # AI 变更记录
 
 - 2026-08-12
+  变更摘要：将下一版 contract-cli 版本更新为 `1.7.0`。
+  涉及文件/模块：`package.json`、发布版本元数据。
+  关键逻辑/决策：仅更新源码包版本，为后续 `v1.7.0` 发布做准备；本次不创建 tag、不触发 GitHub Release 或 npm 发布。
+
+- 2026-08-12
   变更摘要：补齐创建合同 `contract_category_abbreviation` 的动态来源与错误排查说明。
   涉及文件/模块：`skills/contract-cli-contract` 创建、分类 references、主 Skill 导航及文档契约测试。
   关键逻辑/决策：要求用与创建相同的 profile/身份查询分类树并取可用末级 `abbreviation`；明确名称、编号和分类 id 不能替代，用显式占位值替换易误抄的 `PROCUREMENT` 示例，并移除不被 Skill 校验器接受的自定义 frontmatter `version`。
