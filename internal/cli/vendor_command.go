@@ -3,6 +3,7 @@ package cli
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"cn.qfei/contract-cli/internal/openplatform"
 	entitysvc "cn.qfei/contract-cli/internal/openplatform/entity"
@@ -21,6 +22,10 @@ func (a *App) runMDM(ctx context.Context, args []string) error {
 		return a.runMDMLegal(ctx, args[1:])
 	case "fields":
 		return a.runSchema(ctx, args[1:])
+	case "fixed-exchange-rate":
+		return a.runMDMFixedExchangeRate(ctx, args[1:])
+	case "file":
+		return a.runMDMFile(ctx, args[1:])
 	default:
 		return fmt.Errorf("unknown mdm resource %q", args[0])
 	}
@@ -32,6 +37,14 @@ func (a *App) runMDMVendor(ctx context.Context, args []string) error {
 	}
 
 	switch args[0] {
+	case "create":
+		return a.runMDMVendorCreate(ctx, args[1:])
+	case "update":
+		return a.runMDMVendorUpdate(ctx, args[1:])
+	case "list-all":
+		return a.runMDMVendorListAll(ctx, args[1:])
+	case "query-by-cert":
+		return a.runMDMVendorQueryByCert(ctx, args[1:])
 	case "list":
 		parsed, err := parseArgs(args[1:], structuredValueFlags("--name", "--page-size", "--page-token"), commonBoolFlags())
 		if err != nil {
@@ -88,6 +101,10 @@ func (a *App) runMDMLegal(ctx context.Context, args []string) error {
 	}
 
 	switch args[0] {
+	case "create":
+		return a.runMDMLegalCreate(ctx, args[1:])
+	case "update":
+		return a.runMDMLegalUpdate(ctx, args[1:])
 	case "list":
 		parsed, err := parseArgs(args[1:], structuredValueFlags("--name", "--page-size", "--page-token"), commonBoolFlags())
 		if err != nil {
@@ -115,11 +132,17 @@ func (a *App) runMDMLegal(ctx context.Context, args []string) error {
 		}
 		return a.renderOpenPlatformResponse(options, response)
 	case "get":
-		parsed, err := parseArgs(args[1:], structuredValueFlags(), commonBoolFlags())
+		parsed, err := parseArgs(args[1:], structuredValueFlags("--code", "--page-size", "--page-token"), commonBoolFlags())
 		if err != nil {
 			return err
 		}
+		if strings.TrimSpace(parsed.String("--code")) != "" {
+			return a.runMDMLegalGetByCode(ctx, parsed)
+		}
 		if len(parsed.positionals) != 1 {
+			return fmt.Errorf("usage: contract-cli mdm legal get <legal-entity-id> [flags]")
+		}
+		if parsed.HasValue("--page-size") || parsed.HasValue("--page-token") {
 			return fmt.Errorf("usage: contract-cli mdm legal get <legal-entity-id> [flags]")
 		}
 		options := parseCommandOptions(parsed)

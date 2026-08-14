@@ -1,15 +1,16 @@
 ---
 name: contract-cli-shared
-description: "contract-cli 开放平台共享约定技能：在 `contract`、`payment` 和 `mdm` 模块间做选择，并遵守 `contract/v1/mcp` user-only 限制、`--input-file` 请求体输入、输出格式和 profile 选择规则。当用户要操作开放平台 CLI 但尚未明确命令模块、需要更新 contract-cli，或看到 JSON 输出中的 `_notice` / `_notice.update` 时触发。"
+version: 1.0.1
+description: "contract-cli 开放平台共享约定技能：在 `contract`、`payment`、`mdm`、`event` 和 `rule` 模块间做选择，并遵守 `contract/v1/mcp` user-only 限制、`--input-file` 请求体输入、输出格式和 profile 选择规则。当用户要操作开放平台 CLI 但尚未明确命令模块、需要更新 contract-cli，或看到 JSON 输出中的 `_notice` / `_notice.update` 时触发。"
 ---
 
 # contract-cli Shared
 
-CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确认当前 profile、user 登录态和 app/token 约束。
+CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确认当前 profile、user 登录态和 app token 约束。
 
 ## 快速决策
 
-- 合同搜索、详情、创建、合同文本、模板、分类、枚举、审批：读 [../contract-cli-contract/SKILL.md](../contract-cli-contract/SKILL.md)
+- 合同搜索、详情、创建、合同文本、模板、分类、枚举、字段更新、签署链接、合同授权、电子签、分享、协商、审批：读 [../contract-cli-contract/SKILL.md](../contract-cli-contract/SKILL.md)
   这里现在采用“主文档 + 字段树附录 + 枚举附录”的结构
 - 付款申请、付款计划、付款记录：读 [../contract-cli-payment/SKILL.md](../contract-cli-payment/SKILL.md)
   这里采用“主规则 + 命令示例附录”的结构
@@ -19,16 +20,28 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
   这里现在采用“主 guide + 参数附录 + 命令示例”的结构
 - 字段配置查询：读 [../contract-cli-mdm-fields/SKILL.md](../contract-cli-mdm-fields/SKILL.md)
   这里现在采用“主 guide + biz-line 附录 + 命令示例”的结构
+- 固定汇率：读 [../contract-cli-mdm-exchange/SKILL.md](../contract-cli-mdm-exchange/SKILL.md)
+- 主数据附件下载：读 [../contract-cli-mdm-file/SKILL.md](../contract-cli-mdm-file/SKILL.md)
+- 事件出口 IP：读 [../contract-cli-event/SKILL.md](../contract-cli-event/SKILL.md)
+- 审批矩阵规则表：读 [../contract-cli-rule/SKILL.md](../contract-cli-rule/SKILL.md)
 - 用户给了精确的开放平台路径，或结构化命令还没覆盖：不要推荐 `api call`；它是预留能力，当前暂未开放使用
 
 ## 当前已实现模块
 
-- `contract get/search/create/sync-user-groups/text`
+- `contract get/search/search-v2/create/sync-user-groups/text`
 - `contract upload-file`
+- `contract field update`
+- `contract sign switch-to-paper`
+- `contract sign-url get`
+- `contract form attribute list`
+- `contract authorization grant`
+- `contract esign personal-auth-url/org-auth-url`
 - `contract submit/resubmit/patch/download-file/delete/print-file`
-- `contract share get`
+- `contract share get/batch-create`
 - `contract cooperation link get`
 - `contract cooperation record get`
+- `contract cooperation search`
+- `contract cooperation file get/download`
 - `contract approval start/get`
 - `contract category list`
 - `contract template list/get/instantiate`
@@ -36,9 +49,13 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 - `payment create/update/get/list`
 - `payment plan notify/search`
 - `payment record create/update/get/list`
-- `mdm vendor list/get`
-- `mdm legal list/get`
+- `mdm vendor list/get/create/update/list-all/query-by-cert`
+- `mdm legal list/get/create/update`
 - `mdm fields list`
+- `mdm fixed-exchange-rate get/update`
+- `mdm file download`
+- `event outbound-ip list`
+- `rule table list/pre-release/release/column-headers/row`
 
 ## 共享约束
 
@@ -56,11 +73,13 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 
 - `api call` 当前不对外开放；执行 `contract-cli api ...` 会直接返回 `api call 暂未开放使用，请使用已开放的结构化命令`
 - `contract/v1/mcp` 这批路径大部分只支持 `--as user`
-- 当前结构化命令里只有 `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`、`contract approval start/get`、`payment *`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 支持 app；其中合同命令的 app 路由走 `/open-apis/contract/v1/...`，`contract upload-file` 走 `/open-apis/contract/v1/files/upload` 且同时支持 user/app，`contract submit/resubmit/patch/download-file/delete/print-file/share/cooperation/approval` 和 `payment *` 仅支持 app，`mdm vendor list/get` 的 app 路由走 `/open-apis/mdm/v1/vendors...`，`mdm legal list` 的 app 路由走 `/open-apis/mdm/v1/legal_entities/list_all`，`mdm legal get` 的 app 路由走 `/open-apis/mdm/v1/legal_entities/{legal_entity_id}`，`mdm fields list` 的 app 路由走 `/open-apis/mdm/v1/config/config_list`
+- 同时支持 `user` 与 `app` 的结构化业务命令：`contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list`
+- app-only 命令包括 `contract search-v2`、`contract field update`、`contract sign switch-to-paper`、`contract sign-url get`、`contract form attribute list`、`contract authorization grant`、`contract esign *`、`contract submit/resubmit/patch/download-file/delete/print-file`、`contract share get/batch-create`、`contract cooperation link/record/search/file`、`contract approval start/get`、`payment *`、`mdm vendor create/update/list-all/query-by-cert`、`mdm legal get --code/create/update`、`mdm fixed-exchange-rate get/update`、`mdm file download`、`event outbound-ip list` 和 `rule table *`
+- 双身份合同命令的 app 路由走 `/open-apis/contract/v1/...`；`contract upload-file` 走 `/open-apis/contract/v1/files/upload`；`mdm vendor list/get` 的 app 路由走 `/open-apis/mdm/v1/vendors...`；`mdm legal list/get` 的 app 路由分别走 `/open-apis/mdm/v1/legal_entities/list_all` 和 `/open-apis/mdm/v1/legal_entities/{legal_entity_id}`；`mdm fields list` 的 app 路由走 `/open-apis/mdm/v1/config/config_list`
 - 若命中 `/open-apis/contract/v1/mcp/` 且未传 `--as`，CLI 会默认按 `user` 解析，不看 `default_identity`
 - 这批命令不暴露 `--operator`
 - 请求体文件输入统一使用 `--input-file`
-- `--user-id-type` / `--user-id` 是开放平台通用 query 参数：结构化命令支持；`--user-id-type` 不传时默认拼接 `user_id_type=user_id`，显式传值会覆盖默认值；`--user-id` 传了就透传，不传就不带；不做命令级校验
+- `--user-id-type` / `--user-id` 是开放平台通用 query 参数：结构化命令支持；`--user-id-type` 不传时默认拼接 `user_id_type=user_id`，app 标准接口允许显式传值覆盖；部分 user-only MCP tool spec 会固定 query 默认值，例如 `contract search --as user` 当前固定 `user_id`，以模块 Skill 为准。`--user-id` 传了就透传，不传就不带。例外：`mdm vendor create/update` 与 `mdm legal create/update` 写接口会本地要求 `--user-id`
 - `--file` 现在只用于真实二进制文件上传，例如 `contract upload-file`
 - `contract download-file` 下载二进制响应，默认弹窗保存；Agent/CI/远程环境优先传 `--output-file`，管道场景用 `--raw`
 - JSON 请求体文件输入始终使用 `--input-file`，不要把 `--file` 当 JSON 请求体参数
@@ -94,6 +113,9 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 - 命令报 `profile "<name>" not found`：先执行 `contract-cli config add --env prod --name <profile>`
 - 命令报 `user identity is not authorized`：Device profile 执行 `contract-cli auth init --profile <profile> --output json`，用户完成授权后只执行一次 `auth complete`；旧 Authorization Code profile 才执行 `contract-cli auth login --profile <profile> --as user`
 - Device 授权返回 `denied`、`expired` 或 `restart_required`：先等待用户明确同意，再执行一次带 `--restart` 的 `auth init`；禁止自动重试
+- MDM 写接口报 `requires --user-id`：补上当前操作人，例如 `--user-id <operator-user-id>`
 - 用户想做文件上传：使用 `contract upload-file --as user|app --file <path> --file-type <type>`
 - 用户想下载文件：使用 `contract download-file --as app --output-file <path>`；不要写成 `dowload-file`
+- 用户想下载协商文件：使用 `contract cooperation file download --as app --output-file <path>`
+- 用户想下载主数据附件：使用 `mdm file download --as app --output-file <path>`
 - 用户想做付款申请、付款计划或付款记录：使用 `payment ... --as app`，不要放到 `contract` 子命令下面

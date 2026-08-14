@@ -186,7 +186,7 @@ contract-cli auth status --as app
 规则：
 
 - 不传 `--as` 时，`auth status` 默认查看 `user`
-- `user` 显示 `authorized` 或 `unauthorized`
+- `user` 显示 `authorized`、`expired` 或 `unauthorized`
 - `app` 显示 `authorized`、`expired`、`configured` 或 `unconfigured`
 - `app` 状态会显示 `Token Protocol: tenant_access_token/internal` 和过期时间（若有），不展示 endpoint 地址
 
@@ -252,4 +252,5 @@ contract-cli auth use --as app
 - app 凭据不完整：补齐 `--app-id/--app-secret` 或设置 `CONTRACT_CLI_APP_ID/CONTRACT_CLI_APP_SECRET`
 - app 登录提示缺少 `app_token_endpoint`：说明 profile 过旧，重跑 `contract-cli config add --env prod --name <profile>`
 - app 状态显示 `expired`：重新执行 `contract-cli auth login --as app`
+- user 状态显示 `expired`：重新执行 `contract-cli auth login --as user`
 - 旧脚本仍传 `--as bot`：可以继续执行；后续新脚本请改写为 `--as app`

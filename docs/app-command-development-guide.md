@@ -458,7 +458,7 @@ references/<domain>-enums.md
 
 - skill 版本策略：继续独立版本，还是跟随 npm/CLI 版本。
 - 业务错误策略：HTTP 200 但 `code != 0` 时，CLI 是否仍原样输出，还是统一返回 error exit code。
-- `user_id` 必填策略：当前不做命令级校验；如果某些 app 接口实际强依赖 `user_id`，是否要对具体命令加本地必填。
+- `user_id` 必填策略：默认按通用 query 透传，不做命令级校验；已实测强依赖操作人上下文的 `mdm vendor create/update` 与 `mdm legal create/update` 会本地要求 `--user-id`。
 - 输出归一化策略：user/MCP 和 app/open API 响应结构是否需要统一为领域 DTO。
 - table 输出策略：哪些命令需要稳定 table，哪些只保证 JSON/raw。
 - 文档来源策略：生产文档和实际接口不一致时，以接口实测、后端确认还是文档为准。

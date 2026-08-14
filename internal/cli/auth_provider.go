@@ -178,6 +178,9 @@ func (p userAuthProvider) Status(_ context.Context, profile config.Profile, _ au
 
 	view.Authorization = "authorized"
 	if !user.Token.Expiry.IsZero() {
+		if time.Now().After(user.Token.Expiry) {
+			view.Authorization = "expired"
+		}
 		view.Fields = append(view.Fields, authStatusField{
 			Label: "Expires At",
 			Value: user.Token.Expiry.Format(time.RFC3339),

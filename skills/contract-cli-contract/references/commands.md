@@ -10,9 +10,17 @@ contract-cli contract search --profile contract --as user --input-file contract-
 contract-cli contract search --profile contract --as user --data '{"contract_number":"CN-001"}'
 contract-cli contract search --profile contract --as app --input-file contract-search.json
 contract-cli contract search --profile contract --as app --input-file contract-search.json --user-id ou_xxx --user-id-type employee_id
+contract-cli contract search-v2 --profile contract --as app --input-file search-v2.json
 contract-cli contract create --profile contract --input-file contract-create.json
 contract-cli contract create --profile contract --data '{"title":"示例合同"}'
 contract-cli contract create --profile contract --as app --data '{"contract_name":"示例合同","create_user_id":"ou_xxx"}'
+contract-cli contract field update --profile contract --as app --input-file field-update.json
+contract-cli contract sign switch-to-paper --profile contract --as app --business-id 7023646046559404327 --business-type-code 0
+contract-cli contract sign-url get 7023646046559404327 --profile contract --as app
+contract-cli contract form attribute list --profile contract --as app --category-id cat_123 --business-type-code 0
+contract-cli contract authorization grant --profile contract --as app --input-file authorization.json
+contract-cli contract esign personal-auth-url --profile contract --as app --input-file psn-auth-url.json
+contract-cli contract esign org-auth-url --profile contract --as app --input-file org-auth-url.json
 contract-cli contract upload-file --profile contract --as user --file ./合同正文.docx --file-type text
 contract-cli contract upload-file --profile contract --as app --file ./附件.pdf --file-type attachment --file-name 附件.pdf
 contract-cli contract submit 7023646046559404327 --profile contract --as app
@@ -22,8 +30,12 @@ contract-cli contract download-file file_123 --profile contract --as app --outpu
 contract-cli contract delete 7023646046559404327 --profile contract --as app
 contract-cli contract print-file --profile contract --as app --input-file print-file.json
 contract-cli contract share get 7023646046559404327 --profile contract --as app
+contract-cli contract share batch-create --profile contract --as app --input-file batch-share.json
 contract-cli contract cooperation link get 7023646046559404327 --profile contract --as app
 contract-cli contract cooperation record get 7023646046559404327 --profile contract --as app
+contract-cli contract cooperation search --profile contract --as app --input-file cooperation-search.json
+contract-cli contract cooperation file get <contract-id> --profile contract --as app
+contract-cli contract cooperation file download <file-id> --profile contract --as app --output-file ./cooperation.docx
 contract-cli contract approval start process_123 --profile contract --as app --input-file approval.json
 contract-cli contract approval get process_123 --profile contract --as app
 contract-cli contract category list --profile contract --as app --lang zh-CN
@@ -51,7 +63,9 @@ contract-cli contract enum list --profile contract --type contract_status
 ## 已知限制
 
 - `contract upload-file` 当前同时支持 user/app 身份，均走 `/open-apis/contract/v1/files/upload`
-- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract share get`、`contract cooperation link get`、`contract cooperation record get`、`contract approval start`、`contract approval get` 当前仅支持 app 身份
+- `contract search-v2`、`contract field update`、`contract sign switch-to-paper`、`contract sign-url get`、`contract form attribute list`、`contract authorization grant`、`contract esign *` 当前仅支持 app 身份
+- `contract submit`、`contract resubmit`、`contract patch`、`contract download-file`、`contract delete`、`contract print-file`、`contract approval start`、`contract approval get` 当前仅支持 app 身份
+- `contract share get`、`contract share batch-create`、`contract cooperation link get`、`contract cooperation record get`、`contract cooperation search`、`contract cooperation file get/download` 当前仅支持 app 身份
 - `contract template fields` 尚未实现
 - `contract create` 不自动帮你补模板信息；当前就是透传请求体
 - `contract create --as app` 时，`create_user_id` 需要你自己写进 JSON body
@@ -63,7 +77,7 @@ contract-cli contract enum list --profile contract --type contract_status
 
 - 搜索合同请求体：看 [search-contract-fields.md](search-contract-fields.md)
 - 合同详情和搜索响应：看 [contract-response-fields.md](contract-response-fields.md)
-- 创建合同请求体：看 [create-contract-fields.md](create-contract-fields.md)、[create-contract-field-tree.md](create-contract-field-tree.md)、[create-contract-enums.md](create-contract-enums.md)
+- 创建合同请求体：先看 [category-fields.md](category-fields.md) 获取 `contract_category_abbreviation`，再看 [create-contract-fields.md](create-contract-fields.md)、[create-contract-field-tree.md](create-contract-field-tree.md)、[create-contract-enums.md](create-contract-enums.md)
 - 更新合同文件/归档字段：看 [patch-contract-fields.md](patch-contract-fields.md)
 - 模板列表和模板详情：看 [template-fields.md](template-fields.md)
 - 创建模板实例：看 [template-instance-fields.md](template-instance-fields.md)
@@ -72,6 +86,31 @@ contract-cli contract enum list --profile contract --type contract_status
 - 分享和协商响应：看 [share-cooperation-fields.md](share-cooperation-fields.md)
 - 上传、下载、提交、重提、删除：看 [contract-actions-fields.md](contract-actions-fields.md)
 - 审批发起请求体：看 [approval-fields.md](approval-fields.md)
+- 新增 app-only 补齐接口命令：看 [openapi-gap-commands.md](openapi-gap-commands.md)
+
+## 新增 app-only 补齐命令
+
+```bash
+contract-cli contract search-v2 --profile contract --as app --input-file search-v2.json
+contract-cli contract field update --profile contract --as app --input-file field-update.json
+contract-cli contract sign switch-to-paper --profile contract --as app --business-id <contract-id> --business-type-code 0
+contract-cli contract sign-url get <contract-id> --profile contract --as app
+contract-cli contract form attribute list --profile contract --as app --category-id <category-id> --business-type-code 0
+contract-cli contract authorization grant --profile contract --as app --input-file authorization.json
+contract-cli contract esign personal-auth-url --profile contract --as app --input-file psn-auth-url.json
+contract-cli contract esign org-auth-url --profile contract --as app --input-file org-auth-url.json
+```
+
+接口路径：
+
+- `search-v2`：`POST /open-apis/contract/v1/contracts/searchV2`
+- `field update`：`PUT /open-apis/contract/v1/attribute_definition`
+- `sign switch-to-paper`：`POST /open-apis/contract/v1/contracts/signType/switchToPaper`
+- `sign-url get`：`GET /open-apis/contract/v1/contracts/{contract_id}/sign_url`
+- `form attribute list`：`GET /open-apis/contract/v1/form_definition/attribute`
+- `authorization grant`：`POST /open-apis/contract/v1/authorizations`
+- `esign personal-auth-url`：`POST /open-apis/esign/auth/psnAuthUrl`
+- `esign org-auth-url`：`POST /open-apis/esign/auth/orgAuthUrl`
 
 ## app-only 合同操作
 
@@ -131,8 +170,12 @@ contract-cli contract print-file --profile contract --as app --input-file print-
 
 ```bash
 contract-cli contract share get 7023646046559404327 --profile contract --as app
+contract-cli contract share batch-create --profile contract --as app --input-file batch-share.json
 contract-cli contract cooperation link get 7023646046559404327 --profile contract --as app
 contract-cli contract cooperation record get 7023646046559404327 --profile contract --as app
+contract-cli contract cooperation search --profile contract --as app --input-file cooperation-search.json
+contract-cli contract cooperation file get <contract-id> --profile contract --as app
+contract-cli contract cooperation file download <file-id> --profile contract --as app --output-file ./cooperation.docx
 contract-cli contract approval start process_123 --profile contract --as app --data '{"task_instance_id":"task-1","command_type":"general"}'
 contract-cli contract approval get process_123 --profile contract --as app --notice-filter notice_filter --task-instance-filter task_instance_filter
 ```
@@ -140,8 +183,12 @@ contract-cli contract approval get process_123 --profile contract --as app --not
 接口路径：
 
 - `share get`：`GET /open-apis/contract/v1/contracts/{contract_id}/share_records`
+- `share batch-create`：`POST /open-apis/contract/v1/contracts/contract/batch_share`
 - `cooperation link get`：`GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_link`
 - `cooperation record get`：`GET /open-apis/contract/v1/contracts/{contract_id}/cooperation_record_info`
+- `cooperation search`：`POST /open-apis/contract/v1/cooperation/search`
+- `cooperation file get`：`GET /open-apis/contract/v1/contracts/{contract_id}/cooperation/file_info`
+- `cooperation file download`：`GET /open-apis/contract/v1/contracts/cooperation/{file_id}/download_file`
 - `approval start`：`POST /open-apis/contract/v1/process_instances/{process_instance_id}/task_approval`
 - `approval get`：`GET /open-apis/contract/v1/process_instances/{process_instance_id}`
 

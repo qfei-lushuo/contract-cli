@@ -43,8 +43,9 @@ CRITICAL — 开始前 MUST 先读取 [../contract-cli-shared/SKILL.md](../contr
 
 ## 操作建议
 
-- 未封装写接口前，先用这条命令确认字段结构
-- 需要写交易方或法人实体时，等待对应结构化写命令开放；不要退回 `api call`，该入口当前暂未开放
+- 写入前，先用这条命令确认字段结构和必填状态
+- 需要写交易方时，改读 [../contract-cli-mdm-vendor/SKILL.md](../contract-cli-mdm-vendor/SKILL.md)，使用 `mdm vendor create|update --as app --user-id <operator-user-id>`
+- 需要写法人实体时，改读 [../contract-cli-mdm-legal/SKILL.md](../contract-cli-mdm-legal/SKILL.md)，使用 `mdm legal create|update --as app --user-id <operator-user-id>`
 - 只想查合同枚举时，不要走这里
 
 ## 不要这样做

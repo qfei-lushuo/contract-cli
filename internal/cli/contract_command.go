@@ -24,6 +24,8 @@ func (a *App) runContract(ctx context.Context, args []string) error {
 	switch args[0] {
 	case "search":
 		return a.runContractSearch(ctx, args[1:])
+	case "search-v2":
+		return a.runContractSearchV2(ctx, args[1:])
 	case "get":
 		return a.runContractGet(ctx, args[1:])
 	case "sync-user-groups":
@@ -48,6 +50,18 @@ func (a *App) runContract(ctx context.Context, args []string) error {
 		return a.runContractShare(ctx, args[1:])
 	case "cooperation":
 		return a.runContractCooperation(ctx, args[1:])
+	case "field":
+		return a.runContractField(ctx, args[1:])
+	case "sign":
+		return a.runContractSign(ctx, args[1:])
+	case "sign-url":
+		return a.runContractSignURL(ctx, args[1:])
+	case "form":
+		return a.runContractForm(ctx, args[1:])
+	case "authorization":
+		return a.runContractAuthorization(ctx, args[1:])
+	case "esign":
+		return a.runContractEsign(ctx, args[1:])
 	case "approval":
 		return a.runContractApproval(ctx, args[1:])
 	case "category":
@@ -417,6 +431,8 @@ func (a *App) runContractShare(ctx context.Context, args []string) error {
 		return fmt.Errorf("missing contract share subcommand")
 	}
 	switch args[0] {
+	case "batch-create":
+		return a.runContractShareBatchCreate(ctx, args[1:])
 	case "get":
 		parsed, err := parseArgs(args[1:], structuredValueFlags(), commonBoolFlags())
 		if err != nil {
@@ -450,6 +466,10 @@ func (a *App) runContractCooperation(ctx context.Context, args []string) error {
 		return a.runContractCooperationLink(ctx, args[1:])
 	case "record":
 		return a.runContractCooperationRecord(ctx, args[1:])
+	case "file":
+		return a.runContractCooperationFile(ctx, args[1:])
+	case "search":
+		return a.runContractCooperationSearch(ctx, args[1:])
 	default:
 		return fmt.Errorf("unknown contract cooperation resource %q", args[0])
 	}
