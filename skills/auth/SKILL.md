@@ -25,6 +25,14 @@ description: "contract-cli 登录与身份切换技能：初始化 profile、通
 - [internal/config/store.go](../../internal/config/store.go)
 - [internal/config/secrets.go](../../internal/config/secrets.go)
 
+## 对话凭证安全
+
+- Agent 不得主动询问或接收原始凭证，包括 Token、Access Token、Refresh Token、AK/SK、Cookie、Session、App Secret、device code 和密码；不得让用户把这些值粘贴、上传或发送到对话中。
+- user 身份只通过现有 Device Grant 或保留的 Authorization Code 官方页面完成授权；不得要求用户提供 Token 代替授权。
+- 下方 `auth login --as app` 命令示例仅供本地操作者使用。Agent 只有在用户明确要求配置 app 身份时才能说明配置方式，不得要求用户把 App Secret 发到对话中，也不得把对话内容拼入 `--app-secret`。
+- Agent 执行 app 登录时，只能使用用户已在本机安全配置好的环境变量或 CredentialStore；缺少安全配置时停止操作并提示用户在对话外完成配置，不得索要原始值。
+- 用户在对话中主动发送敏感凭证时，不复述、不写入命令、不继续调用；提示凭证已经暴露，应立即撤销或轮换。
+
 ## 配置初始化
 
 首次使用前，必须先执行：

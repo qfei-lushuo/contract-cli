@@ -184,3 +184,11 @@
 - 继续复用既有 Device client、business type、resource、Token 存储和刷新流程，不新增 Token 导出、通用 HTTP 调用或智审业务命令。
 - Auth Skill 补充说明一次授权同时包含合同与智审平台访问范围，但不提供智审业务操作说明或智审 Skill。
 - WorkBuddy、豆包普通工作任务和 AgentKit 的运行时识别、凭证隔离、授权展示与单次 `auth init` / `auth complete` 状态机保持不变。
+
+## 2026-08-18 智书 Skill 凭证与接口调用边界收紧
+
+- 智书共享 Skill 禁止无业务边界地枚举或批量调用全部接口；用户未明确业务目标、环境、允许范围和读写类型时只做澄清，不执行授权探测或业务命令。
+- Agent 不得主动索要或接收 Token、Refresh Token、AK/SK、Cookie、Session、App Secret、device code、密码等原始敏感凭证；用户主动发送时不复述、不使用，并提示立即撤销或轮换。
+- user 身份缺失时继续使用既有 Device Grant；app 身份保留原 CLI 能力，但 Agent 只能使用用户已在本机安全配置的环境变量或 CredentialStore，不得让用户在对话中粘贴 App Secret。
+- 接口文档不能替代明确的业务范围和调用授权，未覆盖接口继续明确为暂不支持，不回退到未开放的通用 `api call`。
+- 本次只调整智书 Skills 与静态回归测试，不修改 CLI 公共命令、OAuth、CredentialStore、开放平台接口或全局 Agent 安全策略。
