@@ -76,10 +76,10 @@ CRITICAL — 开始前 MUST 先读取 [../auth/SKILL.md](../auth/SKILL.md)，确
 ## 共享约束
 
 - Device 模式业务命令提示未授权时，按 [../auth/SKILL.md](../auth/SKILL.md) 执行 `auth init`；用户明确完成授权后只执行一次 `auth complete`。
-- `auth init` 返回后严格执行授权 Skill 的展示契约：WorkBuddy 使用 `show_widget` 内联展示二维码，AgentKit 继续使用 `qr_code_path`；豆包普通工作任务只展示可点击授权链接和过期时间，不处理 `qr_code_path` 或 `qr_code_data_uri`，也不调用代码执行或图片工具。展示完成后立即结束当前轮次。
-- WorkBuddy 授权回复统一使用 [../auth/SKILL.md](../auth/SKILL.md) 中的面向用户文案和 220×220 显示尺寸，不向用户暴露 `user 身份未授权`、CLI 命令或内部状态。
+- `auth init` 返回后严格执行授权 Skill 的展示契约：WorkBuddy 使用 `present_files` 交付 `qr_code_path` 对应的原始 PNG 附件，AgentKit 继续使用 `qr_code_path`；豆包普通工作任务只展示可点击授权链接和过期时间，不处理 `qr_code_path` 或 `qr_code_data_uri`，也不调用代码执行或图片工具。展示完成后立即结束当前轮次。
+- WorkBuddy 授权回复统一使用 [../auth/SKILL.md](../auth/SKILL.md) 中的面向用户文案，不向用户暴露 `user 身份未授权`、CLI 命令或内部状态。
 - WorkBuddy 时间文案只使用 CLI 返回的 `expires_at_display`，不展示 RFC3339 原值；授权回复必须使用授权 Skill 中的三步编号模板，并将 `**已授权**` 加粗。
-- WorkBuddy 正常路径只允许一次 `show_widget`；仅内联展示明确失败时，才允许额外使用一次 PNG 产物卡片。展示完成后禁止继续调用授权或业务工具。
+- WorkBuddy 正常路径只允许一次 `present_files`；禁止读取、复制或重新编码 `qr_code_data_uri`。附件交付失败时只保留授权链接和过期时间，不重试、不改用其他图片工具。展示完成后禁止继续调用授权或业务工具。
 - `auth complete` 成功后，授权前没有发送的原业务请求可继续执行一次，不追加二次用户确认。
 - CLI 只在 HTTP 401 同时包含 `X-Qfei-Open-Platform-Auth-Error: token_expired` 和 `data.error_type=token_expired` 时，确认请求未转发并刷新、重发一次；不把其他 401、5xx 或网络错误当成 Token 过期。
 - Skill / 模型层不得重试任何 OAuth 命令。CLI 内部仅对 `auth init` 的 TCP `dial` 失败自动重试一次，因为该分支能确认 HTTP 请求尚未发出；请求已发送后的超时、HTTP 5xx、响应中断或解析失败不重试，`auth complete`、Token 刷新和撤销始终不自动重试。

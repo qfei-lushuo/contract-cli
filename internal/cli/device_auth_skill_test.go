@@ -14,22 +14,17 @@ func TestDeviceAuthSkillsEnforceWorkBuddyTurnBoundaries(t *testing.T) {
 	readme := readDeviceAuthSkillFile(t, filepath.Join(root, "README.md"))
 
 	for _, required := range []string{
-		"`qr_code_data_uri`",
-		"`show_widget`",
-		"read_me(modules: \"diagram\")",
-		"show_widget(title: \"智书合同授权二维码\"",
-		"width:220px",
-		"height:220px",
+		"present_files(files: [\"<qr_code_path>\"])",
+		"WorkBuddy 主路径只调用一次 `present_files`",
+		"禁止读取、复制或重新编码 `qr_code_data_uri`",
+		"二维码图片附件/产物卡片",
 		"`expires_at_display`",
 		"继续查询前，需要先完成智书合同授权。",
-		"1. 点击蓝色链接「[打开授权页面](<verification_uri_complete>)」，或扫描本消息中的二维码",
+		"1. 点击蓝色链接「[打开授权页面](<verification_uri_complete>)」，或扫描本消息中的二维码图片附件",
 		"2. 在 **<expires_at_display>** 前完成：手机号验证 + 企业确认授权",
 		"3. 授权全部完成后，回复消息：**已授权**，我将立刻为你执行合同查询",
 		"不得向用户展示 `expires_at` 的 RFC3339 原值",
 		"不得使用反引号或代码样式展示时间",
-		"present_files(files: [\"<qr_code_path>\"])",
-		"data:image/png;base64",
-		"不得把完整 Data URI 输出到最终回复正文",
 		"只能调用一次授权展示工具",
 		"禁止执行 `auth complete`、再次执行 `auth init`、业务命令、轮询或网络重试",
 		"收到新的用户消息",
@@ -41,9 +36,9 @@ func TestDeviceAuthSkillsEnforceWorkBuddyTurnBoundaries(t *testing.T) {
 		"禁止读取、复制、修改或交付 `qr_code_path`",
 		"禁止调用代码执行、图片处理或图片交付工具处理二维码",
 		"返回授权链接和过期时间后立即结束当前轮次",
-		"降级为可点击授权链接和 `qr_code_path` 对应的 PNG 产物卡片",
 		"不得只返回授权链接或只返回二维码",
-		"二维码内联展示失败，请点击图片卡片或授权链接",
+		"二维码附件展示失败，请直接使用授权链接",
+		"附件展示失败后禁止重试 `present_files`",
 		"不得声称二维码已经展示",
 		"Refresh Token 返回 `invalid_grant` 时也必须先询问用户",
 		"先执行 `auth status --profile <profile> --as user`",
@@ -65,8 +60,17 @@ func TestDeviceAuthSkillsEnforceWorkBuddyTurnBoundaries(t *testing.T) {
 	if strings.Contains(auth, "当前 user 身份未授权") {
 		t.Fatal("auth skill still contains the old technical authorization copy")
 	}
-	if strings.Contains(auth, "固定为 320×320") {
-		t.Fatal("auth skill still renders the WorkBuddy QR code at the oversized 320x320 display size")
+	for _, forbidden := range []string{
+		"`show_widget`",
+		"show_widget(",
+		"read_me(modules: \"diagram\")",
+		"data:image/png;base64",
+		"width:220px",
+		"height:220px",
+	} {
+		if strings.Contains(auth, forbidden) || strings.Contains(shared, forbidden) {
+			t.Fatalf("WorkBuddy skill still relies on model-copied inline QR data %q", forbidden)
+		}
 	}
 	for _, forbidden := range []string{"DOUBAO_SESSION_ID", "DOUBAO_TASK_ID", "豆包本地 Skill 必须提供", "豆包 Skill 只暴露固定子命令和结构化参数", "普通 Shell 无法读取"} {
 		if strings.Contains(auth, forbidden) {
@@ -88,7 +92,7 @@ func TestDeviceAuthSkillsEnforceWorkBuddyTurnBoundaries(t *testing.T) {
 		}
 	}
 	for _, required := range []string{
-		"WorkBuddy 使用 `show_widget` 内联展示二维码",
+		"WorkBuddy 使用 `present_files` 交付 `qr_code_path` 对应的原始 PNG 附件",
 		"AgentKit 继续使用 `qr_code_path`",
 		"豆包普通工作任务只展示可点击授权链接和过期时间",
 		"不处理 `qr_code_path` 或 `qr_code_data_uri`",
@@ -111,7 +115,7 @@ func TestDeviceAuthSkillsEnforceWorkBuddyTurnBoundaries(t *testing.T) {
 	}
 	for _, required := range []string{
 		"豆包普通工作任务只展示 `verification_uri_complete` 和 `expires_at_display`，不展示二维码",
-		"WorkBuddy 使用 `qr_code_data_uri` 内联二维码，AgentKit 使用 `qr_code_path`",
+		"WorkBuddy 使用 `qr_code_path` 交付原始 PNG 附件，AgentKit 使用 `qr_code_path`",
 	} {
 		if !strings.Contains(readme, required) {
 			t.Fatalf("README missing Device Grant presentation contract %q", required)

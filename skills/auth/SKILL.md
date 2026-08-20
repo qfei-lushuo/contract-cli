@@ -90,22 +90,20 @@ contract-cli contract get <contract-id> --profile contract --output json
 
 - `auth init` 只发起一次请求并立即退出。WorkBuddy 与豆包 AgentKit 的最终回复必须同时包含完整 HTTPS 授权链接、二维码和过期时间；豆包普通工作任务只展示授权链接和过期时间。完成下述展示后必须立即结束当前轮次。
 - 将 `verification_uri_complete` 替换到 Markdown `[打开授权页面](<verification_uri_complete>)` 中，确保最终回复正文有可点击链接；不得只把 URL 留在工具输出或思考过程中。
-- WorkBuddy 在执行 `auth init` 前，先调用 `read_me` 加载 `show_widget` 对应的展示说明。`auth init` 返回 `pending` 后读取 `qr_code_data_uri`，使用 `show_widget` 的 HTML 模式内联渲染 `<img src="data:image/png;base64,...">`；PNG 原始内容保持 320×320，页面显示尺寸限制为 220×220，并保留白色背景和清晰边界。
-- WorkBuddy 主路径只能调用一次授权展示工具 `show_widget`。调用参数使用 `qr_code_data_uri`，但不得把完整 Data URI 输出到最终回复正文、日志或其他持久化内容。
-- WorkBuddy 工具调用顺序固定为 `read_me(modules: "diagram")`，再执行一次 `auth init`，最后执行 `show_widget(title: "智书合同授权二维码", widget_code: "<div style='display:flex;justify-content:center;align-items:center;background:#fff;padding:12px'><img src='<qr_code_data_uri>' alt='智书合同授权二维码' style='display:block;width:220px;height:220px;max-width:220px;object-fit:contain' /></div>")`。其中 `<qr_code_data_uri>` 必须替换为本次 CLI 返回值，不得自行重新生成或猜测。
+- WorkBuddy 的 `auth init` 返回 `pending` 后，只使用 `qr_code_path` 调用一次 `present_files(files: ["<qr_code_path>"])`，将 CLI 生成的原始 PNG 作为二维码图片附件/产物卡片交付。
+- WorkBuddy 主路径只调用一次 `present_files`，不得调用其他图片处理或展示工具。禁止读取、复制或重新编码 `qr_code_data_uri`，也不得自行重新生成二维码。
 - WorkBuddy 的最终授权提示使用下方固定模板，不展示 `user 身份未授权`、命令名或内部状态：
 
   ```markdown
 继续查询前，需要先完成智书合同授权。
-  1. 点击蓝色链接「[打开授权页面](<verification_uri_complete>)」，或扫描本消息中的二维码
+  1. 点击蓝色链接「[打开授权页面](<verification_uri_complete>)」，或扫描本消息中的二维码图片附件
   2. 在 **<expires_at_display>** 前完成：手机号验证 + 企业确认授权
   3. 授权全部完成后，回复消息：**已授权**，我将立刻为你执行合同查询
   ```
 
-  必须直接使用 CLI 返回的 `expires_at_display`，并按模板加粗显示。不得向用户展示 `expires_at` 的 RFC3339 原值，不得出现 `T` 或 `+08:00`，不得使用反引号或代码样式展示时间。回复关键词“已授权”必须使用 Markdown `**已授权**` 加粗，逗号不放入加粗范围。
-- `show_widget` 成功后，正文仍必须包含 `[打开授权页面](<verification_uri_complete>)` 和 `expires_at_display`，不得只返回授权链接或只返回二维码。
-- `show_widget` 明确失败时，才允许额外调用一次 `present_files(files: ["<qr_code_path>"])`，降级为可点击授权链接和 `qr_code_path` 对应的 PNG 产物卡片，并原样告知“二维码内联展示失败，请点击图片卡片或授权链接”；不得声称二维码已经展示。
-- 豆包 AgentKit 不要求 `show_widget`，继续按平台能力展示 `qr_code_path` 对应的 PNG，并在正文中同时提供可点击链接和过期时间。
+  必须直接使用 CLI 返回的 `expires_at_display`，并按模板加粗显示。不得向用户展示 `expires_at` 的 RFC3339 原值，不得出现 `T` 或 `+08:00`，不得使用反引号或代码样式展示时间。回复关键词“已授权”必须使用 Markdown `**已授权**` 加粗，逗号不放入加粗范围。二维码附件与正文中的链接和过期时间必须同时交付，不得只返回授权链接或只返回二维码。
+- `present_files` 失败时，原样告知“二维码附件展示失败，请直接使用授权链接”，并仍在正文中展示可点击链接和过期时间。附件展示失败后禁止重试 `present_files`，禁止调用代码执行、图片处理或其他图片展示工具，且不得声称二维码已经展示。
+- 豆包 AgentKit 继续按平台能力展示 `qr_code_path` 对应的 PNG，并在正文中同时提供可点击链接和过期时间。
 - 豆包普通工作任务只展示可点击的完整 HTTPS 授权链接和 `expires_at_display`，不展示二维码。禁止读取、复制、修改或交付 `qr_code_path`，也不得处理 `qr_code_data_uri`；禁止调用代码执行、图片处理或图片交付工具处理二维码。
 - 豆包普通工作任务使用下方固定模板，不展示 `user 身份未授权`、命令名、内部状态或二维码失败信息：
 
@@ -117,7 +115,7 @@ contract-cli contract get <contract-id> --profile contract --output json
   ```
 
   必须直接使用 CLI 返回的 `expires_at_display`，不得展示 `expires_at` 的 RFC3339 原值。返回授权链接和过期时间后立即结束当前轮次，不再调用任何授权展示、代码执行、图片处理或业务工具。
-- WorkBuddy 和豆包 AgentKit 在 `auth init` 返回后只能调用一次授权展示工具；仅前述 WorkBuddy `show_widget` 明确失败时可追加一次 `present_files`。豆包普通工作任务不得调用授权展示工具。除此之外，禁止执行 `auth complete`、再次执行 `auth init`、业务命令、轮询或网络重试。
+- WorkBuddy 和豆包 AgentKit 在 `auth init` 返回后只能调用一次授权展示工具；工具失败也不得改用其他展示工具或重试。豆包普通工作任务不得调用授权展示工具。除此之外，禁止执行 `auth complete`、再次执行 `auth init`、业务命令、轮询或网络重试。
 - CLI 内部的单次安全重试不算第二次 `auth init` 命令；该重试只允许发生在明确的 TCP `dial` 失败、能够确认请求尚未发出时。
 - `auth init` 最终失败后，禁止额外执行 `curl`、`auth status` 或其他探测命令；如实告知失败原因并明确询问用户是否重新发起授权。
 - 链接已包含一次性用户码，不要再要求用户手工输入授权码。

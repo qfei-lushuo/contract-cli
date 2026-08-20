@@ -192,3 +192,11 @@
 - user 身份缺失时继续使用既有 Device Grant；app 身份保留原 CLI 能力，但 Agent 只能使用用户已在本机安全配置的环境变量或 CredentialStore，不得让用户在对话中粘贴 App Secret。
 - 接口文档不能替代明确的业务范围和调用授权，未覆盖接口继续明确为暂不支持，不回退到未开放的通用 `api call`。
 - 本次只调整智书 Skills 与静态回归测试，不修改 CLI 公共命令、OAuth、CredentialStore、开放平台接口或全局 Agent 安全策略。
+
+## 2026-08-20 WorkBuddy 授权二维码改为 PNG 附件
+
+- 根据 WorkBuddy 实测，模型将 `qr_code_data_uri` 复制到内联展示工具时可能截断 Base64，导致图片数据损坏和二维码无法加载。
+- WorkBuddy 主路径改为将 `qr_code_path` 对应的原始 PNG 通过 `present_files` 交付为图片附件/产物卡片，不再让模型复制或重新编码 Base64。
+- 图片交付失败时不重试、不调用其他图片处理工具，仍返回完整可点击授权链接和过期时间。
+- CLI 继续返回 `qr_code_path` 和 `qr_code_data_uri`，二维码内容、文件权限、命名空间、Device Grant 状态机、Token 和 CredentialStore 行为均不变。
+- 豆包 AgentKit 继续使用平台 `qr_code_path` 能力，豆包普通工作任务继续只展示授权链接，两者不受影响。
