@@ -200,3 +200,8 @@
 - 图片交付失败时不重试、不调用其他图片处理工具，仍返回完整可点击授权链接和过期时间。
 - CLI 继续返回 `qr_code_path` 和 `qr_code_data_uri`，二维码内容、文件权限、命名空间、Device Grant 状态机、Token 和 CredentialStore 行为均不变。
 - 豆包 AgentKit 继续使用平台 `qr_code_path` 能力，豆包普通工作任务继续只展示授权链接，两者不受影响。
+
+## 2026-08-24 正式发布版本更新为 1.8.0
+
+- 将 npm 正式包版本从已发布的 `1.7.0` 更新为 `1.8.0`，用于发布本次豆包、WorkBuddy 统一用户授权能力。
+- 本次只调整发布版本元数据，不修改 Device Grant、CredentialStore、Skills、业务命令或各环境访问边界。
