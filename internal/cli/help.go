@@ -190,6 +190,8 @@ func renderHelpFlags(writer io.Writer, flags []helpFlag) error {
 func helpRegistry() map[string]helpTopic {
 	topCommands := []helpCommand{
 		{"contract-cli config add [flags]", "初始化或更新 profile"},
+		{"contract-cli auth init [flags]", "发起 Device 用户授权"},
+		{"contract-cli auth complete [flags]", "单次查询 Device 授权结果"},
 		{"contract-cli auth login [flags]", "登录 user 或 app 身份"},
 		{"contract-cli auth status [flags]", "查看授权状态"},
 		{"contract-cli auth logout [flags]", "登出指定身份"},
@@ -277,11 +279,38 @@ func addAuthHelp(registry map[string]helpTopic) {
 		Name:  "auth",
 		Usage: []string{"contract-cli auth <subcommand> [flags]"},
 		Commands: []helpCommand{
+			{"contract-cli auth init [flags]", "发起 Device 用户授权"},
+			{"contract-cli auth complete [flags]", "单次查询 Device 授权结果"},
 			{"contract-cli auth login [flags]", "登录 user 或 app 身份"},
 			{"contract-cli auth status [flags]", "查看授权状态"},
 			{"contract-cli auth logout [flags]", "登出指定身份"},
 			{"contract-cli auth use [flags]", "切换默认业务身份"},
 		},
+	}
+	registry["auth init"] = helpTopic{
+		Name:    "auth init",
+		Summary: "发起 Device Grant，输出已包含一次性用户码的完整 HTTPS 链接、二维码路径、qr_code_data_uri、机器时间和北京时间展示值。",
+		Usage:   []string{"contract-cli auth init [flags]"},
+		Flags: []helpFlag{
+			{"--profile <name>", "profile 名称；不传使用当前 profile"},
+			{"--output <json>", "固定为 json"},
+			{"--restart", "仅在用户明确同意重新授权后替换旧 Device 会话"},
+		},
+		Examples: []string{
+			"contract-cli auth init --profile contract --output json",
+			"contract-cli auth init --profile contract --output json --restart",
+		},
+		Notes: []string{"Device 授权不要求用户手工输入授权码。"},
+	}
+	registry["auth complete"] = helpTopic{
+		Name:    "auth complete",
+		Summary: "单次查询 Device 授权结果，不在 CLI 内持续轮询。",
+		Usage:   []string{"contract-cli auth complete [flags]"},
+		Flags: []helpFlag{
+			{"--profile <name>", "profile 名称；不传使用当前 profile"},
+			{"--output <json>", "固定为 json"},
+		},
+		Examples: []string{"contract-cli auth complete --profile contract --output json"},
 	}
 	registry["auth login"] = helpTopic{
 		Name:    "auth login",

@@ -196,7 +196,7 @@ func (a *App) openPlatformClientAndContextForOptions(options commandOptions, pat
 func (a *App) openPlatformClientAndContext(profileName, identityArg, path string, policy openplatform.IdentityPolicy) (*openplatform.Client, openplatform.RequestContext, error) {
 	a.logger.Info("resolve open platform request context", "profile", emptyFallback(profileName, "<current>"), "path", path, "identity", emptyFallback(identityArg, "<default>"), "policy", policy)
 
-	profile, err := a.store.GetProfile(profileName)
+	profile, err := a.loadDeviceAwareProfile(profileName)
 	if err != nil {
 		a.logger.Error("load open platform profile failed", "profile", emptyFallback(profileName, "<current>"), "path", path, "error", err.Error())
 		return nil, openplatform.RequestContext{}, err
@@ -212,7 +212,12 @@ func (a *App) openPlatformClientAndContext(profileName, identityArg, path string
 		HTTPClient: a.httpClient,
 		Logger:     a.logger,
 	})
-	requestContext, err := client.RequestContext(profile, identity)
+	var requestContext openplatform.RequestContext
+	if identity == config.IdentityUser && profile.Identities.User.AuthMode == config.UserAuthModeDevice {
+		requestContext, err = a.deviceRequestContext(profile)
+	} else {
+		requestContext, err = client.RequestContext(profile, identity)
+	}
 	if err != nil {
 		a.logger.Error("build open platform request context failed", "profile", profile.Name, "path", path, "identity", identity, "error", err.Error())
 		return nil, openplatform.RequestContext{}, err

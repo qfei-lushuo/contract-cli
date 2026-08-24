@@ -3,6 +3,7 @@ package openplatform_test
 import (
 	"bytes"
 	"context"
+	"errors"
 	"io"
 	"log/slog"
 	"net/http"
@@ -567,6 +568,170 @@ func TestRequestContextRequiresConfiguredBaseURLAndToken(t *testing.T) {
 	}
 }
 
+func TestClientDoRetriesClassifiedReadNetworkErrorOnce(t *testing.T) {
+	calls := 0
+	client := openplatform.New(openplatform.Options{HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		calls++
+		if calls == 1 {
+			return nil, temporaryNetworkError{}
+		}
+		return responseWithStatus(http.StatusOK, `{}`), nil
+	})}})
+	_, err := client.Do(context.Background(), openplatform.RequestContext{BaseURL: "https://example.test", AccessToken: "token", Identity: config.IdentityUser}, openplatform.Request{
+		Method: http.MethodPost, Path: "/open-apis/contract/v1/mcp/contracts/search", Body: []byte(`{}`), OperationKind: openplatform.OperationRead,
+	})
+	if err != nil || calls != 2 {
+		t.Fatalf("err=%v calls=%d", err, calls)
+	}
+}
+
+func TestClientDoNeverRetriesWriteAndReturnsUncertainError(t *testing.T) {
+	calls := 0
+	client := openplatform.New(openplatform.Options{HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		calls++
+		return nil, temporaryNetworkError{}
+	})}})
+	_, err := client.Do(context.Background(), openplatform.RequestContext{BaseURL: "https://example.test", AccessToken: "token", Identity: config.IdentityUser}, openplatform.Request{
+		Method: http.MethodPost, Path: "/open-apis/contract/v1/mcp/contracts", Body: []byte(`{}`), OperationKind: openplatform.OperationWrite,
+	})
+	var uncertain *openplatform.UncertainWriteError
+	if !errors.As(err, &uncertain) || calls != 1 {
+		t.Fatalf("err=%v calls=%d", err, calls)
+	}
+}
+
+func TestClientDoTreatsWriteServerErrorAsUncertainWithoutRetry(t *testing.T) {
+	calls := 0
+	client := openplatform.New(openplatform.Options{HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		calls++
+		return responseWithStatus(http.StatusBadGateway, `{"code":502}`), nil
+	})}})
+	_, err := client.Do(context.Background(), openplatform.RequestContext{BaseURL: "https://example.test", AccessToken: "token", Identity: config.IdentityUser}, openplatform.Request{
+		Method: http.MethodPost, Path: "/open-apis/contract/v1/mcp/contracts", Body: []byte(`{}`), OperationKind: openplatform.OperationWrite,
+	})
+	var uncertain *openplatform.UncertainWriteError
+	if !errors.As(err, &uncertain) || calls != 1 {
+		t.Fatalf("err=%v calls=%d", err, calls)
+	}
+}
+
+func TestClientDoDoesNotRefreshOnGenericUnauthorized(t *testing.T) {
+	refreshCalls := 0
+	client := openplatform.New(openplatform.Options{HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		return responseWithStatus(http.StatusUnauthorized, `{"code":401}`), nil
+	})}})
+	_, err := client.Do(context.Background(), openplatform.RequestContext{
+		BaseURL: "https://example.test", AccessToken: "token", Identity: config.IdentityUser,
+		RefreshAccessToken: func(context.Context, string) (string, error) {
+			refreshCalls++
+			return "refreshed", nil
+		},
+	}, openplatform.Request{Method: http.MethodGet, Path: "/open-apis/contract/v1/mcp/templates", OperationKind: openplatform.OperationRead})
+	var statusErr *openplatform.HTTPStatusError
+	if !errors.As(err, &statusErr) || refreshCalls != 0 {
+		t.Fatalf("err=%v refreshCalls=%d", err, refreshCalls)
+	}
+}
+
+func TestClientDoRefreshesOnceOnExplicitTokenExpired(t *testing.T) {
+	calls, refreshCalls := 0, 0
+	client := openplatform.New(openplatform.Options{HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		calls++
+		if calls == 1 {
+			return responseWithAuthenticationError(http.StatusUnauthorized, "token_expired", `{"code":401,"data":{"error_type":"token_expired"}}`), nil
+		}
+		if req.Header.Get("Authorization") != "Bearer refreshed" {
+			t.Fatalf("authorization = %q", req.Header.Get("Authorization"))
+		}
+		return responseWithStatus(http.StatusOK, `{}`), nil
+	})}})
+	requestContext := openplatform.RequestContext{
+		BaseURL: "https://example.test", AccessToken: "expired", Identity: config.IdentityUser,
+		RefreshAccessToken: func(context.Context, string) (string, error) {
+			refreshCalls++
+			return "refreshed", nil
+		},
+	}
+	_, err := client.Do(context.Background(), requestContext, openplatform.Request{
+		Method: http.MethodPost, Path: "/open-apis/contract/v1/mcp/contracts", Body: []byte(`{}`), OperationKind: openplatform.OperationWrite,
+	})
+	if err != nil || calls != 2 || refreshCalls != 1 {
+		t.Fatalf("err=%v calls=%d refreshCalls=%d", err, calls, refreshCalls)
+	}
+}
+
+func TestClientDoDoesNotRefreshOnUntrustedTokenExpiredResponse(t *testing.T) {
+	tests := []struct {
+		name     string
+		response *http.Response
+	}{
+		{
+			name:     "body without trusted header",
+			response: responseWithStatus(http.StatusUnauthorized, `{"data":{"error_type":"token_expired"}}`),
+		},
+		{
+			name:     "trusted header without body marker",
+			response: responseWithAuthenticationError(http.StatusUnauthorized, "token_expired", `{"code":401}`),
+		},
+		{
+			name:     "non unauthorized status",
+			response: responseWithAuthenticationError(http.StatusForbidden, "token_expired", `{"data":{"error_type":"token_expired"}}`),
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			calls, refreshCalls := 0, 0
+			client := openplatform.New(openplatform.Options{HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				calls++
+				return test.response, nil
+			})}})
+
+			_, err := client.Do(context.Background(), openplatform.RequestContext{
+				BaseURL: "https://example.test", AccessToken: "expired", Identity: config.IdentityUser,
+				RefreshAccessToken: func(context.Context, string) (string, error) {
+					refreshCalls++
+					return "refreshed", nil
+				},
+			}, openplatform.Request{
+				Method: http.MethodPost, Path: "/open-apis/contract/v1/mcp/contracts", Body: []byte(`{}`), OperationKind: openplatform.OperationWrite,
+			})
+
+			var statusErr *openplatform.HTTPStatusError
+			if !errors.As(err, &statusErr) || calls != 1 || refreshCalls != 0 {
+				t.Fatalf("err=%v calls=%d refreshCalls=%d", err, calls, refreshCalls)
+			}
+		})
+	}
+}
+
+func TestClientDoDoesNotReplayStreamingBodyAfterTokenExpired(t *testing.T) {
+	calls, refreshCalls := 0, 0
+	client := openplatform.New(openplatform.Options{HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+		calls++
+		return responseWithAuthenticationError(http.StatusUnauthorized, "token_expired", `{"data":{"error_type":"token_expired"}}`), nil
+	})}})
+	_, err := client.Do(context.Background(), openplatform.RequestContext{
+		BaseURL: "https://example.test", AccessToken: "expired", Identity: config.IdentityUser,
+		RefreshAccessToken: func(context.Context, string) (string, error) {
+			refreshCalls++
+			return "refreshed", nil
+		},
+	}, openplatform.Request{
+		Method: http.MethodPost, Path: "/open-apis/contract/v1/files/upload",
+		BodyReader: strings.NewReader("multipart body"), OperationKind: openplatform.OperationWrite,
+	})
+	if err == nil || !strings.Contains(err.Error(), "cannot be replayed") || calls != 1 || refreshCalls != 1 {
+		t.Fatalf("err=%v calls=%d refreshCalls=%d", err, calls, refreshCalls)
+	}
+}
+
+type temporaryNetworkError struct{}
+
+func (temporaryNetworkError) Error() string   { return "temporary network error" }
+func (temporaryNetworkError) Timeout() bool   { return true }
+func (temporaryNetworkError) Temporary() bool { return true }
+
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
 func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
@@ -587,4 +752,10 @@ func responseWithStatus(statusCode int, payload string) *http.Response {
 		Header:     make(http.Header),
 		Body:       io.NopCloser(strings.NewReader(payload)),
 	}
+}
+
+func responseWithAuthenticationError(statusCode int, errorType, payload string) *http.Response {
+	response := responseWithStatus(statusCode, payload)
+	response.Header.Set("X-Qfei-Open-Platform-Auth-Error", errorType)
+	return response
 }

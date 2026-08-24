@@ -1,6 +1,7 @@
 "use strict";
 
 const fs = require("fs");
+const crypto = require("crypto");
 const os = require("os");
 const path = require("path");
 const { execFileSync, spawnSync } = require("child_process");
@@ -51,50 +52,6 @@ function commandExists(command) {
   return result.status === 0;
 }
 
-function sourceCheckoutExists() {
-  return (
-    fs.existsSync(path.join(rootDir, "go.mod")) &&
-    fs.existsSync(path.join(rootDir, "cmd", "contract-cli", "main.go"))
-  );
-}
-
-function buildLdflags() {
-  const commit = readGitValue(["rev-parse", "--short", "HEAD"], "unknown");
-  const date = new Date().toISOString();
-  return `-s -w -X cn.qfei/contract-cli/internal/build.Version=${version} -X cn.qfei/contract-cli/internal/build.Commit=${commit} -X cn.qfei/contract-cli/internal/build.Date=${date}`;
-}
-
-function readGitValue(args, fallback) {
-  try {
-    return execFileSync("git", args, {
-      cwd: rootDir,
-      stdio: ["ignore", "pipe", "ignore"],
-      encoding: "utf8",
-    }).trim() || fallback;
-  } catch (_) {
-    return fallback;
-  }
-}
-
-function buildFromSource() {
-  if (!sourceCheckoutExists()) {
-    throw new Error("Go source checkout not found");
-  }
-  if (!commandExists("go")) {
-    throw new Error("go toolchain not found and no binary download URL configured");
-  }
-
-  fs.mkdirSync(binDir, { recursive: true });
-  execFileSync(
-    "go",
-    ["build", "-ldflags", buildLdflags(), "-o", destination, "./cmd/contract-cli"],
-    {
-      cwd: rootDir,
-      stdio: "inherit",
-    }
-  );
-}
-
 function downloadArchive(downloadURL, archivePath) {
   if (!commandExists("curl")) {
     throw new Error("curl not found");
@@ -117,6 +74,26 @@ function downloadArchive(downloadURL, archivePath) {
     curlArgs.unshift("--ssl-revoke-best-effort");
   }
   execFileSync("curl", curlArgs, { stdio: ["ignore", "ignore", "pipe"] });
+}
+
+function verifyArchiveChecksum(archivePath, checksumsPath) {
+  const archiveNameToVerify = path.basename(archivePath);
+  const line = fs
+    .readFileSync(checksumsPath, "utf8")
+    .split(/\r?\n/)
+    .map((value) => value.trim())
+    .find((value) => value.endsWith(`  ${archiveNameToVerify}`) || value.endsWith(` *${archiveNameToVerify}`));
+  if (!line) {
+    throw new Error(`checksum for ${archiveNameToVerify} not found`);
+  }
+  const expected = line.split(/\s+/)[0].toLowerCase();
+  if (!/^[a-f0-9]{64}$/.test(expected)) {
+    throw new Error(`invalid checksum for ${archiveNameToVerify}`);
+  }
+  const actual = crypto.createHash("sha256").update(fs.readFileSync(archivePath)).digest("hex");
+  if (actual !== expected) {
+    throw new Error(`checksum mismatch for ${archiveNameToVerify}`);
+  }
 }
 
 function extractArchive(archivePath, tempDir) {
@@ -157,6 +134,7 @@ function installFromBundledArchive() {
     return false;
   }
 
+  verifyArchiveChecksum(archivePath, path.join(rootDir, "dist", "release-assets", "checksums.txt"));
   installFromArchive(archivePath);
   return true;
 }
@@ -168,10 +146,13 @@ function installFromDownload(downloadBaseURL) {
 
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "contract-cli-"));
   const archivePath = path.join(tempDir, archiveName);
+  const checksumsPath = path.join(tempDir, "checksums.txt");
   const downloadURL = `${downloadBaseURL}/${archiveName}`;
 
   try {
     downloadArchive(downloadURL, archivePath);
+    downloadArchive(`${downloadBaseURL}/checksums.txt`, checksumsPath);
+    verifyArchiveChecksum(archivePath, checksumsPath);
     installFromArchive(archivePath);
   } finally {
     fs.rmSync(tempDir, { recursive: true, force: true });
@@ -187,28 +168,22 @@ function install() {
   }
 
   if (downloadBaseURL) {
-    try {
-      installFromDownload(downloadBaseURL);
-      console.log(`${binaryName} ${version} installed from release assets`);
-      return;
-    } catch (error) {
-      if (!sourceCheckoutExists()) {
-        throw error;
-      }
-      console.warn(`release download failed, falling back to local build: ${error.message}`);
-    }
+    installFromDownload(downloadBaseURL);
+    console.log(`${binaryName} ${version} installed from release assets`);
+    return;
   }
 
-  buildFromSource();
-  console.log(`${binaryName} ${version} built from local sources`);
+  throw new Error("download base URL template not configured and no bundled release archive is available");
 }
 
-try {
-  install();
-} catch (error) {
-  console.error(`Failed to install ${binaryName}: ${error.message}`);
-  console.error(
-    "Set CONTRACT_CLI_DOWNLOAD_BASE_URL_TEMPLATE to a real release address, or run npm install from a checkout that has Go sources."
-  );
-  process.exit(1);
+if (require.main === module) {
+  try {
+    install();
+  } catch (error) {
+    console.error(`Failed to install ${binaryName}: ${error.message}`);
+    console.error("Verify the release platform, download URL, and published checksums.txt, then retry installation.");
+    process.exit(1);
+  }
 }
+
+module.exports = { verifyArchiveChecksum };

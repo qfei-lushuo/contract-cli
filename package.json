@@ -1,6 +1,6 @@
 {
   "name": "@qfeius/contract-cli",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "description": "CLI for Qfei contract open platform",
   "bin": {
     "contract-cli": "scripts/run.js"
@@ -8,7 +8,8 @@
   "scripts": {
     "postinstall": "node scripts/install.js",
     "build": "./build.sh",
-    "test": "go test ./..."
+    "test": "go test ./...",
+    "test:installer": "node --test scripts/install.test.js"
   },
   "config": {
     "binaryName": "contract-cli",

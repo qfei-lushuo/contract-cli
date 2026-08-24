@@ -20,6 +20,7 @@ type ToolSpec struct {
 	Path           string
 	FixedQuery     url.Values
 	IdentityPolicy IdentityPolicy
+	OperationKind  OperationKind
 }
 
 func IdentityPolicyForPath(path string) IdentityPolicy {
@@ -81,6 +82,7 @@ var contractMCPToolSpecs = []ToolSpec{
 		Path:           "/open-apis/contract/v1/mcp/contracts/search",
 		FixedQuery:     url.Values{"user_id_type": {"user_id"}},
 		IdentityPolicy: IdentityPolicyUserOnly,
+		OperationKind:  OperationRead,
 	},
 	{
 		ToolName:       "get-contract-detail",
@@ -88,6 +90,7 @@ var contractMCPToolSpecs = []ToolSpec{
 		Path:           "/open-apis/contract/v1/mcp/contracts/{contractId}",
 		FixedQuery:     url.Values{"user_id_type": {"user_id"}},
 		IdentityPolicy: IdentityPolicyUserOnly,
+		OperationKind:  OperationRead,
 	},
 	{
 		ToolName:       "sync-user-groups",
@@ -95,6 +98,7 @@ var contractMCPToolSpecs = []ToolSpec{
 		Path:           "/open-apis/contract/v1/mcp/contracts/user-groups/sync",
 		FixedQuery:     url.Values{"user_id_type": {"user_id"}},
 		IdentityPolicy: IdentityPolicyUserOnly,
+		OperationKind:  OperationWrite,
 	},
 	{
 		ToolName:       "get-contract-text",
@@ -102,12 +106,14 @@ var contractMCPToolSpecs = []ToolSpec{
 		Path:           "/open-apis/contract/v1/mcp/contracts/{contractId}/text",
 		FixedQuery:     url.Values{"user_id_type": {"user_id"}},
 		IdentityPolicy: IdentityPolicyUserOnly,
+		OperationKind:  OperationRead,
 	},
 	{
 		ToolName:       "contract_category.list",
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/mcp/contract_categorys",
 		IdentityPolicy: IdentityPolicyUserOnly,
+		OperationKind:  OperationRead,
 	},
 	{
 		ToolName:       "get-vendors",
@@ -115,6 +121,7 @@ var contractMCPToolSpecs = []ToolSpec{
 		Path:           "/open-apis/contract/v1/mcp/vendors",
 		FixedQuery:     url.Values{"user_id_type": {"user_id"}},
 		IdentityPolicy: IdentityPolicyUserOnly,
+		OperationKind:  OperationRead,
 	},
 	{
 		ToolName:       "get-vendor-detail",
@@ -122,6 +129,7 @@ var contractMCPToolSpecs = []ToolSpec{
 		Path:           "/open-apis/contract/v1/mcp/vendors/{vendor_id}",
 		FixedQuery:     url.Values{"user_id_type": {"user_id"}},
 		IdentityPolicy: IdentityPolicyUserOnly,
+		OperationKind:  OperationRead,
 	},
 	{
 		ToolName:       "get-legal-entities",
@@ -129,6 +137,7 @@ var contractMCPToolSpecs = []ToolSpec{
 		Path:           "/open-apis/contract/v1/mcp/legal_entities",
 		FixedQuery:     url.Values{"user_id_type": {"user_id"}},
 		IdentityPolicy: IdentityPolicyUserOnly,
+		OperationKind:  OperationRead,
 	},
 	{
 		ToolName:       "get-legal-entity-detail",
@@ -136,6 +145,7 @@ var contractMCPToolSpecs = []ToolSpec{
 		Path:           "/open-apis/contract/v1/mcp/legal_entities/{legal_entity_id}",
 		FixedQuery:     url.Values{"user_id_type": {"user_id"}},
 		IdentityPolicy: IdentityPolicyUserOnly,
+		OperationKind:  OperationRead,
 	},
 	{
 		ToolName:       "get-field-config",
@@ -143,6 +153,7 @@ var contractMCPToolSpecs = []ToolSpec{
 		Path:           "/open-apis/contract/v1/mcp/config/config_list",
 		FixedQuery:     url.Values{"user_id_type": {"user_id"}},
 		IdentityPolicy: IdentityPolicyUserOnly,
+		OperationKind:  OperationRead,
 	},
 	{
 		ToolName:       "create-contracts",
@@ -150,29 +161,34 @@ var contractMCPToolSpecs = []ToolSpec{
 		Path:           "/open-apis/contract/v1/mcp/contracts",
 		FixedQuery:     url.Values{"user_id_type": {"user_id"}},
 		IdentityPolicy: IdentityPolicyUserOnly,
+		OperationKind:  OperationWrite,
 	},
 	{
 		ToolName:       "list-templates",
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/mcp/templates",
 		IdentityPolicy: IdentityPolicyUserOnly,
+		OperationKind:  OperationRead,
 	},
 	{
 		ToolName:       "get-template-detail",
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/mcp/templates/{template_id}",
 		IdentityPolicy: IdentityPolicyUserOnly,
+		OperationKind:  OperationRead,
 	},
 	{
 		ToolName:       "create-template-instance",
 		Method:         http.MethodPost,
 		Path:           "/open-apis/contract/v1/mcp/template_instances",
 		IdentityPolicy: IdentityPolicyUserOnly,
+		OperationKind:  OperationWrite,
 	},
 	{
 		ToolName:       "get-enum-values",
 		Method:         http.MethodGet,
 		Path:           "/open-apis/contract/v1/mcp/enum_values",
 		IdentityPolicy: IdentityPolicyUserOnly,
+		OperationKind:  OperationRead,
 	},
 }

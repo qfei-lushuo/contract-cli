@@ -84,17 +84,22 @@ contract-cli --version
 # 1. 初始化或更新 profile
 contract-cli config add --env prod --name contract
 
-# 2. 登录 user 身份
+# 2. 本地环境可继续使用旧 user 授权码模式
 contract-cli auth login --profile contract --as user
 
-# 3. 或登录 app 身份
+# 3. 豆包 / WorkBuddy 使用 Device Grant：init 立即返回授权信息
+contract-cli auth init --profile contract --output json
+# 用户完成手机号和企业授权后，只查询一次
+contract-cli auth complete --profile contract --output json
+
+# 4. 或登录 app 身份
 contract-cli auth login --profile contract --as app --app-id <id> --app-secret <secret>
 
-# 4. 查看授权状态
+# 5. 查看授权状态
 contract-cli auth status --profile contract --as user
 contract-cli auth status --profile contract --as app
 
-# 5. 开始查询
+# 6. 开始查询
 contract-cli contract get <contract-id> --profile contract --as user
 contract-cli mdm vendor list --profile contract --as user --page-size 10
 ```
@@ -137,9 +142,15 @@ contract-cli config add --env prod --name contract
 **Step 4：登录并验证**
 
 ```bash
-contract-cli auth login --profile contract --as user
+contract-cli auth init --profile contract --output json
+# Agent 展示授权信息，用户明确完成授权后：
+contract-cli auth complete --profile contract --output json
 contract-cli auth status --profile contract --as user
 ```
+
+WorkBuddy 使用 `qr_code_path` 交付原始 PNG 附件，AgentKit 使用 `qr_code_path`。豆包普通工作任务只展示 `verification_uri_complete` 和 `expires_at_display`，不展示二维码，也不读取或交付二维码文件。
+
+`auth init` 和 `auth complete` 都只请求一次。`complete` 返回 `pending` 时不持续轮询；请用户完成授权后再主动查询。返回 `uncertain`、`denied`、`expired` 或 `restart_required` 时禁止自动重试；用户明确同意重新授权后，才执行 `auth init --profile contract --output json --restart`。
 
 如用户提供应用凭证，也可以配置 app 身份：
 
@@ -189,6 +200,8 @@ contract-cli skills install --target ~/.codex/skills
 | Command | Description |
 | --- | --- |
 | `config add` | 初始化或更新 profile，写入开放平台地址、OAuth metadata 和 app token endpoint |
+| `auth init` | 发起或恢复 Device Grant；`--restart` 仅在用户明确同意后替换旧授权会话 |
+| `auth complete` | 单次查询 Device 授权结果，成功后安全保存 token |
 | `auth login --as user` | 走 OAuth 用户授权 |
 | `auth login --as app` | 使用 `appId + appSecret` 兑换 app token |
 | `auth status` | 查看 user 或 app 授权状态 |
@@ -199,6 +212,8 @@ contract-cli skills install --target ~/.codex/skills
 
 ```bash
 contract-cli config add --env prod --name contract
+contract-cli auth init --profile contract --output json
+contract-cli auth complete --profile contract --output json
 contract-cli auth login --profile contract --as user
 contract-cli auth login --profile contract --as app --app-id <id> --app-secret <secret>
 contract-cli auth status --profile contract --as user
@@ -377,7 +392,7 @@ make release-check
 make release-assets
 ```
 
-默认读取 `package.json` 的版本号，生成 `dist/release-assets/contract-cli-<version>-<os>-<arch>` 系列文件和 `checksums.txt`。这些文件需要上传到同名 GitHub Release，例如 `v1.0.0`。
+默认读取 `package.json` 的版本号，生成 macOS Intel/Apple Silicon、Windows amd64/arm64、Linux amd64/arm64 六类制品和 `checksums.txt`。npm 安装器必须校验对应 SHA-256，下载、校验或平台不匹配时直接失败，不回退到本地源码编译。这些文件需要上传到同名 GitHub Release，例如 `v1.0.0`。
 
 ### Stable Release
 

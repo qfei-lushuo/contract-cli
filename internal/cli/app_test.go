@@ -3,8 +3,10 @@ package cli_test
 import (
 	"bytes"
 	"context"
+	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -17,6 +19,7 @@ import (
 	"cn.qfei/contract-cli/internal/build"
 	"cn.qfei/contract-cli/internal/cli"
 	"cn.qfei/contract-cli/internal/config"
+	"cn.qfei/contract-cli/internal/credential"
 	updatecheck "cn.qfei/contract-cli/internal/update"
 )
 
@@ -935,7 +938,7 @@ func TestConfigAddUsesProdPresetByDefault(t *testing.T) {
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				switch req.URL.String() {
 				case "https://myaccount.qfei.cn/.well-known/oauth-authorization-server/contract":
-					return jsonResponse(`{"issuer":"common-organization-v2","authorization_endpoint":"https://example.test/oauth/authorize/contract","token_endpoint":"https://example.test/oauth/token/contract","registration_endpoint":"https://example.test/oauth/register/contract"}`), nil
+					return jsonResponse(`{"issuer":"common-organization-v2","authorization_endpoint":"https://myaccount.qfei.cn/api/public/oauth/authorize/contract","device_authorization_endpoint":"https://myaccount.qfei.cn/api/public/oauth/device-authorization/contract","token_endpoint":"https://myaccount.qfei.cn/api/public/oauth/token/contract","revocation_endpoint":"https://myaccount.qfei.cn/api/public/oauth/revoke/contract","registration_endpoint":"https://myaccount.qfei.cn/api/public/oauth/register/contract"}`), nil
 				default:
 					t.Fatalf("unexpected request url: %s", req.URL.String())
 					return nil, nil
@@ -958,8 +961,26 @@ func TestConfigAddUsesProdPresetByDefault(t *testing.T) {
 	if savedProfile.AuthorizationServerMetadataURL != "https://myaccount.qfei.cn/.well-known/oauth-authorization-server/contract" {
 		t.Fatalf("authorization server metadata url = %q", savedProfile.AuthorizationServerMetadataURL)
 	}
-	if savedProfile.Resource != "" {
+	if savedProfile.Resource != "https://open.qfei.cn" {
 		t.Fatalf("resource = %q", savedProfile.Resource)
+	}
+	if savedProfile.OpenPlatformBaseURL != "https://open.qfei.cn" {
+		t.Fatalf("open platform base url = %q", savedProfile.OpenPlatformBaseURL)
+	}
+	if savedProfile.Identities.User.DeviceClientID != "zscli_892efdadc11a3f53" {
+		t.Fatalf("device client id = %q", savedProfile.Identities.User.DeviceClientID)
+	}
+	if savedProfile.Identities.User.DeviceScope != "contract:full contract-review:full" {
+		t.Fatalf("device scope = %q", savedProfile.Identities.User.DeviceScope)
+	}
+	if savedProfile.Identities.User.DeviceAuthorizationEndpoint != "https://myaccount.qfei.cn/api/public/oauth/device-authorization/contract" {
+		t.Fatalf("device authorization endpoint = %q", savedProfile.Identities.User.DeviceAuthorizationEndpoint)
+	}
+	if savedProfile.Identities.User.TokenEndpoint != "https://myaccount.qfei.cn/api/public/oauth/token/contract" {
+		t.Fatalf("token endpoint = %q", savedProfile.Identities.User.TokenEndpoint)
+	}
+	if savedProfile.Identities.User.RevocationEndpoint != "https://myaccount.qfei.cn/api/public/oauth/revoke/contract" {
+		t.Fatalf("revocation endpoint = %q", savedProfile.Identities.User.RevocationEndpoint)
 	}
 
 	configContent, err := os.ReadFile(store.Path())
@@ -971,18 +992,27 @@ func TestConfigAddUsesProdPresetByDefault(t *testing.T) {
 	}
 }
 
-func TestConfigAddRejectsDevPreset(t *testing.T) {
+func TestConfigAddRejectsDevPresetBeforeNetworkRequest(t *testing.T) {
 	t.Parallel()
 
+	requestCount := 0
 	app := cli.New(cli.Options{
 		Stdout: &bytes.Buffer{},
 		Stderr: &bytes.Buffer{},
 		Store:  config.NewStore(t.TempDir()),
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requestCount++
+			t.Fatalf("dev preset must be rejected before network request: %s", req.URL.String())
+			return nil, nil
+		})},
 	})
 
 	err := app.Run(context.Background(), []string{"config", "add", "--name", "contract", "--env", "dev"})
-	if err == nil || !strings.Contains(err.Error(), `unsupported environment "dev"; supported environments: prod`) {
-		t.Fatalf("unexpected error: %v", err)
+	if err == nil || err.Error() != `unsupported environment "dev"; supported environments: prod` {
+		t.Fatalf("config add dev error = %v", err)
+	}
+	if requestCount != 0 {
+		t.Fatalf("network request count = %d, want 0", requestCount)
 	}
 }
 
@@ -1785,6 +1815,712 @@ func TestAuthLogoutAppKeepsUserTokenAndCredentials(t *testing.T) {
 
 type discoveryServer struct {
 	protectedResourceMetadataURL string
+}
+
+func TestAuthDeviceInitPreflightsCredentialStoreBeforeRemoteRequestOrProfileMutation(t *testing.T) {
+	store := config.NewStore(t.TempDir())
+	legacyToken := &config.Token{AccessToken: "legacy-access", Expiry: fixedCLINow().Add(time.Hour)}
+	profile := config.Profile{
+		Name: "contract", Environment: "prod", Resource: "https://open.qfei.cn", DefaultIdentity: config.IdentityUser,
+		Identities: config.Identities{User: config.UserIdentity{
+			AuthMode: config.UserAuthModeAuthorizationCode, Token: legacyToken,
+			DeviceAuthorizationEndpoint: "https://auth.example/device", TokenEndpoint: "https://auth.example/token/contract",
+			DeviceClientID: "device-client", DeviceScope: "contract:full",
+		}},
+	}
+	if err := store.UpsertProfile(profile, true); err != nil {
+		t.Fatal(err)
+	}
+	credentialErr := errors.New("credential backend unavailable")
+	credentials := &memoryDeviceCredentialStore{values: map[string]credential.DeviceCredential{}, loadErr: credentialErr}
+	requestCount := 0
+	app := cli.New(cli.Options{
+		Store: store, CredentialStore: credentials, Now: fixedCLINow,
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+			requestCount++
+			return nil, errors.New("remote request must not run")
+		})},
+	})
+
+	err := app.Run(context.Background(), []string{"auth", "init", "--profile", "contract", "--output", "json"})
+	if !errors.Is(err, credentialErr) {
+		t.Fatalf("auth init error = %v, want credential error", err)
+	}
+	if requestCount != 0 {
+		t.Fatalf("remote request count = %d, want 0", requestCount)
+	}
+	got, err := store.GetProfile("contract")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Identities.User.AuthMode != config.UserAuthModeAuthorizationCode || got.Identities.User.Token == nil || got.Identities.User.Token.AccessToken != "legacy-access" {
+		t.Fatalf("legacy profile was mutated: %+v", got.Identities.User)
+	}
+}
+
+func TestAuthDeviceInitQRCodeFailureDoesNotSwitchLegacyProfile(t *testing.T) {
+	store := config.NewStore(t.TempDir())
+	profile := config.Profile{
+		Name: "contract", Environment: "prod", Resource: "https://open.qfei.cn", DefaultIdentity: config.IdentityUser,
+		Identities: config.Identities{User: config.UserIdentity{
+			AuthMode:                    config.UserAuthModeAuthorizationCode,
+			Token:                       &config.Token{AccessToken: "legacy-access", Expiry: fixedCLINow().Add(time.Hour)},
+			DeviceAuthorizationEndpoint: "https://auth.example/device", TokenEndpoint: "https://auth.example/token/contract",
+			DeviceClientID: "device-client", DeviceScope: "contract:full",
+		}},
+	}
+	if err := store.UpsertProfile(profile, true); err != nil {
+		t.Fatal(err)
+	}
+	workspaceFile := filepath.Join(t.TempDir(), "not-a-directory")
+	if err := os.WriteFile(workspaceFile, []byte("file"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	credentials := &memoryDeviceCredentialStore{values: map[string]credential.DeviceCredential{}}
+	app := cli.New(cli.Options{
+		Store: store, CredentialStore: credentials, Now: fixedCLINow,
+		LookupEnv: func(name string) (string, bool) {
+			if name == "SKILL_SESSION_WORKSPACE" {
+				return workspaceFile, true
+			}
+			return "", false
+		},
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+			return jsonResponse(`{"device_code":"secret-device","user_code":"user-a","verification_uri":"https://myaccount.qfei.cn/device","verification_uri_complete":"https://myaccount.qfei.cn/device?user_code=user-a","expires_in":600}`), nil
+		})},
+	})
+
+	if err := app.Run(context.Background(), []string{"auth", "init", "--profile", "contract", "--output", "json"}); err == nil {
+		t.Fatal("auth init should fail when qr directory cannot be created")
+	}
+	got, err := store.GetProfile("contract")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Identities.User.AuthMode != config.UserAuthModeAuthorizationCode || got.Identities.User.Token == nil || got.Identities.User.Token.AccessToken != "legacy-access" {
+		t.Fatalf("legacy profile was mutated: %+v", got.Identities.User)
+	}
+}
+
+func TestDoubaoWorkTaskAuthInitRejectsUnwritableCredentialRootBeforeRemoteRequest(t *testing.T) {
+	workspace := t.TempDir()
+	t.Chdir(workspace)
+	if err := os.WriteFile(filepath.Join(workspace, ".contract-cli"), []byte("not a directory"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	store := config.NewStore(t.TempDir())
+	profile := config.Profile{
+		Name: "contract", Environment: "prod", Resource: "https://open.qfei.cn",
+		Identities: config.Identities{User: config.UserIdentity{
+			DeviceAuthorizationEndpoint: "https://auth.example/device", TokenEndpoint: "https://auth.example/token/contract",
+			DeviceClientID: "device-client", DeviceScope: "contract:full",
+		}},
+	}
+	if err := store.UpsertProfile(profile, true); err != nil {
+		t.Fatal(err)
+	}
+	requestCount := 0
+	app := cli.New(cli.Options{
+		Store: store,
+		LookupEnv: func(name string) (string, bool) {
+			if name == "SESSION_ID" {
+				return "doubao-task-a", true
+			}
+			return "", false
+		},
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+			requestCount++
+			return nil, errors.New("remote request must not run")
+		})},
+	})
+	if err := app.Run(context.Background(), []string{"auth", "init", "--profile", "contract", "--output", "json"}); err == nil {
+		t.Fatal("auth init unexpectedly accepted an unwritable credential root")
+	}
+	if requestCount != 0 {
+		t.Fatalf("remote request count = %d, want 0", requestCount)
+	}
+}
+
+func TestAuthDeviceInitAndCompleteDoNotExposeCredentialSecrets(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	store := config.NewStore(t.TempDir())
+	credentials := &memoryDeviceCredentialStore{values: map[string]credential.DeviceCredential{}}
+	profile := config.Profile{
+		Name: "contract", Environment: "prod", Resource: "https://open.qfei.cn",
+		OpenPlatformBaseURL: "https://open.qfei.cn", BusinessType: "contract",
+		Identities: config.Identities{User: config.UserIdentity{
+			DeviceAuthorizationEndpoint: "https://auth.example/device",
+			TokenEndpoint:               "https://auth.example/token/contract",
+			DeviceClientID:              "zscli_892efdadc11a3f53",
+			DeviceScope:                 "contract:full",
+		}},
+	}
+	if err := store.UpsertProfile(profile, true); err != nil {
+		t.Fatal(err)
+	}
+	workspace := t.TempDir()
+	app := cli.New(cli.Options{
+		Stdout: stdout, Stderr: stderr, Store: store, CredentialStore: credentials, Now: fixedCLINow,
+		LookupEnv: func(name string) (string, bool) {
+			if name == "SKILL_SESSION_WORKSPACE" {
+				return workspace, true
+			}
+			return "", false
+		},
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			switch req.URL.Path {
+			case "/device":
+				return jsonResponse(`{"device_code":"secret-device","user_code":"user-a","verification_uri":"https://myaccount.qfei.cn/device","verification_uri_complete":"https://myaccount.qfei.cn/device?user_code=user-a","expires_in":600}`), nil
+			case "/token/contract":
+				return jsonResponse(`{"access_token":"secret-access","refresh_token":"secret-refresh","token_type":"Bearer","scope":"contract:full","expires_in":3600}`), nil
+			default:
+				t.Fatalf("unexpected URL: %s", req.URL)
+				return nil, nil
+			}
+		})},
+	})
+
+	if err := app.Run(context.Background(), []string{"auth", "init", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatal(err)
+	}
+	initOutput := stdout.String() + stderr.String()
+	if strings.Contains(initOutput, "secret-device") {
+		t.Fatalf("auth init exposed device code: %s", initOutput)
+	}
+	stdout.Reset()
+	stderr.Reset()
+	if err := app.Run(context.Background(), []string{"auth", "complete", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatal(err)
+	}
+	completeOutput := stdout.String() + stderr.String()
+	for _, secret := range []string{"secret-device", "secret-access", "secret-refresh"} {
+		if strings.Contains(completeOutput, secret) {
+			t.Fatalf("auth complete exposed %q: %s", secret, completeOutput)
+		}
+	}
+	if !strings.Contains(stdout.String(), `"status":"succeeded"`) {
+		t.Fatalf("unexpected complete output: %s", stdout.String())
+	}
+	stored, err := credentials.Load("contract")
+	if err != nil || stored.Token == nil || stored.Token.AccessToken != "secret-access" || stored.Pending != nil {
+		t.Fatalf("stored credential = %+v, err=%v", stored, err)
+	}
+	profileAfter, err := store.GetProfile("contract")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if profileAfter.Identities.User.Token != nil {
+		t.Fatal("device token must not be written to profile")
+	}
+}
+
+func TestDoubaoRebuildRestoresEncryptedDeviceProfileAndContinuesBusinessRequest(t *testing.T) {
+	workspace := t.TempDir()
+	key := base64.StdEncoding.EncodeToString([]byte("01234567890123456789012345678901"))
+	lookupEnv := func(name string) (string, bool) {
+		switch name {
+		case "SKILL_SESSION_WORKSPACE":
+			return workspace, true
+		case "CONTRACT_CLI_CREDENTIAL_KEY_V1":
+			return key, true
+		default:
+			return "", false
+		}
+	}
+	credentials, err := credential.NewStore(credential.Options{LookupEnv: lookupEnv})
+	if err != nil {
+		t.Fatal(err)
+	}
+	firstStore := config.NewStore(t.TempDir())
+	profile := config.Profile{
+		Name: "contract", Environment: "prod", Resource: "https://open.qfei.cn",
+		OpenPlatformBaseURL: "https://open.qfei.cn", BusinessType: "contract", ClientName: "contract-cli",
+		DefaultIdentity: config.IdentityApp,
+		Identities: config.Identities{
+			User: config.UserIdentity{
+				AuthMode:                    config.UserAuthModeAuthorizationCode,
+				Token:                       &config.Token{AccessToken: "legacy-user-access"},
+				DeviceAuthorizationEndpoint: "https://auth.example/device",
+				TokenEndpoint:               "https://auth.example/token/contract",
+				RevocationEndpoint:          "https://auth.example/revoke/contract",
+				DeviceClientID:              "device-client",
+				DeviceScope:                 "contract:full",
+			},
+			App: config.AppIdentity{
+				AppID: "app-id", SecretRef: config.AppSecretKey("contract"),
+				Token: &config.Token{AccessToken: "app-access"},
+			},
+		},
+	}
+	if err := firstStore.UpsertProfile(profile, true); err != nil {
+		t.Fatal(err)
+	}
+	firstApp := cli.New(cli.Options{
+		Store: firstStore, CredentialStore: credentials, LookupEnv: lookupEnv, Now: fixedCLINow,
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path != "/device" {
+				t.Fatalf("unexpected init URL: %s", req.URL)
+			}
+			return jsonResponse(`{"device_code":"secret-device","user_code":"user-a","verification_uri":"https://myaccount.qfei.cn/device","verification_uri_complete":"https://myaccount.qfei.cn/device?user_code=user-a","expires_in":600}`), nil
+		})},
+	})
+	if err := firstApp.Run(context.Background(), []string{"auth", "init", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatal(err)
+	}
+
+	secondStore := config.NewStore(t.TempDir())
+	stdout := &bytes.Buffer{}
+	secondApp := cli.New(cli.Options{
+		Stdout: stdout, Store: secondStore, CredentialStore: credentials, LookupEnv: lookupEnv, Now: fixedCLINow,
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			switch req.URL.Path {
+			case "/token/contract":
+				return jsonResponse(`{"access_token":"secret-access","refresh_token":"secret-refresh","token_type":"Bearer","scope":"contract:full","expires_in":3600}`), nil
+			case "/open-apis/contract/v1/mcp/contracts/contract-1":
+				if req.Header.Get("Authorization") != "Bearer secret-access" {
+					t.Fatalf("unexpected authorization header: %q", req.Header.Get("Authorization"))
+				}
+				return jsonResponse(`{"code":0,"data":{"contract":{"contract_id":"contract-1"}}}`), nil
+			default:
+				t.Fatalf("unexpected rebuilt URL: %s", req.URL)
+				return nil, nil
+			}
+		})},
+	})
+	if err := secondApp.Run(context.Background(), []string{"auth", "complete", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatal(err)
+	}
+	stdout.Reset()
+	if err := secondApp.Run(context.Background(), []string{"contract", "get", "contract-1", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatal(err)
+	}
+	output := decodeJSONObject(t, stdout.Bytes())
+	data, ok := output["data"].(map[string]any)
+	if !ok {
+		t.Fatalf("business output data = %#v", output["data"])
+	}
+	contract, ok := data["contract"].(map[string]any)
+	if !ok || contract["contract_id"] != "contract-1" {
+		t.Fatalf("unexpected business output: %s", stdout.String())
+	}
+
+	restored, err := secondStore.GetProfile("contract")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restored.DefaultIdentity != config.IdentityUser || restored.Identities.User.AuthMode != config.UserAuthModeDevice {
+		t.Fatalf("restored profile is not a Device user profile: %+v", restored)
+	}
+	if restored.Identities.User.Token != nil || restored.Identities.App != (config.AppIdentity{}) {
+		t.Fatalf("restored profile contains credential-bearing identities: %+v", restored.Identities)
+	}
+	credentialFiles, err := os.ReadDir(filepath.Join(workspace, ".contract-cli", "credentials"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(credentialFiles) != 1 {
+		t.Fatalf("credential file count = %d, want 1", len(credentialFiles))
+	}
+	rawCredential, err := os.ReadFile(filepath.Join(workspace, ".contract-cli", "credentials", credentialFiles[0].Name()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, plaintext := range []string{"secret-device", "secret-access", "secret-refresh", "legacy-user-access", "app-access", "app-id"} {
+		if strings.Contains(string(rawCredential), plaintext) {
+			t.Fatalf("workspace credential contains plaintext %q", plaintext)
+		}
+	}
+}
+
+func TestDoubaoWorkTaskRestoresDeviceProfileFromTaskCredential(t *testing.T) {
+	workspace := t.TempDir()
+	t.Chdir(workspace)
+	lookupEnv := func(name string) (string, bool) {
+		if name == "SESSION_ID" {
+			return "doubao-task-a", true
+		}
+		return "", false
+	}
+	credentials, err := credential.NewStore(credential.Options{LookupEnv: lookupEnv})
+	if err != nil {
+		t.Fatal(err)
+	}
+	expiresAt := fixedCLINow().Add(10 * time.Minute)
+	if err := credentials.Save("contract", credential.DeviceCredential{
+		Pending: &credential.PendingTransaction{
+			Status: credential.PendingStatusPending, DeviceCode: "secret-device", ClientID: "device-client",
+			TokenEndpoint: "https://auth.example/token/contract", ExpiresAt: expiresAt,
+		},
+		DeviceProfile: &credential.DeviceProfile{
+			Name: "contract", Environment: "prod", OpenPlatformBaseURL: "https://open.qfei.cn",
+			Resource: "https://open.qfei.cn", BusinessType: "contract", ClientName: "contract-cli",
+			DeviceClientID: "device-client", DeviceScope: "contract:full",
+			DeviceAuthorizationEndpoint: "https://auth.example/device",
+			TokenEndpoint:               "https://auth.example/token/contract", RevocationEndpoint: "https://auth.example/revoke/contract",
+		},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	store := config.NewStore(t.TempDir())
+	stdout := &bytes.Buffer{}
+	app := cli.New(cli.Options{
+		Stdout: stdout, Store: store, LookupEnv: lookupEnv, Now: fixedCLINow,
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			if req.URL.Path != "/token/contract" {
+				t.Fatalf("unexpected URL: %s", req.URL)
+			}
+			return jsonResponse(`{"access_token":"secret-access","refresh_token":"secret-refresh","token_type":"Bearer","scope":"contract:full","expires_in":3600}`), nil
+		})},
+	})
+	if err := app.Run(context.Background(), []string{"auth", "complete", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), `"status":"succeeded"`) {
+		t.Fatalf("unexpected auth output: %s", stdout.String())
+	}
+	restored, err := store.GetProfile("contract")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if restored.Identities.User.AuthMode != config.UserAuthModeDevice || restored.Identities.User.Token != nil {
+		t.Fatalf("unexpected restored profile: %+v", restored)
+	}
+}
+
+func TestDoubaoWorkTaskReusesPendingWithinTaskAndIsolatesNewTask(t *testing.T) {
+	workspace := t.TempDir()
+	t.Chdir(workspace)
+	store := config.NewStore(t.TempDir())
+	profile := config.Profile{
+		Name: "contract", Environment: "prod", Resource: "https://open.qfei.cn",
+		Identities: config.Identities{User: config.UserIdentity{
+			DeviceAuthorizationEndpoint: "https://auth.example/device", TokenEndpoint: "https://auth.example/token/contract",
+			DeviceClientID: "device-client", DeviceScope: "contract:full",
+		}},
+	}
+	if err := store.UpsertProfile(profile, true); err != nil {
+		t.Fatal(err)
+	}
+	sessionID := "doubao-task-a"
+	lookupEnv := func(name string) (string, bool) {
+		if name == "SESSION_ID" {
+			return sessionID, true
+		}
+		return "", false
+	}
+	requestCount := 0
+	newApp := func() *cli.App {
+		return cli.New(cli.Options{
+			Stdout: &bytes.Buffer{}, Store: store, LookupEnv: lookupEnv, Now: fixedCLINow,
+			HTTPClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+				requestCount++
+				return jsonResponse(fmt.Sprintf(
+					`{"device_code":"device-%d","user_code":"user-%d","verification_uri":"https://auth.example/device","verification_uri_complete":"https://auth.example/device?user_code=user-%d","expires_in":600}`,
+					requestCount, requestCount, requestCount,
+				)), nil
+			})},
+		})
+	}
+
+	for range 2 {
+		if err := newApp().Run(context.Background(), []string{"auth", "init", "--profile", "contract", "--output", "json"}); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if requestCount != 1 {
+		t.Fatalf("same-task init requests = %d, want 1", requestCount)
+	}
+
+	sessionID = "doubao-task-b"
+	if err := newApp().Run(context.Background(), []string{"auth", "init", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatal(err)
+	}
+	if requestCount != 2 {
+		t.Fatalf("new-task init requests = %d, want 2", requestCount)
+	}
+}
+
+func TestDoubaoRebuildRejectsMissingOrInvalidDeviceProfileSnapshot(t *testing.T) {
+	validSnapshot := &credential.DeviceProfile{
+		Name:                        "contract",
+		Environment:                 "prod",
+		OpenPlatformBaseURL:         "https://open.qfei.cn",
+		Resource:                    "https://open.qfei.cn",
+		BusinessType:                "contract",
+		DeviceClientID:              "device-client",
+		DeviceScope:                 "contract:full",
+		DeviceAuthorizationEndpoint: "https://auth.example/device",
+		TokenEndpoint:               "https://auth.example/token/contract",
+	}
+	tests := []struct {
+		name     string
+		snapshot *credential.DeviceProfile
+	}{
+		{name: "missing snapshot"},
+		{name: "mismatched profile", snapshot: func() *credential.DeviceProfile {
+			value := *validSnapshot
+			value.Name = "another-profile"
+			return &value
+		}()},
+		{name: "missing required field", snapshot: func() *credential.DeviceProfile {
+			value := *validSnapshot
+			value.DeviceClientID = ""
+			return &value
+		}()},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			credentials := &memoryDeviceCredentialStore{values: map[string]credential.DeviceCredential{
+				"contract": {
+					Pending: &credential.PendingTransaction{
+						DeviceCode: "secret-device", TokenEndpoint: "https://auth.example/token/contract",
+						ClientID: "device-client", ExpiresAt: fixedCLINow().Add(time.Minute),
+					},
+					DeviceProfile: tt.snapshot,
+				},
+			}}
+			calls := 0
+			app := cli.New(cli.Options{
+				Store:           config.NewStore(t.TempDir()),
+				CredentialStore: credentials,
+				LookupEnv: func(name string) (string, bool) {
+					if name == "SKILL_SESSION_WORKSPACE" {
+						return t.TempDir(), true
+					}
+					return "", false
+				},
+				HTTPClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+					calls++
+					return nil, errors.New("unexpected HTTP request")
+				})},
+			})
+
+			err := app.Run(context.Background(), []string{"auth", "complete", "--profile", "contract", "--output", "json"})
+			if err == nil || !strings.Contains(err.Error(), "cannot restore Device profile") || !strings.Contains(err.Error(), "config add") {
+				t.Fatalf("error = %v", err)
+			}
+			if calls != 0 {
+				t.Fatalf("HTTP calls = %d, want 0", calls)
+			}
+		})
+	}
+}
+
+func TestAuthDeviceCompleteMapsSlowDownToPendingWithoutRetry(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	store := config.NewStore(t.TempDir())
+	profile := config.Profile{Name: "contract", Environment: "prod", Identities: config.Identities{User: config.UserIdentity{AuthMode: config.UserAuthModeDevice}}}
+	if err := store.UpsertProfile(profile, true); err != nil {
+		t.Fatal(err)
+	}
+	credentials := &memoryDeviceCredentialStore{values: map[string]credential.DeviceCredential{
+		"contract": {Pending: &credential.PendingTransaction{
+			DeviceCode: "device-a", TokenEndpoint: "https://auth.example/token/contract", ClientID: "client-a", ExpiresAt: fixedCLINow().Add(time.Minute),
+		}},
+	}}
+	calls := 0
+	app := cli.New(cli.Options{
+		Stdout: stdout, Store: store, CredentialStore: credentials, Now: fixedCLINow,
+		LookupEnv: func(name string) (string, bool) {
+			if name == "SKILL_SESSION_WORKSPACE" {
+				return t.TempDir(), true
+			}
+			return "", false
+		},
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+			calls++
+			response := jsonResponse(`{"error":"slow_down","error_description":"too many requests"}`)
+			response.StatusCode = http.StatusTooManyRequests
+			return response, nil
+		})},
+	})
+
+	if err := app.Run(context.Background(), []string{"auth", "complete", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatal(err)
+	}
+	if calls != 1 || !strings.Contains(stdout.String(), `"status":"pending"`) {
+		t.Fatalf("calls=%d output=%s", calls, stdout.String())
+	}
+}
+
+func TestAuthDeviceCompleteInvalidGrantKeepsTerminalStateAndRequiresExplicitRestart(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	store := config.NewStore(t.TempDir())
+	profile := config.Profile{Name: "contract", Environment: "prod", Identities: config.Identities{User: config.UserIdentity{AuthMode: config.UserAuthModeDevice}}}
+	if err := store.UpsertProfile(profile, true); err != nil {
+		t.Fatal(err)
+	}
+	credentials := &memoryDeviceCredentialStore{values: map[string]credential.DeviceCredential{
+		"contract": {Pending: &credential.PendingTransaction{
+			DeviceCode: "device-a", TokenEndpoint: "https://auth.example/token/contract", ClientID: "client-a", ExpiresAt: fixedCLINow().Add(time.Minute),
+		}},
+	}}
+	workspace := t.TempDir()
+	app := cli.New(cli.Options{
+		Stdout: stdout, Store: store, CredentialStore: credentials, Now: fixedCLINow,
+		LookupEnv: func(name string) (string, bool) {
+			if name == "SKILL_SESSION_WORKSPACE" {
+				return workspace, true
+			}
+			return "", false
+		},
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+			response := jsonResponse(`{"error":"invalid_grant","error_description":"already consumed"}`)
+			response.StatusCode = http.StatusBadRequest
+			return response, nil
+		})},
+	})
+	if err := app.Run(context.Background(), []string{"auth", "complete", "--profile", "contract", "--output", "json"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), `"status":"restart_required"`) {
+		t.Fatalf("output = %s", stdout.String())
+	}
+	stored, loadErr := credentials.Load("contract")
+	if loadErr != nil {
+		t.Fatal(loadErr)
+	}
+	if stored.Pending == nil || stored.Pending.EffectiveStatus() != credential.PendingStatusInvalidGrant {
+		t.Fatalf("consumed pending transaction should remain terminal: %+v", stored.Pending)
+	}
+}
+
+func TestAuthDeviceCompleteSaveFailureRequiresFreshAuthorizationWithoutRetry(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	store := config.NewStore(t.TempDir())
+	profile := config.Profile{Name: "contract", Environment: "prod", Identities: config.Identities{User: config.UserIdentity{AuthMode: config.UserAuthModeDevice}}}
+	if err := store.UpsertProfile(profile, true); err != nil {
+		t.Fatal(err)
+	}
+	credentials := &memoryDeviceCredentialStore{
+		values: map[string]credential.DeviceCredential{
+			"contract": {Pending: &credential.PendingTransaction{
+				DeviceCode: "secret-device", TokenEndpoint: "https://auth.example/token/contract", ClientID: "client-a", ExpiresAt: fixedCLINow().Add(time.Minute),
+			}},
+		},
+		saveErr:       errors.New("secure credential store unavailable"),
+		saveErrOnCall: 2,
+	}
+	calls := 0
+	app := cli.New(cli.Options{
+		Stdout: stdout, Stderr: stderr, Store: store, CredentialStore: credentials, Now: fixedCLINow,
+		LookupEnv: func(name string) (string, bool) {
+			if name == "SKILL_SESSION_WORKSPACE" {
+				return t.TempDir(), true
+			}
+			return "", false
+		},
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
+			calls++
+			return jsonResponse(`{"access_token":"secret-access","refresh_token":"secret-refresh","token_type":"Bearer","scope":"contract:full","expires_in":3600}`), nil
+		})},
+	})
+
+	err := app.Run(context.Background(), []string{"auth", "complete", "--profile", "contract", "--output", "json"})
+	if err == nil || !strings.Contains(err.Error(), "authorization result is uncertain") || !strings.Contains(err.Error(), "do not retry auth complete") {
+		t.Fatalf("error = %v, want uncertain authorization instruction", err)
+	}
+	if calls != 1 {
+		t.Fatalf("token endpoint calls = %d, want 1", calls)
+	}
+	combinedOutput := err.Error() + stdout.String() + stderr.String()
+	for _, secret := range []string{"secret-device", "secret-access", "secret-refresh"} {
+		if strings.Contains(combinedOutput, secret) {
+			t.Fatalf("auth complete save failure exposed %q: %s", secret, combinedOutput)
+		}
+	}
+}
+
+func TestAuthDeviceStatusAndLogoutUseCredentialStoreAndRevoke(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	store := config.NewStore(t.TempDir())
+	credentials := &memoryDeviceCredentialStore{values: map[string]credential.DeviceCredential{
+		"contract": {Token: &config.Token{
+			AccessToken: "secret-access", RefreshToken: "secret-refresh", Scope: "contract:full contract-review:full", Expiry: fixedCLINow().Add(time.Hour),
+		}},
+	}}
+	profile := config.Profile{
+		Name: "contract", Environment: "prod", DefaultIdentity: config.IdentityUser,
+		Identities: config.Identities{User: config.UserIdentity{
+			AuthMode: config.UserAuthModeDevice, DeviceClientID: "zscli_892efdadc11a3f53",
+			RevocationEndpoint: "https://auth.example/revoke/contract",
+		}},
+	}
+	if err := store.UpsertProfile(profile, true); err != nil {
+		t.Fatal(err)
+	}
+	revokeCalls := 0
+	app := cli.New(cli.Options{
+		Stdout: stdout, Store: store, CredentialStore: credentials, Now: fixedCLINow,
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			revokeCalls++
+			if err := req.ParseForm(); err != nil {
+				t.Fatal(err)
+			}
+			if req.Form.Get("token") != "secret-refresh" || req.Form.Get("client_id") != "zscli_892efdadc11a3f53" {
+				t.Fatalf("unexpected revoke form: %v", req.Form)
+			}
+			return &http.Response{StatusCode: http.StatusNoContent, Header: make(http.Header), Body: io.NopCloser(strings.NewReader(""))}, nil
+		})},
+	})
+	if err := app.Run(context.Background(), []string{"auth", "status", "--profile", "contract", "--as", "user"}); err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(stdout.String(), "Authorization: authorized") ||
+		!strings.Contains(stdout.String(), "Scope: contract:full contract-review:full") ||
+		strings.Contains(stdout.String(), "secret-") {
+		t.Fatalf("status output = %s", stdout.String())
+	}
+	stdout.Reset()
+	if err := app.Run(context.Background(), []string{"auth", "logout", "--profile", "contract", "--as", "user"}); err != nil {
+		t.Fatal(err)
+	}
+	if revokeCalls != 1 {
+		t.Fatalf("revoke calls = %d", revokeCalls)
+	}
+	if _, err := credentials.Load("contract"); !errors.Is(err, credential.ErrCredentialNotFound) {
+		t.Fatalf("credential must be deleted, err=%v", err)
+	}
+	if strings.Contains(stdout.String(), "secret-") {
+		t.Fatalf("logout output exposed credential: %s", stdout.String())
+	}
+}
+
+type memoryDeviceCredentialStore struct {
+	values        map[string]credential.DeviceCredential
+	loadErr       error
+	saveErr       error
+	saveErrOnCall int
+	saveCalls     int
+}
+
+func (s *memoryDeviceCredentialStore) Load(profileName string) (credential.DeviceCredential, error) {
+	if s.loadErr != nil {
+		return credential.DeviceCredential{}, s.loadErr
+	}
+	value, ok := s.values[profileName]
+	if !ok {
+		return credential.DeviceCredential{}, credential.ErrCredentialNotFound
+	}
+	return value, nil
+}
+
+func (s *memoryDeviceCredentialStore) Save(profileName string, value credential.DeviceCredential) error {
+	s.saveCalls++
+	if s.saveErr != nil && (s.saveErrOnCall == 0 || s.saveCalls == s.saveErrOnCall) {
+		return s.saveErr
+	}
+	s.values[profileName] = value
+	return nil
+}
+
+func (s *memoryDeviceCredentialStore) Delete(profileName string) error {
+	delete(s.values, profileName)
+	return nil
 }
 
 func newDiscoveryServer(t *testing.T) discoveryServer {

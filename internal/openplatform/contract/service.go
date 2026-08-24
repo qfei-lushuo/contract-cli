@@ -271,6 +271,7 @@ func (s *Service) UploadFile(ctx context.Context, requestContext openplatform.Re
 			"Content-Type": {contentType},
 		},
 		IdentityPolicy: openplatform.IdentityPolicyAny,
+		OperationKind:  openplatform.OperationWrite,
 	})
 }
 
@@ -435,6 +436,7 @@ func (s *Service) do(ctx context.Context, requestContext openplatform.RequestCon
 		Query:          spec.Query(query),
 		Body:           body,
 		IdentityPolicy: spec.IdentityPolicy,
+		OperationKind:  spec.OperationKind,
 	})
 }
 
