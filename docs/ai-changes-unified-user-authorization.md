@@ -205,3 +205,12 @@
 
 - 将 npm 正式包版本从已发布的 `1.7.0` 更新为 `1.8.0`，用于发布本次豆包、WorkBuddy 统一用户授权能力。
 - 本次只调整发布版本元数据，不修改 Device Grant、CredentialStore、Skills、业务命令或各环境访问边界。
+
+## 2026-08-24 正式包非生产残留状态防护
+
+- 正式 CLI 新增集中式生产 profile 校验，授权、身份切换、Token 刷新、注销及所有业务请求均在发送网络请求前拒绝非 `prod` 环境或非生产服务地址。
+- 对 Device profile 快照、待兑换会话的 Token Endpoint 和完整授权链接同步执行生产边界校验，历史非生产凭证不兑换、不刷新、不撤销也不自动迁移。
+- 用户显式使用同名 profile 重新执行生产 `config add` 时，清除当前运行环境中遗留的 user/app 身份、App Secret 和 Device 凭证，再保存干净的生产配置。
+- 正式包 HTTP Transport 增加最后一道防线，直接拒绝已知的非生产开放平台和授权域名，防止未来新调用链遗漏 profile 校验。
+- 正式 Skills 固定使用 `contract` profile 和 `prod` 环境，用户 Prompt 不能覆盖该规则；WorkBuddy 更新 Skill 后必须完全退出并新建任务，旧任务不会热加载新规则。
+- npm 正式包版本更新为 `1.8.3`；本次不修改 org-v2、org-fe、open-platform、Nacos 或其他服务端配置。

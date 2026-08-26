@@ -112,6 +112,7 @@ func New(options Options) *App {
 	if httpClient == nil {
 		httpClient = http.DefaultClient
 	}
+	httpClient = withProductionNetworkGuard(httpClient, logger)
 	opener := options.OpenBrowser
 	if opener == nil {
 		opener = oauth.OpenBrowser
@@ -274,8 +275,25 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 		return err
 	}
 
+	existing, found, err := a.store.LookupProfile(profileName)
+	if err != nil {
+		return err
+	}
+	resetAuthentication := false
+	if found {
+		resetAuthentication, err = a.productionProfileRequiresReset(existing)
+		if err != nil {
+			return err
+		}
+	}
+
 	if protectedResourceURL == "" {
 		protectedResourceURL = preset.ProtectedResourceMetadataURL
+	}
+	if protectedResourceURL != "" && !isProductionOriginURL(protectedResourceURL, productionOpenPlatformOrigin, true) {
+		err := productionProfileError(profileName)
+		a.logger.Error("config add rejected non-production metadata url", "profile", profileName, "error", err.Error())
+		return err
 	}
 	if redirectURL == "" {
 		redirectURL = preset.RedirectURL
@@ -303,11 +321,6 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 		return fmt.Errorf("environment %q is missing oauth discovery defaults", env)
 	}
 
-	existing, found, err := a.store.LookupProfile(profileName)
-	if err != nil {
-		return err
-	}
-
 	profile := config.Profile{
 		Name:                           profileName,
 		Environment:                    env,
@@ -321,7 +334,7 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 		ClientName:                     preset.ClientName,
 		DefaultIdentity:                config.IdentityUser,
 	}
-	if found {
+	if found && !resetAuthentication {
 		profile.Identities = existing.Identities
 		profile.DefaultIdentity = defaultIdentity(existing)
 	}
@@ -334,6 +347,15 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	profile.Identities.User.DeviceClientID = preset.DeviceClientID
 	profile.Identities.User.DeviceScope = preset.DeviceScope
 	profile.Identities.User.RedirectURL = redirectURL
+	if err := validateProductionProfile(profile); err != nil {
+		a.logger.Error("reject discovered non-production profile", "profile", profileName, "error", err.Error())
+		return err
+	}
+	if resetAuthentication {
+		if err := a.clearProfileAuthenticationState(profileName); err != nil {
+			return fmt.Errorf("clear non-production authentication state for profile %q: %w", profileName, err)
+		}
+	}
 
 	a.logger.Info("save profile", "profile", profileName, "environment", env)
 	if err := a.store.UpsertProfile(profile, true); err != nil {
@@ -394,7 +416,7 @@ func (a *App) runAuthLogin(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	profile, err := a.store.GetProfile(profileName)
+	profile, err := a.loadDeviceAwareProfile(profileName)
 	if err != nil {
 		return err
 	}
@@ -533,7 +555,7 @@ func (a *App) runAuthUse(args []string) error {
 	if err != nil {
 		return err
 	}
-	profile, err := a.store.GetProfile(profileName)
+	profile, err := a.loadDeviceAwareProfile(profileName)
 	if err != nil {
 		return err
 	}
