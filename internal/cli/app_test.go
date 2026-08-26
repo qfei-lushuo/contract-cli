@@ -853,7 +853,6 @@ func assertFileContent(t *testing.T, path, want string) {
 func TestConfigAddAndAuthStatus(t *testing.T) {
 	t.Parallel()
 
-	testServer := newDiscoveryServer(t)
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	store := config.NewStore(t.TempDir())
@@ -866,9 +865,9 @@ func TestConfigAddAndAuthStatus(t *testing.T) {
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				switch req.URL.Path {
 				case "/.well-known/oauth-protected-resource":
-					return jsonResponse(`{"resource":"https://example.test/mcp-servers","authorization_servers":["https://example.test/contract"],"scopes_supported":["mcp:tools","mcp:resources"]}`), nil
+					return jsonResponse(`{"resource":"https://open.qfei.cn","authorization_servers":["https://myaccount.qfei.cn/contract"],"scopes_supported":["mcp:tools","mcp:resources"]}`), nil
 				case "/.well-known/oauth-authorization-server/contract":
-					return jsonResponse(`{"issuer":"common-organization-v2","authorization_endpoint":"https://example.test/oauth/authorize/contract","token_endpoint":"https://example.test/oauth/token/contract","registration_endpoint":"https://example.test/oauth/register/contract"}`), nil
+					return jsonResponse(`{"issuer":"common-organization-v2","authorization_endpoint":"https://myaccount.qfei.cn/oauth/authorize/contract","token_endpoint":"https://myaccount.qfei.cn/oauth/token/contract","registration_endpoint":"https://myaccount.qfei.cn/oauth/register/contract"}`), nil
 				default:
 					t.Fatalf("unexpected request path: %s", req.URL.Path)
 					return nil, nil
@@ -881,7 +880,7 @@ func TestConfigAddAndAuthStatus(t *testing.T) {
 		"config", "add",
 		"--name", "contract",
 		"--env", "prod",
-		"--resource-metadata-url", testServer.protectedResourceMetadataURL,
+		"--resource-metadata-url", "https://open.qfei.cn/.well-known/oauth-protected-resource",
 		"--redirect-url", "http://127.0.0.1:19090/callback",
 	})
 	if err != nil {
@@ -1052,7 +1051,7 @@ func TestAuthLoginAppStoresCredentialsTokenAndSwitchesDefaultIdentity(t *testing
 			User: config.UserIdentity{},
 		},
 	}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 
@@ -1064,7 +1063,7 @@ func TestAuthLoginAppStoresCredentialsTokenAndSwitchesDefaultIdentity(t *testing
 		LookupEnv: func(string) (string, bool) { return "", false },
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.URL.String() != profile.AppTokenEndpoint {
+				if req.URL.String() != productionProfileFixture(profile).AppTokenEndpoint {
 					t.Fatalf("unexpected request url: %s", req.URL.String())
 				}
 				return jsonResponse(`{"code":0,"expire":7200,"msg":"ok","tenant_access_token":"app-token"}`), nil
@@ -1139,7 +1138,7 @@ func TestAuthLoginAcceptsLegacyBotIdentityAsApp(t *testing.T) {
 		AppTokenEndpoint: "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
 		DefaultIdentity:  config.IdentityUser,
 	}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 
@@ -1206,7 +1205,7 @@ func TestAuthLoginAppCredentialPriority(t *testing.T) {
 			},
 		},
 	}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 	if err := secrets.Set(config.AppSecretKey("contract"), "local-secret"); err != nil {
@@ -1305,7 +1304,7 @@ func TestAuthLoginAppFallsBackToLegacyEnvVariables(t *testing.T) {
 					},
 				},
 			}
-			if err := store.UpsertProfile(profile, true); err != nil {
+			if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 				t.Fatalf("UpsertProfile() error = %v", err)
 			}
 
@@ -1365,7 +1364,7 @@ func TestAuthLoginAppReturnsErrorWhenProfileMissesTokenEndpoint(t *testing.T) {
 		Environment:     "dev",
 		DefaultIdentity: config.IdentityUser,
 	}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 
@@ -1409,7 +1408,7 @@ func TestAuthLoginAppPersistsCredentialsWhenTokenExchangeFails(t *testing.T) {
 		AppTokenEndpoint: "https://dev-open.qtech.cn/open-apis/auth/v3/tenant_access_token/internal",
 		DefaultIdentity:  config.IdentityUser,
 	}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 
@@ -1490,7 +1489,7 @@ func TestAuthStatusAppAndAuthUse(t *testing.T) {
 			},
 		},
 	}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 	if err := secrets.Set(config.AppSecretKey("contract"), "app-secret"); err != nil {
@@ -1553,7 +1552,7 @@ func TestAuthStatusDefaultsToUserEvenWhenDefaultIdentityIsApp(t *testing.T) {
 			},
 		},
 	}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 	if err := secrets.Set(config.AppSecretKey("contract"), "app-secret"); err != nil {
@@ -1597,7 +1596,7 @@ func TestAuthStatusUserMarksExpiredToken(t *testing.T) {
 			},
 		},
 	}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 	secrets := config.NewSecretsStore(dir)
@@ -1701,7 +1700,7 @@ func TestAuthStatusAppHandlesConfiguredExpiredAndUnconfigured(t *testing.T) {
 			dir := t.TempDir()
 			store := config.NewStore(dir)
 			secrets := config.NewSecretsStore(dir)
-			if err := store.UpsertProfile(tc.profile, true); err != nil {
+			if err := store.UpsertProfile(productionProfileFixture(tc.profile), true); err != nil {
 				t.Fatalf("UpsertProfile() error = %v", err)
 			}
 			if tc.seedSecret != "" {
@@ -1766,7 +1765,7 @@ func TestAuthLogoutAppKeepsUserTokenAndCredentials(t *testing.T) {
 			},
 		},
 	}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 	if err := secrets.Set(config.AppSecretKey("contract"), "app-secret"); err != nil {
@@ -1824,11 +1823,11 @@ func TestAuthDeviceInitPreflightsCredentialStoreBeforeRemoteRequestOrProfileMuta
 		Name: "contract", Environment: "prod", Resource: "https://open.qfei.cn", DefaultIdentity: config.IdentityUser,
 		Identities: config.Identities{User: config.UserIdentity{
 			AuthMode: config.UserAuthModeAuthorizationCode, Token: legacyToken,
-			DeviceAuthorizationEndpoint: "https://auth.example/device", TokenEndpoint: "https://auth.example/token/contract",
+			DeviceAuthorizationEndpoint: "https://myaccount.qfei.cn/device", TokenEndpoint: "https://myaccount.qfei.cn/token/contract",
 			DeviceClientID: "device-client", DeviceScope: "contract:full",
 		}},
 	}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatal(err)
 	}
 	credentialErr := errors.New("credential backend unavailable")
@@ -1865,11 +1864,11 @@ func TestAuthDeviceInitQRCodeFailureDoesNotSwitchLegacyProfile(t *testing.T) {
 		Identities: config.Identities{User: config.UserIdentity{
 			AuthMode:                    config.UserAuthModeAuthorizationCode,
 			Token:                       &config.Token{AccessToken: "legacy-access", Expiry: fixedCLINow().Add(time.Hour)},
-			DeviceAuthorizationEndpoint: "https://auth.example/device", TokenEndpoint: "https://auth.example/token/contract",
+			DeviceAuthorizationEndpoint: "https://myaccount.qfei.cn/device", TokenEndpoint: "https://myaccount.qfei.cn/token/contract",
 			DeviceClientID: "device-client", DeviceScope: "contract:full",
 		}},
 	}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatal(err)
 	}
 	workspaceFile := filepath.Join(t.TempDir(), "not-a-directory")
@@ -1910,13 +1909,13 @@ func TestDoubaoWorkTaskAuthInitRejectsUnwritableCredentialRootBeforeRemoteReques
 	}
 	store := config.NewStore(t.TempDir())
 	profile := config.Profile{
-		Name: "contract", Environment: "prod", Resource: "https://open.qfei.cn",
+		Name: "contract", Environment: "prod", Resource: "https://open.qfei.cn", BusinessType: "contract",
 		Identities: config.Identities{User: config.UserIdentity{
-			DeviceAuthorizationEndpoint: "https://auth.example/device", TokenEndpoint: "https://auth.example/token/contract",
+			DeviceAuthorizationEndpoint: "https://myaccount.qfei.cn/device", TokenEndpoint: "https://myaccount.qfei.cn/token/contract",
 			DeviceClientID: "device-client", DeviceScope: "contract:full",
 		}},
 	}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatal(err)
 	}
 	requestCount := 0
@@ -1950,13 +1949,13 @@ func TestAuthDeviceInitAndCompleteDoNotExposeCredentialSecrets(t *testing.T) {
 		Name: "contract", Environment: "prod", Resource: "https://open.qfei.cn",
 		OpenPlatformBaseURL: "https://open.qfei.cn", BusinessType: "contract",
 		Identities: config.Identities{User: config.UserIdentity{
-			DeviceAuthorizationEndpoint: "https://auth.example/device",
-			TokenEndpoint:               "https://auth.example/token/contract",
+			DeviceAuthorizationEndpoint: "https://myaccount.qfei.cn/device",
+			TokenEndpoint:               "https://myaccount.qfei.cn/token/contract",
 			DeviceClientID:              "zscli_892efdadc11a3f53",
 			DeviceScope:                 "contract:full",
 		}},
 	}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatal(err)
 	}
 	workspace := t.TempDir()
@@ -2041,9 +2040,9 @@ func TestDoubaoRebuildRestoresEncryptedDeviceProfileAndContinuesBusinessRequest(
 			User: config.UserIdentity{
 				AuthMode:                    config.UserAuthModeAuthorizationCode,
 				Token:                       &config.Token{AccessToken: "legacy-user-access"},
-				DeviceAuthorizationEndpoint: "https://auth.example/device",
-				TokenEndpoint:               "https://auth.example/token/contract",
-				RevocationEndpoint:          "https://auth.example/revoke/contract",
+				DeviceAuthorizationEndpoint: "https://myaccount.qfei.cn/device",
+				TokenEndpoint:               "https://myaccount.qfei.cn/token/contract",
+				RevocationEndpoint:          "https://myaccount.qfei.cn/revoke/contract",
 				DeviceClientID:              "device-client",
 				DeviceScope:                 "contract:full",
 			},
@@ -2053,7 +2052,7 @@ func TestDoubaoRebuildRestoresEncryptedDeviceProfileAndContinuesBusinessRequest(
 			},
 		},
 	}
-	if err := firstStore.UpsertProfile(profile, true); err != nil {
+	if err := firstStore.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatal(err)
 	}
 	firstApp := cli.New(cli.Options{
@@ -2150,14 +2149,14 @@ func TestDoubaoWorkTaskRestoresDeviceProfileFromTaskCredential(t *testing.T) {
 	if err := credentials.Save("contract", credential.DeviceCredential{
 		Pending: &credential.PendingTransaction{
 			Status: credential.PendingStatusPending, DeviceCode: "secret-device", ClientID: "device-client",
-			TokenEndpoint: "https://auth.example/token/contract", ExpiresAt: expiresAt,
+			TokenEndpoint: "https://myaccount.qfei.cn/token/contract", ExpiresAt: expiresAt,
 		},
 		DeviceProfile: &credential.DeviceProfile{
 			Name: "contract", Environment: "prod", OpenPlatformBaseURL: "https://open.qfei.cn",
 			Resource: "https://open.qfei.cn", BusinessType: "contract", ClientName: "contract-cli",
 			DeviceClientID: "device-client", DeviceScope: "contract:full",
-			DeviceAuthorizationEndpoint: "https://auth.example/device",
-			TokenEndpoint:               "https://auth.example/token/contract", RevocationEndpoint: "https://auth.example/revoke/contract",
+			DeviceAuthorizationEndpoint: "https://myaccount.qfei.cn/device",
+			TokenEndpoint:               "https://myaccount.qfei.cn/token/contract", RevocationEndpoint: "https://myaccount.qfei.cn/revoke/contract",
 		},
 	}); err != nil {
 		t.Fatal(err)
@@ -2194,13 +2193,13 @@ func TestDoubaoWorkTaskReusesPendingWithinTaskAndIsolatesNewTask(t *testing.T) {
 	t.Chdir(workspace)
 	store := config.NewStore(t.TempDir())
 	profile := config.Profile{
-		Name: "contract", Environment: "prod", Resource: "https://open.qfei.cn",
+		Name: "contract", Environment: "prod", Resource: "https://open.qfei.cn", BusinessType: "contract",
 		Identities: config.Identities{User: config.UserIdentity{
-			DeviceAuthorizationEndpoint: "https://auth.example/device", TokenEndpoint: "https://auth.example/token/contract",
+			DeviceAuthorizationEndpoint: "https://myaccount.qfei.cn/device", TokenEndpoint: "https://myaccount.qfei.cn/token/contract",
 			DeviceClientID: "device-client", DeviceScope: "contract:full",
 		}},
 	}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatal(err)
 	}
 	sessionID := "doubao-task-a"
@@ -2217,7 +2216,7 @@ func TestDoubaoWorkTaskReusesPendingWithinTaskAndIsolatesNewTask(t *testing.T) {
 			HTTPClient: &http.Client{Transport: roundTripFunc(func(_ *http.Request) (*http.Response, error) {
 				requestCount++
 				return jsonResponse(fmt.Sprintf(
-					`{"device_code":"device-%d","user_code":"user-%d","verification_uri":"https://auth.example/device","verification_uri_complete":"https://auth.example/device?user_code=user-%d","expires_in":600}`,
+					`{"device_code":"device-%d","user_code":"user-%d","verification_uri":"https://myaccount.qfei.cn/device","verification_uri_complete":"https://myaccount.qfei.cn/device?user_code=user-%d","expires_in":600}`,
 					requestCount, requestCount, requestCount,
 				)), nil
 			})},
@@ -2251,8 +2250,8 @@ func TestDoubaoRebuildRejectsMissingOrInvalidDeviceProfileSnapshot(t *testing.T)
 		BusinessType:                "contract",
 		DeviceClientID:              "device-client",
 		DeviceScope:                 "contract:full",
-		DeviceAuthorizationEndpoint: "https://auth.example/device",
-		TokenEndpoint:               "https://auth.example/token/contract",
+		DeviceAuthorizationEndpoint: "https://myaccount.qfei.cn/device",
+		TokenEndpoint:               "https://myaccount.qfei.cn/token/contract",
 	}
 	tests := []struct {
 		name     string
@@ -2276,7 +2275,7 @@ func TestDoubaoRebuildRejectsMissingOrInvalidDeviceProfileSnapshot(t *testing.T)
 			credentials := &memoryDeviceCredentialStore{values: map[string]credential.DeviceCredential{
 				"contract": {
 					Pending: &credential.PendingTransaction{
-						DeviceCode: "secret-device", TokenEndpoint: "https://auth.example/token/contract",
+						DeviceCode: "secret-device", TokenEndpoint: "https://myaccount.qfei.cn/token/contract",
 						ClientID: "device-client", ExpiresAt: fixedCLINow().Add(time.Minute),
 					},
 					DeviceProfile: tt.snapshot,
@@ -2313,12 +2312,12 @@ func TestAuthDeviceCompleteMapsSlowDownToPendingWithoutRetry(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	store := config.NewStore(t.TempDir())
 	profile := config.Profile{Name: "contract", Environment: "prod", Identities: config.Identities{User: config.UserIdentity{AuthMode: config.UserAuthModeDevice}}}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatal(err)
 	}
 	credentials := &memoryDeviceCredentialStore{values: map[string]credential.DeviceCredential{
 		"contract": {Pending: &credential.PendingTransaction{
-			DeviceCode: "device-a", TokenEndpoint: "https://auth.example/token/contract", ClientID: "client-a", ExpiresAt: fixedCLINow().Add(time.Minute),
+			DeviceCode: "device-a", TokenEndpoint: "https://myaccount.qfei.cn/token/contract", ClientID: "client-a", ExpiresAt: fixedCLINow().Add(time.Minute),
 		}},
 	}}
 	calls := 0
@@ -2350,12 +2349,12 @@ func TestAuthDeviceCompleteInvalidGrantKeepsTerminalStateAndRequiresExplicitRest
 	stdout := &bytes.Buffer{}
 	store := config.NewStore(t.TempDir())
 	profile := config.Profile{Name: "contract", Environment: "prod", Identities: config.Identities{User: config.UserIdentity{AuthMode: config.UserAuthModeDevice}}}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatal(err)
 	}
 	credentials := &memoryDeviceCredentialStore{values: map[string]credential.DeviceCredential{
 		"contract": {Pending: &credential.PendingTransaction{
-			DeviceCode: "device-a", TokenEndpoint: "https://auth.example/token/contract", ClientID: "client-a", ExpiresAt: fixedCLINow().Add(time.Minute),
+			DeviceCode: "device-a", TokenEndpoint: "https://myaccount.qfei.cn/token/contract", ClientID: "client-a", ExpiresAt: fixedCLINow().Add(time.Minute),
 		}},
 	}}
 	workspace := t.TempDir()
@@ -2393,13 +2392,13 @@ func TestAuthDeviceCompleteSaveFailureRequiresFreshAuthorizationWithoutRetry(t *
 	stderr := &bytes.Buffer{}
 	store := config.NewStore(t.TempDir())
 	profile := config.Profile{Name: "contract", Environment: "prod", Identities: config.Identities{User: config.UserIdentity{AuthMode: config.UserAuthModeDevice}}}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatal(err)
 	}
 	credentials := &memoryDeviceCredentialStore{
 		values: map[string]credential.DeviceCredential{
 			"contract": {Pending: &credential.PendingTransaction{
-				DeviceCode: "secret-device", TokenEndpoint: "https://auth.example/token/contract", ClientID: "client-a", ExpiresAt: fixedCLINow().Add(time.Minute),
+				DeviceCode: "secret-device", TokenEndpoint: "https://myaccount.qfei.cn/token/contract", ClientID: "client-a", ExpiresAt: fixedCLINow().Add(time.Minute),
 			}},
 		},
 		saveErr:       errors.New("secure credential store unavailable"),
@@ -2447,10 +2446,10 @@ func TestAuthDeviceStatusAndLogoutUseCredentialStoreAndRevoke(t *testing.T) {
 		Name: "contract", Environment: "prod", DefaultIdentity: config.IdentityUser,
 		Identities: config.Identities{User: config.UserIdentity{
 			AuthMode: config.UserAuthModeDevice, DeviceClientID: "zscli_892efdadc11a3f53",
-			RevocationEndpoint: "https://auth.example/revoke/contract",
+			RevocationEndpoint: "https://myaccount.qfei.cn/revoke/contract",
 		}},
 	}
-	if err := store.UpsertProfile(profile, true); err != nil {
+	if err := store.UpsertProfile(productionProfileFixture(profile), true); err != nil {
 		t.Fatal(err)
 	}
 	revokeCalls := 0

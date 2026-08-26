@@ -29,10 +29,11 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 		t.Fatalf("WriteFile(template) error = %v", err)
 	}
 
-	profile := config.Profile{
+	profile := productionProfileFixture(config.Profile{
 		Name:                "contract",
-		Environment:         "dev",
-		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
+		Environment:         "prod",
+		OpenPlatformBaseURL: "https://open.qfei.cn",
+		Resource:            "https://open.qfei.cn",
 		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
 			User: config.UserIdentity{
@@ -50,7 +51,7 @@ func TestMCPCommandsUseUserIdentityAndExpectedEndpoints(t *testing.T) {
 				},
 			},
 		},
-	}
+	})
 	if err := store.UpsertProfile(profile, true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
@@ -431,10 +432,11 @@ func TestStructuredUserOnlyMCPCommandRejectsAppIdentity(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	store := config.NewStore(t.TempDir())
-	if err := store.UpsertProfile(config.Profile{
+	if err := store.UpsertProfile(productionProfileFixture(config.Profile{
 		Name:                "contract",
-		Environment:         "dev",
-		OpenPlatformBaseURL: "https://dev-open.qtech.cn",
+		Environment:         "prod",
+		OpenPlatformBaseURL: "https://open.qfei.cn",
+		Resource:            "https://open.qfei.cn",
 		DefaultIdentity:     config.IdentityApp,
 		Identities: config.Identities{
 			User: config.UserIdentity{
@@ -452,7 +454,7 @@ func TestStructuredUserOnlyMCPCommandRejectsAppIdentity(t *testing.T) {
 				},
 			},
 		},
-	}, true); err != nil {
+	}), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
 	}
 

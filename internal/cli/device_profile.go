@@ -15,6 +15,13 @@ func (a *App) loadDeviceAwareProfile(profileName string) (config.Profile, error)
 		return config.Profile{}, err
 	}
 	if found {
+		if err := validateProductionProfile(profile); err != nil {
+			a.logger.Error("reject non-production profile", "profile", profile.Name, "error", err.Error())
+			return config.Profile{}, err
+		}
+		if err := a.validateProductionDeviceCredentialIfAvailable(profile); err != nil {
+			return config.Profile{}, err
+		}
 		return profile, nil
 	}
 
@@ -54,6 +61,14 @@ func (a *App) loadDeviceAwareProfile(profileName string) (config.Profile, error)
 	profile, err = restoreDeviceProfile(normalizedProfileName, stored.DeviceProfile)
 	if err != nil {
 		a.logger.Error("validate encrypted Device profile failed", "profile", normalizedProfileName, "error", err.Error())
+		return config.Profile{}, err
+	}
+	if err := validateProductionProfile(profile); err != nil {
+		a.logger.Error("reject non-production Device profile snapshot", "profile", normalizedProfileName, "error", err.Error())
+		return config.Profile{}, err
+	}
+	if err := validateProductionPendingTransaction(normalizedProfileName, stored.Pending); err != nil {
+		a.logger.Error("reject non-production Device pending state during profile restore", "profile", normalizedProfileName, "error", err.Error())
 		return config.Profile{}, err
 	}
 	if err := a.store.SaveProfile(profile); err != nil {
