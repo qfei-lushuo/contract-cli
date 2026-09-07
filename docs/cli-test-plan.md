@@ -219,23 +219,23 @@ Installed skill: contract-cli-shared
 contract-cli skills install --target "$SKILLS_TARGET" --force
 ```
 
-### 3.7 版本检查与升级提示测试
+### 3.7 版本检查、自更新与升级提示测试
 
 用途：验证 CLI 可以发现 npm 远端新版本，并且自动提示不会频繁打扰用户。
 
-手动检查 beta 渠道：
+手动检查 npm `latest`：
 
 ```bash
-contract-cli update check --channel beta
-contract-cli update check --channel beta --json
+contract-cli update --check
+contract-cli update --check --json
 ```
 
 预期结果：
 
 | 场景 | 预期 |
 | --- | --- |
-| 远端 beta 比本地新 | 默认输出文本；带 `--json` 时 `action=update_available`，并带 `command` |
-| 远端 beta 与本地一致 | 默认输出文本；带 `--json` 时 `action=already_up_to_date`，不带 `_notice.update` |
+| 远端 latest 比本地新 | 默认输出文本；带 `--json` 时 `action=update_available`，并带 `auto_update` |
+| 远端 latest 与本地一致 | 默认输出文本；带 `--json` 时 `action=already_up_to_date`，不带 `_notice.update` |
 | 本地是源码 `dev` 或 git hash 构建 | 默认输出跳过文本；带 `--json` 时 `action=skipped`，不访问 npm registry |
 
 自动提示检查：
@@ -249,13 +249,13 @@ contract-cli contract get <contract-id> --profile "$PROFILE" --output json
 
 - 普通命令先同步读取 `update-check.json`，缓存中有可升级版本时，JSON object 输出包含 `_notice.update`，stderr 不输出旧版升级文本。
 - fresh cache 无可升级版本时，当前命令不注入 `_notice.update`，也不请求远端。
-- cache 缺失、channel 不匹配或超过 24 小时时，当前命令会在短超时内同步刷新并写入 `update-check.json`；远端返回新版本时当前命令可直接注入 `_notice.update`。
+- cache 缺失或超过 24 小时时，CLI 在后台刷新并写入 `update-check.json`，不等待网络；新结果最迟在后续命令中提示。
 - 网络失败时原命令仍然继续执行，不应因为版本刷新失败而退出；失败结果不写入缓存。
 
 关闭自动检查：
 
 ```bash
-CONTRACT_CLI_NO_UPDATE_CHECK=1 contract-cli skills list
+CONTRACT_CLI_NO_UPDATE_NOTIFIER=1 contract-cli skills list
 ```
 
 预期结果：
@@ -1359,23 +1359,21 @@ npm publish --dry-run --tag beta
 ### 13.1 手动版本检查
 
 ```bash
-contract-cli update check
-contract-cli update check --channel beta
-contract-cli update check --channel latest
-contract-cli update check --channel latest --json
+contract-cli update --check
+contract-cli update --check --json
+contract-cli update
+contract-cli update --force
 ```
 
 预期结果：
 
-- 当前版本是预发布版本时，不传 `--channel` 默认检查 npm `beta` dist-tag。
-- 当前版本是稳定版本时，不传 `--channel` 默认检查 npm `latest` dist-tag。
+- 不论当前版本是稳定版还是预发布版，远端只读取 npm `latest`。
 - 不带 `--json` 时输出文本提示，和飞书 `lark-cli update --check` 保持一致。
 - 带 `--json` 时输出飞书式顶层字段：`ok`、`previous_version`、`current_version`、`latest_version`、`action`、`message`。
-- 远端版本更新时，`action=update_available`，并带 `command`。
-- `command` 为 `npm install -g @qfeius/contract-cli@<channel> --registry https://registry.npmjs.org`。
+- 远端版本更新时，`action=update_available`，并带 `auto_update`、Release 和 Changelog 地址。
 - 远端版本未更新时，`action=already_up_to_date`。
 - 本地是 `dev`、`unknown` 或非语义化版本时，`action=skipped`。
-- 手动 `update check --json` 不注入 `_notice.update`。
+- 手动 `update --check --json` 不注入 `_notice.update`。
 
 ### 13.2 自动升级提示
 
@@ -1389,17 +1387,17 @@ contract-cli contract search --profile "$PROFILE" --data '{}'
 预期结果：
 
 - 业务命令先同步读取本地 cache；fresh cache 24 小时内不再请求 npm registry，因此刚发布的新包可能要等缓存过期后才提示。
-- cache 缺失、channel 不匹配或过期时，当前命令会在短超时内同步刷新 cache。
+- cache 缺失或过期时，当前命令后台刷新 cache，不增加业务命令的网络等待时间。
 - 发现缓存或远端结果中有新版本时，JSON object 输出注入 `_notice.update`；stderr 不输出旧版升级文本。
 - `--raw`、yaml、table、纯文本命令不注入 `_notice.update`。
 - 刷新失败不阻断原命令；失败结果不写入缓存。
-- `contract-cli version`、`contract-cli update check` 自身不触发自动检查。
+- `contract-cli version`、`contract-cli update` 自身不触发自动检查。
 - CI 环境跳过自动远端检查。
 
 关闭自动检查：
 
 ```bash
-CONTRACT_CLI_NO_UPDATE_CHECK=1 contract-cli skills list
+CONTRACT_CLI_NO_UPDATE_NOTIFIER=1 contract-cli skills list
 ```
 
 预期结果：
@@ -1411,17 +1409,19 @@ CONTRACT_CLI_NO_UPDATE_CHECK=1 contract-cli skills list
 
 ```bash
 npm view @qfeius/contract-cli dist-tags --registry https://registry.npmjs.org
-npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org
+npm install -g @qfeius/contract-cli@latest --registry https://registry.npmjs.org
 contract-cli --version
-contract-cli update check --channel beta
+contract-cli update --check
+contract-cli update
 ```
 
 检查点：
 
-- npm `beta` dist-tag 指向预期版本。
+- npm `latest` dist-tag 指向预期版本。
 - GitHub Release 中存在对应版本的多平台二进制附件。
-- 已安装版本落后于远端 beta 时，CLI 能提示升级。
-- 已安装版本等于远端 beta 时，CLI 显示已是最新。
+- 已安装版本落后于远端 latest 时，CLI 能提示并通过 npm/pnpm 自动升级。
+- 升级完成后 `contract-cli --version` 必须精确等于 latest。
+- Windows 模拟安装中断时，下一次 npm wrapper 启动能够从 `.old` 恢复。
 
 ## 14. Agent skills 单独安装专项测试
 
@@ -1633,7 +1633,7 @@ go build -trimpath -o dist/local-test/contract-cli ./cmd/contract-cli
 
 ### 17.2 从真实客户端调用
 
-分别让 Doubao 和 WorkBuddy 直接执行测试二进制的绝对路径：
+分别让 Doubao、Doubao Work、WorkBuddy 和 Codex 直接执行测试二进制的绝对路径：
 
 ```text
 <仓库绝对路径>/dist/local-test/contract-cli environment inspect --output json --include-processes
@@ -1642,7 +1642,9 @@ go build -trimpath -o dist/local-test/contract-cli ./cmd/contract-cli
 预期结果：
 
 - Doubao 调用返回 `channel_type=doubao`。
+- Doubao Work 调用返回 `channel_type=doubaoWork`。
 - WorkBuddy 调用返回 `channel_type=workbuddy`。
+- Codex 调用返回 `channel_type=codex`。
 - macOS 官方签名匹配时返回 `evidence_type=macos_code_signature`、`confidence=high`。
 - Windows 商店包身份匹配时返回 `evidence_type=windows_package_identity`、`confidence=high`。
 - Windows 普通桌面程序通过 WinVerifyTrust 且证书指纹与路径均匹配时，返回 `evidence_type=windows_authenticode`、`confidence=high`。
@@ -1652,23 +1654,35 @@ go build -trimpath -o dist/local-test/contract-cli ./cmd/contract-cli
 
 ### 17.3 真实业务请求 Hook
 
-使用已经授权的 profile，从 Doubao 和 WorkBuddy 分别调用同一条只读业务命令，并在 Higress/OpenPlatform 接收端检查：
+使用已经授权的 profile，从 Doubao、Doubao Work、WorkBuddy 和 Codex 分别调用同一条只读业务命令，并在 Higress/OpenPlatform 接收端检查：
 
 ```text
-X-Qfei-Request-Source-Type: cli
-X-Qfei-Channel-Type: doubao | workbuddy | codex | unknown
+X-Qfei-Channel-Type: cli
+X-Qfei-Agent-Source-Type: doubao | doubaoWork | workbuddy | codex | unknown
+X-Qfei-Product-Code: contract
 X-Qfei-Evidence-Type: ...
 X-Qfei-Channel-Confidence: ...
 X-Qfei-Detector-Version: process-ancestry-v2
 X-Qfei-Rule-Id: ...
+traceparent: 00-<32 位 trace_id>-<16 位 span_id>-01
+X-Log-Id: <与 traceparent 相同的 trace_id>
 ```
 
 检查点：
 
 - 每个实际 HTTP attempt 前探测函数调用一次。
 - 请求重试或 Token 刷新后的业务请求重放会再次探测。
+- 单次完整探测共享 5 秒预算，卡住时终止并回收探测 helper；macOS/Linux 的签名子进程也应终止。预算之外只允许短暂的进程回收开销。
+- 探测自身超时或失败：该次请求携带 `agent-source-type=unknown`、`evidence-type=none`、`confidence=unknown`，保留 `channel-type=cli`、`product-code=contract` 和 detector version，清除旧 Rule ID；业务照常发送，不增加业务重试。
+- 超时之后下一次请求必须重新探测；用户主动取消则不发业务请求。普通请求和流式请求均覆盖。
 - 调用环境没有写入 profile、OAuth Token 或其他持久化配置。
 - Header 不包含 PID、进程路径或完整命令行。
+- `traceparent` 符合 W3C 格式，且其中的 `trace_id` 与 `X-Log-Id` 完全相同。
+- 同一逻辑请求发生网络重试或 Token 刷新重放时，所有 attempt 的 `trace_id` 相同、`span_id` 不同。
+- 两次独立业务命令产生不同的 `trace_id`。
+- 服务端返回错误时，CLI 最终错误信息包含 `trace_id=<值>`，可复制该值检索日志或 Trace。
+
+CLI 单元测试只能保证 Header 已写入出站请求。完整链路验收还需在部署环境中用该 `trace_id` 检查：OpenPlatform 入口日志的 `X-Log-Id` 等于该值，并且 Trace 查询能返回相同 `trace_id` 的下游 spans；若不一致，应检查 Higress 和服务间 HTTP 客户端是否保留 `traceparent`。
 
 ### 17.4 不发布 npm 的本地安装包
 
@@ -1693,11 +1707,11 @@ go build -trimpath -o dist/local-test/contract-cli.exe ./cmd/contract-cli
 & (Resolve-Path ./dist/local-test/contract-cli.exe) environment inspect --output json --include-processes
 ```
 
-先在普通 PowerShell 运行一次，通常应为 `channel_type=unknown`。然后分别让 Doubao、WorkBuddy 或 Codex 直接调用同一个 `contract-cli.exe` 绝对路径。诊断重点：
+先在普通 PowerShell 运行一次，通常应为 `channel_type=unknown`。然后分别让 Doubao、Doubao Work、WorkBuddy 或 Codex 直接调用同一个 `contract-cli.exe` 绝对路径。诊断重点：
 
 - `matched_process` 应落在真实客户端祖先进程，而不是 PowerShell、cmd 或 Terminal。
 - Codex 商店包应输出 `application.package_family_name=OpenAI.Codex_2p2nqsd0c76g0`。
-- Doubao/WorkBuddy 应输出 `application.signature_valid=true`、非空 `publisher` 与 `certificate_sha256`。
+- Doubao/Doubao Work/WorkBuddy 应输出 `application.signature_valid=true`、非空 `publisher` 与 `certificate_sha256`。
 - 如出现 `windows_authenticode_mismatch`，保留完整 JSON 并用以下命令核对实际父进程文件；客户端换证书后必须更新登记指纹。
 
 ```powershell

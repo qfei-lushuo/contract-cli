@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"cn.qfei/contract-cli/internal/build"
@@ -19,6 +20,7 @@ import (
 	"cn.qfei/contract-cli/internal/credential"
 	"cn.qfei/contract-cli/internal/invocation"
 	"cn.qfei/contract-cli/internal/oauth"
+	"cn.qfei/contract-cli/internal/selfupdate"
 	contractskills "cn.qfei/contract-cli/skills"
 )
 
@@ -38,7 +40,8 @@ type Options struct {
 	LookupEnv          func(string) (string, bool)
 	SkillsFS           fs.FS
 	CredentialStore    credential.Store
-	InspectEnvironment func(int) invocation.Result
+	InspectEnvironment func(context.Context, int) invocation.Result
+	NewSelfUpdater     func() *selfupdate.Updater
 
 	UpdateRegistryURL    string
 	UpdateCurrentVersion string
@@ -57,10 +60,13 @@ type App struct {
 	lookupEnv          func(string) (string, bool)
 	skillsFS           fs.FS
 	credentialStore    credential.Store
-	inspectEnvironment func(int) invocation.Result
+	inspectEnvironment func(context.Context, int) invocation.Result
 	updateURL          string
 	updateVersion      string
 	updateNotice       map[string]any
+	updateNoticeMu     sync.RWMutex
+	updateRunID        uint64
+	newSelfUpdater     func() *selfupdate.Updater
 	now                func() time.Time
 	userProvider       authProvider
 	appProvider        authProvider
@@ -140,6 +146,10 @@ func New(options Options) *App {
 	if inspectEnvironment == nil {
 		inspectEnvironment = invocation.Inspect
 	}
+	newSelfUpdater := options.NewSelfUpdater
+	if newSelfUpdater == nil {
+		newSelfUpdater = selfupdate.New
+	}
 
 	app := &App{
 		stdout:             stdout,
@@ -154,6 +164,7 @@ func New(options Options) *App {
 		skillsFS:           skillsFS,
 		credentialStore:    options.CredentialStore,
 		inspectEnvironment: inspectEnvironment,
+		newSelfUpdater:     newSelfUpdater,
 		updateURL:          options.UpdateRegistryURL,
 		updateVersion:      options.UpdateCurrentVersion,
 		now:                now,
@@ -177,7 +188,7 @@ func New(options Options) *App {
 }
 
 func (a *App) Run(ctx context.Context, args []string) error {
-	a.updateNotice = nil
+	a.resetUpdateNotice()
 	if len(args) == 0 {
 		a.printUsage()
 		return nil
@@ -214,7 +225,7 @@ func (a *App) Run(ctx context.Context, args []string) error {
 	case "update":
 		return a.runUpdate(ctx, args[1:])
 	case "environment":
-		return a.runEnvironment(args[1:])
+		return a.runEnvironment(ctx, args[1:])
 	case "api":
 		return a.runAPI(ctx, args[1:])
 	case "contract":
@@ -242,6 +253,40 @@ func (a *App) printVersion() {
 
 func (a *App) updateCachePath() string {
 	return filepath.Join(filepath.Dir(a.store.Path()), "update-check.json")
+}
+
+func (a *App) resetUpdateNotice() {
+	a.updateNoticeMu.Lock()
+	defer a.updateNoticeMu.Unlock()
+	a.updateRunID++
+	a.updateNotice = nil
+}
+
+func (a *App) currentUpdateRunID() uint64 {
+	a.updateNoticeMu.RLock()
+	defer a.updateNoticeMu.RUnlock()
+	return a.updateRunID
+}
+
+func (a *App) setUpdateNotice(runID uint64, notice map[string]any) {
+	a.updateNoticeMu.Lock()
+	defer a.updateNoticeMu.Unlock()
+	if a.updateRunID == runID {
+		a.updateNotice = notice
+	}
+}
+
+func (a *App) updateNoticeSnapshot() map[string]any {
+	a.updateNoticeMu.RLock()
+	defer a.updateNoticeMu.RUnlock()
+	if len(a.updateNotice) == 0 {
+		return nil
+	}
+	result := make(map[string]any, len(a.updateNotice))
+	for key, value := range a.updateNotice {
+		result[key] = value
+	}
+	return result
 }
 
 func (a *App) runConfig(ctx context.Context, args []string) error {
@@ -284,6 +329,10 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 		a.logger.Error("resolve environment failed", "environment", env, "error", err.Error())
 		return err
 	}
+	if (env == developmentEnvironment && profileName != developmentProfileName) ||
+		(env != developmentEnvironment && profileName == developmentProfileName) {
+		return developmentProfileError()
+	}
 
 	existing, found, err := a.store.LookupProfile(profileName)
 	if err != nil {
@@ -291,6 +340,9 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	}
 	resetAuthentication := false
 	if found {
+		if env == developmentEnvironment && existing.Environment != developmentEnvironment {
+			return developmentProfileError()
+		}
 		resetAuthentication, err = a.productionProfileRequiresReset(existing)
 		if err != nil {
 			return err
@@ -300,8 +352,11 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	if protectedResourceURL == "" {
 		protectedResourceURL = preset.ProtectedResourceMetadataURL
 	}
-	if protectedResourceURL != "" && !isProductionOriginURL(protectedResourceURL, productionOpenPlatformOrigin, true) {
+	if protectedResourceURL != "" && !isProductionOriginURL(protectedResourceURL, preset.OpenPlatformBaseURL, true) {
 		err := productionProfileError(profileName)
+		if env == developmentEnvironment {
+			err = developmentProfileError()
+		}
 		a.logger.Error("config add rejected non-production metadata url", "profile", profileName, "error", err.Error())
 		return err
 	}
@@ -314,15 +369,16 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	}
 
 	var discovery *oauth.DiscoveryResult
+	httpClient := clientForEnvironment(a.httpClient, env)
 	switch {
 	case protectedResourceURL != "":
-		discovery, err = oauth.Discover(ctx, a.httpClient, a.logger, protectedResourceURL)
+		discovery, err = oauth.Discover(ctx, httpClient, a.logger, protectedResourceURL)
 		if err != nil {
 			a.logger.Error("config add discover failed", "profile", profileName, "protected_resource_url", protectedResourceURL, "error", err.Error())
 			return err
 		}
 	case preset.AuthorizationServerMetadataURL != "":
-		discovery, err = oauth.DiscoverFromAuthorizationServer(ctx, a.httpClient, a.logger, preset.AuthorizationServerMetadataURL, preset.Resource)
+		discovery, err = oauth.DiscoverFromAuthorizationServer(ctx, httpClient, a.logger, preset.AuthorizationServerMetadataURL, preset.Resource)
 		if err != nil {
 			a.logger.Error("config add discover from authorization server failed", "profile", profileName, "authorization_server_metadata_url", preset.AuthorizationServerMetadataURL, "error", err.Error())
 			return err
@@ -368,7 +424,7 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	}
 
 	a.logger.Info("save profile", "profile", profileName, "environment", env)
-	if err := a.store.UpsertProfile(profile, true); err != nil {
+	if err := a.saveEnvironmentProfile(profile); err != nil {
 		a.logger.Error("save profile failed", "profile", profileName, "error", err.Error())
 		return err
 	}
@@ -592,6 +648,8 @@ func (a *App) providerFor(identity config.IdentityKind) authProvider {
 
 func resolveEnvironment(name string) (environmentPreset, error) {
 	switch name {
+	case developmentEnvironment:
+		return developmentPreset(), nil
 	case "prod":
 		return environmentPreset{
 			OpenPlatformBaseURL:            "https://open.qfei.cn",
@@ -607,7 +665,7 @@ func resolveEnvironment(name string) (environmentPreset, error) {
 			DeviceScope:                    "contract:full contract-review:full",
 		}, nil
 	default:
-		return environmentPreset{}, fmt.Errorf("unsupported environment %q; supported environments: prod", name)
+		return environmentPreset{}, fmt.Errorf("unsupported environment %q; supported environments: prod, dev", name)
 	}
 }
 

@@ -4,13 +4,13 @@
 
 ## 当前状态
 
-- 当前仅内置 `prod` 环境预设；正式包默认使用 `prod`：`contract-cli config add --env prod --name contract`
+- 默认使用 `prod`：`contract-cli config add --env prod --name contract`。当前分支临时支持 `dev`，仅允许 `contract-cli config add --env dev --name contract-dev`；所有 dev 授权及业务调用必须显式带 `--profile contract-dev`，不改变默认 profile，不复用生产凭证。上线前移除，详见 [dev 联调说明](dev-integration.md)。
 - `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 是当前仅有的十五个同时支持 `user` 与 `app` 的结构化业务命令
 - `contract search-v2`、`contract field update`、`contract sign switch-to-paper`、`contract sign-url get`、`contract form attribute list`、`contract authorization grant`、`contract esign *`、`contract submit/resubmit/patch/download-file/delete/print-file`、`contract share get/batch-create`、`contract cooperation link/record/search/file`、`contract approval start/get`、`payment *`、`mdm vendor create/update/list-all/query-by-cert`、`mdm legal get --code/create/update`、`mdm fixed-exchange-rate get/update`、`mdm file download`、`event outbound-ip list` 和 `rule table *` 当前仅支持 `--as app`
 - 除上述双身份和 app-only 能力外，当前其他结构化业务命令仍只支持 `--as user`
 - `app` 目前已经支持登录、状态查看、登出、默认身份切换
 - 推荐使用 `npx skills add qfeius/contract-cli -y -g` 安装跨 Agent 平台 skills；`contract-cli skills install` 保留为 CLI 内置兜底
-- `update check` 支持手动检查 npm 远端版本；默认输出文本，带 `--json` 时返回飞书式 JSON；CLI 会为符合条件的普通命令按 24 小时缓存检查远端版本，并在 JSON object 输出中注入 `_notice.update`
+- `update` 固定跟随 npm `latest`；支持仅检查或自动识别 npm/pnpm 后安装，普通命令按 24 小时缓存提示新版本
 - `environment inspect` 可以在本地查看当前父进程链对应的客户端来源；所有实际业务 HTTP 请求都会在发送前重新探测并覆盖来源 Header
 - 当前全部已支持命令都可以通过 `--help` 查看本地帮助，例如 `contract-cli --help`、`contract-cli contract search --help`、`contract-cli help contract upload-file`
 - `app` 业务接口后续继续新增时，优先在本文件补充命令矩阵
@@ -43,7 +43,7 @@ contract-cli contract get <contract-id> --help
 
 - `config` 和 `version` 不需要登录态
 - `skills list/install` 不需要登录态；通用 `npx skills add qfeius/contract-cli -y -g` 也不依赖 contract-cli 登录态
-- `update check` 不需要登录态
+- `update` 不需要登录态
 - `environment inspect` 不需要登录态，也不发起 HTTP 请求
 - `auth login --as user` 走 OAuth 用户授权
 - `auth login --as app` 走 `appId + appSecret -> tenant_access_token/internal`
@@ -163,42 +163,46 @@ contract-cli version
 contract-cli --version
 ```
 
-#### `contract-cli update check`
+#### `contract-cli update`
 
-用途：检查 npm 远端是否存在可升级版本。
+用途：检查或安装 npm `latest` 指向的 contract-cli 版本。
 
 命令：
 
 ```bash
-contract-cli update check
-contract-cli update check --channel latest
-contract-cli update check --channel latest --json
+contract-cli update
+contract-cli update --check
+contract-cli update --check --json
+contract-cli update --force
 ```
 
 支持参数：
 
-- `--channel`：npm dist-tag；不传时根据当前版本推断，预发布版本默认检查 `beta`，稳定版本默认检查 `latest`
-- `--json`：输出飞书式结构化 JSON；默认输出文本提示
+- `--check`：只检查，不安装
+- `--force`：即使当前版本不落后于 `latest` 也重新安装精确的 latest 版本
+- `--json`：输出结构化 JSON；默认输出人类可读文本
 
 执行结果：
 
 - 当前版本是 `dev`、`unknown` 或非语义化版本（例如源码 git hash）时跳过远端检查
-- 默认输出文本提示，和飞书 `lark-cli update --check` 的手动校验体验保持一致
+- `update --check` 默认输出文本提示，和 `lark-cli update --check` 的行为保持一致
 - 带 `--json` 时输出顶层 `ok`、`previous_version`、`current_version`、`latest_version`、`action`、`message` 等字段
-- 有新版本时 `action=update_available`，并额外包含 `command`，值为 `npm install -g @qfeius/contract-cli@<channel> --registry https://registry.npmjs.org`
+- 有新版本时 `action=update_available`，并包含 `auto_update`、Release 和 Changelog 地址
 - 无新版本时 `action=already_up_to_date`
-- 手动 `update check --json` 不注入 `_notice.update`；`_notice.update` 只用于普通 JSON 业务命令的自动提示
-- 手动执行 `update check` 会直接访问 npm registry，并把结果写入本机 update cache
+- npm 安装执行 `npm install -g @qfeius/contract-cli@<精确版本>`；pnpm 安装执行等价的 `pnpm add -g`
+- 安装后必须通过 `contract-cli --version` 精确版本校验；Windows 使用 `.old` 备份支持失败恢复
+- 无法确认由 npm/pnpm 管理时返回 `manual_required` 和 Release 地址
+- 旧的 `contract-cli update check` 暂作为隐藏兼容别名，等价于 `contract-cli update --check`
 
 自动提示：
 
-- 普通命令会先同步读取当前配置目录的 `update-check.json`；缓存里有可升级版本时，仅在 JSON object 输出中注入 `_notice.update`
+- 普通命令会先同步读取当前配置目录的 `update-check.json`；缓存里有可升级版本时，仅在 JSON object 输出中注入 `_notice.update`，其中命令固定为 `contract-cli update`
 - 命中 fresh cache 时不访问 npm registry，因此不会立即发现刚发布的新包
-- cache 缺失、channel 不匹配或过期时，当前命令会在短超时内同步刷新远端版本；成功结果会写入当前配置目录的 `update-check.json`
+- cache 缺失或过期时，CLI 在后台刷新 npm `latest`；当前业务命令不等待网络结果，刷新结果供后续调用使用
 - 网络失败、registry 失败或当前是 dev 构建时不会阻断原命令；刷新失败不会写入失败缓存
 - `--raw`、yaml、table、纯文本命令不注入 `_notice.update`
 - CI 环境会跳过自动远端检查
-- 设置 `CONTRACT_CLI_NO_UPDATE_CHECK=1` 可以关闭自动检查
+- 设置 `CONTRACT_CLI_NO_UPDATE_NOTIFIER=1` 可以关闭自动提示；旧变量 `CONTRACT_CLI_NO_UPDATE_CHECK` 暂保留兼容
 
 #### `contract-cli environment inspect`
 
@@ -226,8 +230,11 @@ contract-cli environment inspect --output json --include-processes
 - Windows 优先匹配 Package Family Name；非商店桌面程序通过系统 WinVerifyTrust 校验 Authenticode，并匹配证书 SHA-256 + 可执行文件路径
 - Linux 当前按可执行文件路径或进程名降级识别
 - 已发现 macOS/Windows 平台身份但身份不匹配时返回 `unknown`，不再降级为路径或进程名命中
-- 业务请求只透传 `X-Qfei-Request-Source-Type`、`X-Qfei-Channel-Type`、`X-Qfei-Evidence-Type`、`X-Qfei-Channel-Confidence`、`X-Qfei-Detector-Version` 和 `X-Qfei-Rule-Id`
+- 来源识别透传 `X-Qfei-Channel-Type: cli`、`X-Qfei-Agent-Source-Type`、`X-Qfei-Product-Code: contract`、`X-Qfei-Evidence-Type`、`X-Qfei-Channel-Confidence`、`X-Qfei-Detector-Version` 和 `X-Qfei-Rule-Id`
 - 业务 Header 不包含 PID、进程路径、完整命令行或用户目录信息
+- 每个 OpenPlatform 逻辑请求生成一个 32 位十六进制 `trace_id`；请求发送 `traceparent: 00-<trace_id>-<span_id>-01` 和同值 `X-Log-Id: <trace_id>`
+- 请求重试复用同一 `trace_id`，每个实际 HTTP attempt 重新生成 `span_id`；最终错误信息包含 `trace_id=<值>`
+- Trace ID 只用于可观测性关联，不作为鉴权、幂等键或客户端来源证明
 
 #### `contract-cli skills list`
 

@@ -32,6 +32,21 @@ var applicationRules = []applicationRule{
 		ProcessNames:      []string{"doubao", "doubao.exe"},
 	},
 	{
+		ID:       "client.doubao_work",
+		Channel:  "doubaoWork",
+		BundleID: "com.work.pc.doubao",
+		TeamID:   "96L78H6LMH",
+		// Leaf certificate shared by the official Doubao Work Windows 2.27.10
+		// x64 and ARM64 release packages.
+		// Doubao and Doubao Work currently share a publisher certificate, so the
+		// executable path/name remains part of the Windows high-confidence match.
+		WindowsCertificateSHA256: []string{
+			"f05e610036eddb254d1d9344b824ac969cce3e5b5658485cd2167767623262dc",
+		},
+		ExecutableMarkers: []string{"/applications/doubaowork.app/", `\doubaowork\`, `\doubaowork.exe`},
+		ProcessNames:      []string{"doubaowork", "doubaowork.exe"},
+	},
+	{
 		ID:       "client.workbuddy",
 		Channel:  "workbuddy",
 		BundleID: "com.workbuddy.workbuddy",
@@ -59,12 +74,13 @@ var applicationRules = []applicationRule{
 
 func Analyze(chain []Process, identities []ApplicationIdentity) Result {
 	result := Result{
-		RequestSourceType: "cli",
-		ChannelType:       "unknown",
-		EvidenceType:      "none",
-		Confidence:        "unknown",
-		DetectorVersion:   DetectorVersion,
-		Reason:            "no registered client matched the process ancestry",
+		ChannelType:     "cli",
+		AgentSourceType: "unknown",
+		ProductCode:     ProductCodeContract,
+		EvidenceType:    "none",
+		Confidence:      "unknown",
+		DetectorVersion: DetectorVersion,
+		Reason:          "no registered client matched the process ancestry",
 	}
 
 	for _, identity := range identities {
@@ -73,7 +89,7 @@ func Analyze(chain []Process, identities []ApplicationIdentity) Result {
 		}
 		for _, rule := range applicationRules {
 			if strings.EqualFold(identity.BundleID, rule.BundleID) && strings.EqualFold(identity.TeamID, rule.TeamID) {
-				result.ChannelType = rule.Channel
+				result.AgentSourceType = rule.Channel
 				result.EvidenceType = "macos_code_signature"
 				result.Confidence = "high"
 				result.RuleID = rule.ID + ".signed-bundle"
@@ -91,7 +107,7 @@ func Analyze(chain []Process, identities []ApplicationIdentity) Result {
 		}
 		for _, rule := range applicationRules {
 			if matchesString(identity.PackageFamilyName, rule.WindowsPackageFamilyNames) {
-				result.ChannelType = rule.Channel
+				result.AgentSourceType = rule.Channel
 				result.EvidenceType = "windows_package_identity"
 				result.Confidence = "high"
 				result.RuleID = rule.ID + ".package-family"
@@ -111,7 +127,7 @@ func Analyze(chain []Process, identities []ApplicationIdentity) Result {
 		for _, rule := range applicationRules {
 			if matchesExecutableMarker(executable, rule.ExecutableMarkers) &&
 				matchesCertificateSHA256(identity.CertificateSHA256, rule.WindowsCertificateSHA256) {
-				result.ChannelType = rule.Channel
+				result.AgentSourceType = rule.Channel
 				result.EvidenceType = "windows_authenticode"
 				result.Confidence = "high"
 				result.RuleID = rule.ID + ".authenticode"
@@ -178,7 +194,7 @@ func Analyze(chain []Process, identities []ApplicationIdentity) Result {
 		executable := normalizeExecutable(current.Executable)
 		for _, rule := range applicationRules {
 			if matchesExecutableMarker(executable, rule.ExecutableMarkers) {
-				result.ChannelType = rule.Channel
+				result.AgentSourceType = rule.Channel
 				result.EvidenceType = "process_executable_path"
 				result.Confidence = "medium"
 				result.RuleID = rule.ID + ".executable-path"
@@ -198,7 +214,7 @@ func Analyze(chain []Process, identities []ApplicationIdentity) Result {
 		for _, rule := range applicationRules {
 			for _, registered := range rule.ProcessNames {
 				if name == strings.ToLower(registered) {
-					result.ChannelType = rule.Channel
+					result.AgentSourceType = rule.Channel
 					result.EvidenceType = "process_name"
 					result.Confidence = "low"
 					result.RuleID = rule.ID + ".process-name"

@@ -199,7 +199,7 @@ func helpRegistry() map[string]helpTopic {
 		{"contract-cli version", "查看版本信息"},
 		{"contract-cli skills list", "列出内置 Agent skills"},
 		{"contract-cli skills install [flags]", "安装内置 Agent skills"},
-		{"contract-cli update check [flags]", "检查 npm 远端版本"},
+		{"contract-cli update [flags]", "检查并更新到 npm latest 版本"},
 		{"contract-cli environment inspect [flags]", "探测当前 CLI 的宿主客户端环境"},
 		{"contract-cli contract <subcommand> [flags]", "合同结构化命令"},
 		{"contract-cli payment <subcommand> [flags]", "付款结构化命令"},
@@ -294,7 +294,7 @@ func addConfigHelp(registry map[string]helpTopic) {
 		Summary: "初始化或更新 profile，并写入开放平台、user OAuth 和 app token endpoint 配置。",
 		Usage:   []string{"contract-cli config add [flags]"},
 		Flags: []helpFlag{
-			{"--env <prod>", "环境预设；当前仅支持 prod，默认 prod"},
+			{"--env <prod|dev>", "环境预设，默认 prod；dev 临时联调必须配合 --name contract-dev"},
 			{"--name <profile>", "profile 名称，默认 contract"},
 			{"--resource-metadata-url <url>", "覆盖 protected resource metadata 地址"},
 			{"--redirect-url <url>", "覆盖 OAuth callback 地址"},
@@ -447,27 +447,24 @@ func addSkillsHelp(registry map[string]helpTopic) {
 
 func addUpdateHelp(registry map[string]helpTopic) {
 	registry["update"] = helpTopic{
-		Name:  "update",
-		Usage: []string{"contract-cli update <subcommand> [flags]"},
-		Commands: []helpCommand{
-			{"contract-cli update check [flags]", "检查 npm 远端版本"},
-		},
-	}
-	registry["update check"] = helpTopic{
-		Name:    "update check",
-		Summary: "检查 npm 远端是否存在可升级版本。",
-		Usage:   []string{"contract-cli update check [flags]"},
+		Name:    "update",
+		Summary: "检查并更新 contract-cli 到 npm latest 版本。",
+		Usage:   []string{"contract-cli update [flags]"},
 		Flags: []helpFlag{
-			{"--channel <latest|beta>", "npm dist-tag；正式版通常使用 latest，不传时根据当前版本推断"},
-			{"--json", "输出飞书式结构化 JSON；默认输出文本提示"},
+			{"--check", "仅检查更新，不安装"},
+			{"--force", "即使已经是最新版本也重新安装"},
+			{"--json", "输出结构化 JSON"},
 		},
 		Examples: []string{
-			"contract-cli update check",
-			"contract-cli update check --channel latest --json",
+			"contract-cli update",
+			"contract-cli update --check",
+			"contract-cli update --check --json",
+			"contract-cli update --force",
 		},
 		Notes: []string{
-			"普通命令按 24 小时缓存检查远端版本，并在 JSON object 输出中注入 _notice.update。",
-			"可设置 CONTRACT_CLI_NO_UPDATE_CHECK=1 关闭自动检查。",
+			"升级命令会识别 npm 或 pnpm 安装来源，安装精确的 latest 版本并校验新二进制。",
+			"普通命令先读取本地缓存，再在后台按 24 小时周期刷新版本信息。",
+			"可设置 CONTRACT_CLI_NO_UPDATE_NOTIFIER=1 关闭自动更新提示。",
 		},
 	}
 }

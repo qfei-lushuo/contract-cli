@@ -9,7 +9,7 @@
     "postinstall": "node scripts/install.js",
     "build": "./build.sh",
     "test": "go test ./...",
-    "test:installer": "node --test scripts/install.test.js"
+    "test:installer": "node --test scripts/*.test.js"
   },
   "config": {
     "binaryName": "contract-cli",
@@ -39,6 +39,7 @@
   "files": [
     "scripts/install.js",
     "scripts/run.js",
+    "scripts/windows-recovery.js",
     "dist/release-assets/**",
     "skills/**/SKILL.md",
     "skills/**/agents/**",

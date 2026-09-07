@@ -7,84 +7,96 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 )
 
-func TestCheckFindsNewBetaVersion(t *testing.T) {
+func TestCheckUsesLatestMetadataEndpoint(t *testing.T) {
 	t.Parallel()
-
 	result, err := Check(context.Background(), Options{
-		HTTPClient:     jsonHTTPClient(`{"dist-tags":{"latest":"0.1.0","beta":"0.1.0-beta.2"}}`),
-		RegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
-		PackageName:    "@qfeius/contract-cli",
-		CurrentVersion: "0.1.0-beta.1",
-		Channel:        "beta",
+		HTTPClient:     jsonHTTPClient(`{"version":"1.8.4"}`),
+		RegistryURL:    "https://registry.test/@qfeius%2fcontract-cli/latest",
+		CurrentVersion: "1.8.3",
 		Now:            fixedNow,
 	})
 	if err != nil {
 		t.Fatalf("Check() error = %v", err)
 	}
+	if !result.UpdateAvailable || result.LatestVersion != "1.8.4" {
+		t.Fatalf("result = %+v", result)
+	}
+	if result.InstallCommand != UpdateCommand {
+		t.Fatalf("latest-only result = %+v", result)
+	}
+}
 
-	if !result.UpdateAvailable {
-		t.Fatalf("UpdateAvailable = false, want true")
+func TestCheckAcceptsPackumentLatestFallback(t *testing.T) {
+	t.Parallel()
+	result, err := Check(context.Background(), Options{
+		HTTPClient:     jsonHTTPClient(`{"dist-tags":{"latest":"1.8.4","beta":"1.9.0-beta.1"}}`),
+		RegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
+		CurrentVersion: "1.8.3",
+		Now:            fixedNow,
+	})
+	if err != nil {
+		t.Fatalf("Check() error = %v", err)
 	}
-	if result.LatestVersion != "0.1.0-beta.2" {
-		t.Fatalf("LatestVersion = %q, want 0.1.0-beta.2", result.LatestVersion)
-	}
-	if result.InstallCommand != "npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org" {
-		t.Fatalf("InstallCommand = %q", result.InstallCommand)
+	if result.LatestVersion != "1.8.4" {
+		t.Fatalf("LatestVersion = %q", result.LatestVersion)
 	}
 }
 
 func TestCheckReportsUpToDate(t *testing.T) {
 	t.Parallel()
-
 	result, err := Check(context.Background(), Options{
-		HTTPClient:     jsonHTTPClient(`{"dist-tags":{"beta":"0.1.0-beta.1"}}`),
-		RegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
-		CurrentVersion: "0.1.0-beta.1",
-		Channel:        "beta",
+		HTTPClient:     jsonHTTPClient(`{"version":"1.8.3"}`),
+		CurrentVersion: "1.8.3",
 		Now:            fixedNow,
 	})
 	if err != nil {
 		t.Fatalf("Check() error = %v", err)
 	}
-
 	if result.UpdateAvailable {
-		t.Fatalf("UpdateAvailable = true, want false")
+		t.Fatal("UpdateAvailable = true, want false")
 	}
 }
 
 func TestCheckSkipsNonSemanticCurrentVersion(t *testing.T) {
 	t.Parallel()
-
 	result, err := Check(context.Background(), Options{
-		HTTPClient: &http.Client{
-			Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-				t.Fatalf("non-semver current version should not hit registry")
-				return nil, nil
-			}),
-		},
-		RegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			t.Fatal("non-semver version should not request registry")
+			return nil, nil
+		})},
 		CurrentVersion: "b4a2091-dirty",
-		Channel:        "beta",
 		Now:            fixedNow,
 	})
 	if err != nil {
 		t.Fatalf("Check() error = %v", err)
 	}
-	if !result.Skipped {
-		t.Fatalf("Skipped = false, want true")
+	if !result.Skipped || result.Reason == "" {
+		t.Fatalf("result = %+v", result)
 	}
-	if result.Reason == "" {
-		t.Fatalf("Reason is empty")
+}
+
+func TestCheckSkipsGitDescribeBuild(t *testing.T) {
+	t.Parallel()
+	result, err := Check(context.Background(), Options{
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+			t.Fatal("git-describe build should not request registry")
+			return nil, nil
+		})},
+		CurrentVersion: "v1.8.3-2-gabcdef1-dirty",
+		Now:            fixedNow,
+	})
+	if err != nil || !result.Skipped {
+		t.Fatalf("Check() result=%+v err=%v", result, err)
 	}
 }
 
 func TestCompareSemanticVersionsWithPrerelease(t *testing.T) {
 	t.Parallel()
-
 	tests := []struct {
 		name string
 		a    string
@@ -96,17 +108,12 @@ func TestCompareSemanticVersionsWithPrerelease(t *testing.T) {
 		{name: "equal", a: "v0.1.0", b: "0.1.0", want: 0},
 		{name: "major wins", a: "1.0.0", b: "0.9.9", want: 1},
 	}
-
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-
 			got, err := CompareSemver(tt.a, tt.b)
-			if err != nil {
-				t.Fatalf("CompareSemver() error = %v", err)
-			}
-			if got != tt.want {
-				t.Fatalf("CompareSemver(%q, %q) = %d, want %d", tt.a, tt.b, got, tt.want)
+			if err != nil || got != tt.want {
+				t.Fatalf("CompareSemver(%q, %q) = %d, %v", tt.a, tt.b, got, err)
 			}
 		})
 	}
@@ -114,88 +121,79 @@ func TestCompareSemanticVersionsWithPrerelease(t *testing.T) {
 
 func TestCacheRoundTrip(t *testing.T) {
 	t.Parallel()
-
 	path := filepath.Join(t.TempDir(), "update-check.json")
 	cache := Cache{
 		CheckedAt:       fixedNow(),
-		Channel:         "beta",
-		CurrentVersion:  "0.1.0-beta.1",
-		LatestVersion:   "0.1.0-beta.2",
+		Channel:         LatestChannel,
+		CurrentVersion:  "1.8.3",
+		LatestVersion:   "1.8.4",
 		UpdateAvailable: true,
-		InstallCommand:  "npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org",
+		InstallCommand:  UpdateCommand,
 	}
-
 	if err := SaveCache(path, cache); err != nil {
 		t.Fatalf("SaveCache() error = %v", err)
 	}
-
 	loaded, ok, err := LoadCache(path)
-	if err != nil {
-		t.Fatalf("LoadCache() error = %v", err)
+	if err != nil || !ok || loaded.LatestVersion != cache.LatestVersion {
+		t.Fatalf("LoadCache() = %+v, %v, %v", loaded, ok, err)
 	}
-	if !ok {
-		t.Fatalf("LoadCache() ok = false, want true")
-	}
-	if loaded.Channel != cache.Channel || loaded.LatestVersion != cache.LatestVersion || !loaded.UpdateAvailable {
-		t.Fatalf("loaded cache = %+v, want %+v", loaded, cache)
-	}
-
 	if err := os.WriteFile(path, []byte(`{bad json`), 0o600); err != nil {
-		t.Fatalf("WriteFile(bad json) error = %v", err)
+		t.Fatal(err)
 	}
 	if _, _, err := LoadCache(path); err == nil {
-		t.Fatalf("LoadCache() with bad json error = nil, want error")
+		t.Fatal("LoadCache(bad JSON) error = nil")
 	}
 }
 
-func TestCacheFreshnessUsesChannelAndTTL(t *testing.T) {
+func TestConcurrentCacheWritesRemainValidJSON(t *testing.T) {
 	t.Parallel()
-
-	cache := Cache{
-		CheckedAt: fixedNow().Add(-23 * time.Hour),
-		Channel:   "beta",
+	path := filepath.Join(t.TempDir(), "update-check.json")
+	var group sync.WaitGroup
+	for index := 0; index < 20; index++ {
+		group.Add(1)
+		go func() {
+			defer group.Done()
+			if err := SaveCache(path, Cache{
+				CheckedAt:     fixedNow(),
+				Channel:       LatestChannel,
+				LatestVersion: "1.8.4",
+			}); err != nil {
+				t.Errorf("SaveCache() error = %v", err)
+			}
+		}()
 	}
-	if !CacheFresh(cache, "beta", fixedNow(), CacheTTL) {
-		t.Fatal("CacheFresh() = false for matching fresh cache, want true")
-	}
-	if CacheFresh(cache, "latest", fixedNow(), CacheTTL) {
-		t.Fatal("CacheFresh() = true for mismatched channel, want false")
-	}
-	if CacheFresh(Cache{CheckedAt: fixedNow().Add(-25 * time.Hour), Channel: "beta"}, "beta", fixedNow(), CacheTTL) {
-		t.Fatal("CacheFresh() = true for stale cache, want false")
+	group.Wait()
+	if _, ok, err := LoadCache(path); err != nil || !ok {
+		t.Fatalf("LoadCache() after concurrent writes ok=%v err=%v", ok, err)
 	}
 }
 
-func TestNoticeFromCacheComparesLatestAgainstCurrent(t *testing.T) {
+func TestCacheFreshnessUsesLatestAndTTL(t *testing.T) {
 	t.Parallel()
-
-	cache := Cache{
-		Channel:         "beta",
-		CurrentVersion:  "0.1.0-beta.1",
-		LatestVersion:   "0.1.0-beta.2",
-		UpdateAvailable: true,
-		InstallCommand:  "npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org",
+	cache := Cache{CheckedAt: fixedNow().Add(-23 * time.Hour), Channel: LatestChannel}
+	if !CacheFresh(cache, fixedNow(), CacheTTL) {
+		t.Fatal("fresh latest cache rejected")
 	}
+	if CacheFresh(Cache{CheckedAt: fixedNow(), Channel: "beta"}, fixedNow(), CacheTTL) {
+		t.Fatal("legacy beta cache accepted")
+	}
+	if CacheFresh(Cache{CheckedAt: fixedNow().Add(-25 * time.Hour), Channel: LatestChannel}, fixedNow(), CacheTTL) {
+		t.Fatal("stale cache accepted")
+	}
+}
 
-	notice := NoticeFromCache(cache, "0.1.0-beta.1", DefaultPackageName)
+func TestNoticeFromCacheUsesUpdateCommand(t *testing.T) {
+	t.Parallel()
+	cache := Cache{Channel: LatestChannel, LatestVersion: "1.8.4", UpdateAvailable: true}
+	notice := NoticeFromCache(cache, "1.8.3")
 	if notice == nil {
-		t.Fatal("NoticeFromCache() = nil, want notice")
+		t.Fatal("NoticeFromCache() = nil")
 	}
-	if notice.Current != "0.1.0-beta.1" || notice.Latest != "0.1.0-beta.2" {
-		t.Fatalf("notice versions = %+v", notice)
+	if notice.Command != UpdateCommand || !strings.Contains(notice.Message, "contract-cli 1.8.4 available") {
+		t.Fatalf("notice = %+v", notice)
 	}
-	if !strings.Contains(notice.Message, "contract-cli 0.1.0-beta.2 available") {
-		t.Fatalf("notice message = %q", notice.Message)
-	}
-	if notice.Command != cache.InstallCommand {
-		t.Fatalf("notice command = %q, want %q", notice.Command, cache.InstallCommand)
-	}
-
-	if notice := NoticeFromCache(cache, "0.1.0-beta.2", DefaultPackageName); notice != nil {
-		t.Fatalf("NoticeFromCache() for current latest = %+v, want nil", notice)
-	}
-	if notice := NoticeFromCache(cache, "dev", DefaultPackageName); notice != nil {
-		t.Fatalf("NoticeFromCache() for dev = %+v, want nil", notice)
+	if NoticeFromCache(cache, "1.8.4") != nil {
+		t.Fatal("up-to-date cache produced notice")
 	}
 }
 
@@ -205,18 +203,14 @@ func fixedNow() time.Time {
 
 type roundTripFunc func(*http.Request) (*http.Response, error)
 
-func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) {
-	return f(req)
-}
+func (f roundTripFunc) RoundTrip(req *http.Request) (*http.Response, error) { return f(req) }
 
 func jsonHTTPClient(body string) *http.Client {
-	return &http.Client{
-		Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-			return &http.Response{
-				StatusCode: http.StatusOK,
-				Header:     http.Header{"Content-Type": []string{"application/json"}},
-				Body:       io.NopCloser(strings.NewReader(body)),
-			}, nil
-		}),
-	}
+	return &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Header:     http.Header{"Content-Type": []string{"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(body)),
+		}, nil
+	})}
 }

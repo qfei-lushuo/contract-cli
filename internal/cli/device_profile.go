@@ -15,6 +15,9 @@ func (a *App) loadDeviceAwareProfile(profileName string) (config.Profile, error)
 		return config.Profile{}, err
 	}
 	if found {
+		if profile.Name == developmentProfileName && profileName != developmentProfileName {
+			return config.Profile{}, fmt.Errorf("dev integration requires explicit --profile contract-dev")
+		}
 		if err := validateProductionProfile(profile); err != nil {
 			a.logger.Error("reject non-production profile", "profile", profile.Name, "error", err.Error())
 			return config.Profile{}, err
@@ -150,10 +153,15 @@ func profileNotFoundError(profileName string) error {
 }
 
 func deviceProfileRecoveryError(profileName, reason string) error {
+	environment := productionEnvironment
+	if profileName == developmentProfileName {
+		environment = developmentEnvironment
+	}
 	return fmt.Errorf(
-		"cannot restore Device profile %q after sandbox rebuild: %s; run `contract-cli config add --env prod --name %s` and `contract-cli auth init --profile %s --output json` again",
+		"cannot restore Device profile %q after sandbox rebuild: %s; run `contract-cli config add --env %s --name %s` and `contract-cli auth init --profile %s --output json` again",
 		profileName,
 		reason,
+		environment,
 		profileName,
 		profileName,
 	)

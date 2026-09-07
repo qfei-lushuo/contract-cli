@@ -71,7 +71,7 @@ func (p userAuthProvider) Login(ctx context.Context, profile *config.Profile, op
 
 	if user.ClientID == "" {
 		p.logger.Info("register oauth client", "profile", profile.Name, "registration_endpoint", user.RegistrationEndpoint)
-		registration, err := oauth.RegisterClient(ctx, p.httpClient, p.logger, user.RegistrationEndpoint, oauth.ClientRegistrationRequest{
+		registration, err := oauth.RegisterClient(ctx, clientForEnvironment(p.httpClient, profile.Environment), p.logger, user.RegistrationEndpoint, oauth.ClientRegistrationRequest{
 			ClientName:              profile.ClientName,
 			RedirectURIs:            []string{user.RedirectURL},
 			GrantTypes:              []string{"authorization_code"},
@@ -137,7 +137,7 @@ func (p userAuthProvider) Login(ctx context.Context, profile *config.Profile, op
 		return "", err
 	}
 
-	token, err := oauth.ExchangeAuthorizationCode(ctx, p.httpClient, p.logger, oauth.TokenExchangeRequest{
+	token, err := oauth.ExchangeAuthorizationCode(ctx, clientForEnvironment(p.httpClient, profile.Environment), p.logger, oauth.TokenExchangeRequest{
 		TokenEndpoint: user.TokenEndpoint,
 		ClientID:      user.ClientID,
 		Code:          code,
@@ -218,6 +218,9 @@ func (p appAuthProvider) Login(ctx context.Context, profile *config.Profile, opt
 	}
 	if profile.AppTokenEndpoint == "" {
 		err = fmt.Errorf("app identity is not configured; run `contract-cli config add --env prod --name %s` first", profile.Name)
+		if profile.Environment == developmentEnvironment {
+			err = developmentProfileError()
+		}
 		p.logger.Error("app auth token endpoint missing", "profile", profile.Name, "environment", profile.Environment, "error", err.Error())
 		return "", err
 	}
@@ -238,7 +241,7 @@ func (p appAuthProvider) Login(ctx context.Context, profile *config.Profile, opt
 	p.logger.Info("app credentials saved", "profile", profile.Name, "source", credentials.source)
 
 	p.logger.Info("app token exchange started", "profile", profile.Name, "token_endpoint", profile.AppTokenEndpoint)
-	token, err := oauth.ExchangeTenantAccessToken(ctx, p.httpClient, p.logger, profile.AppTokenEndpoint, credentials.appID, credentials.appSecret)
+	token, err := oauth.ExchangeTenantAccessToken(ctx, clientForEnvironment(p.httpClient, profile.Environment), p.logger, profile.AppTokenEndpoint, credentials.appID, credentials.appSecret)
 	if err != nil {
 		p.logger.Error("app token exchange failed", "profile", profile.Name, "token_endpoint", profile.AppTokenEndpoint, "error", err.Error())
 		profile.Identities.App.Token = nil
@@ -317,6 +320,9 @@ func (p appAuthProvider) resolveCredentials(profile config.Profile, options auth
 		source:    combineCredentialSources(appIDSource, appSecretSource),
 	}
 	if requireComplete && (credentials.appID == "" || credentials.appSecret == "") {
+		if profile.Environment == developmentEnvironment {
+			return appCredentials{}, fmt.Errorf("dev app credentials are incomplete; configure CONTRACT_CLI_DEV_APP_ID/CONTRACT_CLI_DEV_APP_SECRET locally for contract-dev")
+		}
 		return appCredentials{}, fmt.Errorf("app credentials are incomplete; provide --app-id/--app-secret or set %s/%s", envAppID, envAppSecret)
 	}
 	return credentials, nil
@@ -327,7 +333,11 @@ func (p appAuthProvider) resolveAppID(profile config.Profile, options authComman
 	case options.AppID != "":
 		return options.AppID, "flag"
 	default:
-		if value, ok := lookupEnvAny(p.lookupEnv, envAppID, legacyEnvAppID, legacyEnvBotAppID); ok {
+		names := []string{envAppID, legacyEnvAppID, legacyEnvBotAppID}
+		if profile.Environment == developmentEnvironment {
+			names = []string{"CONTRACT_CLI_DEV_APP_ID"}
+		}
+		if value, ok := lookupEnvAny(p.lookupEnv, names...); ok {
 			return value, "env"
 		}
 		if profile.Identities.App.AppID != "" {
@@ -342,7 +352,11 @@ func (p appAuthProvider) resolveAppSecret(profile config.Profile, options authCo
 	case options.AppSecret != "":
 		return options.AppSecret, "flag", nil
 	default:
-		if value, ok := lookupEnvAny(p.lookupEnv, envAppSecret, legacyEnvAppSecret, legacyEnvBotAppSecret); ok {
+		names := []string{envAppSecret, legacyEnvAppSecret, legacyEnvBotAppSecret}
+		if profile.Environment == developmentEnvironment {
+			names = []string{"CONTRACT_CLI_DEV_APP_SECRET"}
+		}
+		if value, ok := lookupEnvAny(p.lookupEnv, names...); ok {
 			return value, "env", nil
 		}
 		if profile.Identities.App.SecretRef != "" {

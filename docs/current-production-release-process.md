@@ -2,6 +2,8 @@
 
 本文整理 `contract-cli` 当前已经落地的正式发版流程、执行时需要准备的信息，以及这套流程当前已经达成的结果，供后续讨论“正式版后续怎么发”时作为基线。
 
+> 当前开发分支临时开放了 dev 联调。正式发布前必须按 [dev 联调移除清单](dev-integration.md#上线前移除清单) 收敛为 prod-only，并重新构建全部二进制；不要直接发布本地联调包。
+
 ## 1. 当前生产发版入口
 
 当前正式发版入口是仓库脚本：
@@ -216,7 +218,7 @@ npm view @qfeius/contract-cli@latest version --registry https://registry.npmjs.o
 
 - `make release-assets` 生成的附件可以被 npm 安装脚本消费
 - npm 包元信息、GitHub Release 产物、二进制命名规则已经对齐
-- 正式包安装文案和 `update check --channel latest` 语义已收敛到生产渠道
+- 正式包安装文案和 `contract-cli update` 均固定使用 npm `latest`
 
 ## 6. 当前已知边界和讨论点
 

@@ -21,8 +21,8 @@
 
 | Category | Capabilities |
 | --- | --- |
-| 配置与版本 | 初始化 profile、查看版本、检查 npm 远端版本、自动注入 `_notice.update` |
-| 调用环境识别 | 每次实际业务 HTTP 请求发送前重新识别 Doubao、WorkBuddy、Codex 或 `unknown`，并通过请求 Header 透传 |
+| 配置与版本 | 初始化 profile、查看版本、检查/安装 npm latest、自动注入 `_notice.update` |
+| 调用环境识别 | 每次实际业务 HTTP 请求发送前重新识别 Doubao、Doubao Work、WorkBuddy、Codex 或 `unknown`，并通过请求 Header 透传 |
 | 鉴权 | `user` OAuth 登录、`appId/appSecret` 应用登录、状态查看、登出、默认身份切换 |
 | 合同 | 搜索、详情、创建、提交、重提、更新、删除、文本读取、用户组同步 |
 | 合同文件 | 正文/附件上传、文件下载、打印文件生成 |
@@ -151,7 +151,7 @@ contract-cli auth status --profile contract --as user
 
 WorkBuddy 使用 `qr_code_path` 交付原始 PNG 附件，AgentKit 使用 `qr_code_path`。豆包普通工作任务只展示 `verification_uri_complete` 和 `expires_at_display`，不展示二维码，也不读取或交付二维码文件。
 
-正式包固定使用 `contract` profile 和 `prod` 环境，不会使用历史非生产 profile 发起授权或业务请求。WorkBuddy 更新 Skills 后必须完全退出并重新启动，然后新建任务；已有任务不会热加载新 Skill。
+默认使用 `contract` profile 和 `prod` 环境。当前分支临时支持独立的 `contract-dev` profile 进行 dev 联调，上线前移除，详见 [dev 联调说明](docs/dev-integration.md)。WorkBuddy 更新 Skills 后必须完全退出并重新启动，然后新建任务；已有任务不会热加载新 Skill。
 
 `auth init` 和 `auth complete` 都只请求一次。`complete` 返回 `pending` 时不持续轮询；请用户完成授权后再主动查询。返回 `uncertain`、`denied`、`expired` 或 `restart_required` 时禁止自动重试；用户明确同意重新授权后，才执行 `auth init --profile contract --output json --restart`。
 
@@ -228,7 +228,7 @@ contract-cli auth logout --profile contract --as app
 
 身份规则：
 
-- `config`、`version`、`update check`、`skills list/install` 不需要登录态。
+- `config`、`version`、`update`、`skills list/install` 不需要登录态。
 - `contract ...`、`mdm ...` 结构化命令会根据 `--as user|app` 选择对应底层路径。
 - 当前大部分 MCP 路径仍是 user-only；显式用 app 调用 user-only 路径会直接报错。
 - `contract search-v2`、`contract field update`、`contract sign switch-to-paper`、`contract sign-url get`、`contract form attribute list`、`contract authorization grant`、`contract esign *`、`contract submit/resubmit/patch/download-file/delete/print-file`、`contract share get/batch-create`、`contract cooperation link/record/search/file`、`contract approval start/get`、`payment *`、`mdm vendor create/update/list-all/query-by-cert`、`mdm legal get --code/create/update`、`mdm fixed-exchange-rate get/update`、`mdm file download`、`event outbound-ip list` 和 `rule table *` 当前仅支持 app 身份。
@@ -249,7 +249,7 @@ contract-cli help
 contract-cli help contract upload-file
 contract-cli contract search --help
 contract-cli version
-contract-cli update check --channel latest --json
+contract-cli update --check --json
 ```
 
 ### 2. 合同结构化命令
@@ -293,7 +293,9 @@ contract-cli environment inspect --output json
 contract-cli environment inspect --output json --include-processes
 ```
 
-CLI 会在每一次实际业务 HTTP 请求发送前重新回溯当前父进程链，不把识别结果写入 profile、OAuth Token 或其他持久化配置。即使同一台机器同时安装 Doubao 和 WorkBuddy，每次独立调用也按当时真实的父进程链重新判断；网络重试或 Token 刷新后的业务请求重放同样会再次执行探测。
+CLI 会在每一次实际业务 HTTP 请求发送前重新回溯当前父进程链，不把识别结果写入 profile、OAuth Token 或其他持久化配置。即使同一台机器同时安装 Doubao、Doubao Work 和 WorkBuddy，每次独立调用也按当时真实的父进程链重新判断；网络重试或 Token 刷新后的业务请求重放同样会再次执行探测。
+
+每次探测共用 **5 秒总预算**（包括进程回溯、全部签名/身份检查），不是每个步骤各等 5 秒。探测在 CLI 自身的短生命周期子进程中执行，仍从原 CLI 的进程链开始识别；无需额外安装组件。预算耗尽时终止并回收探测进程（macOS/Linux 同时终止其签名检测子进程），以 `unknown` / `none` / `unknown` 的来源、证据和置信度继续业务请求，不沿用上一次来源或 Rule ID。进程启动失败、输出异常也会降级；用户主动取消业务请求则停止，不继续发送。5 秒是探测预算，之后有少量系统进程回收开销；HTTP 请求的原有超时与重试策略不变。
 
 当前证据等级：
 
@@ -302,13 +304,16 @@ CLI 会在每一次实际业务 HTTP 请求发送前重新回溯当前父进程�
 - Linux：按祖先进程可执行文件路径或进程名降级识别，分别为 `medium` / `low`。
 - 无规则命中或签名与已登记身份不一致时返回 `unknown`，不会仅凭疑似路径冒充高可信结果。
 
-当前 Windows 身份登记来自公开发行渠道：Codex 使用 Microsoft Store 的 Package Family Name；Doubao 与 WorkBuddy 使用各自官方 Windows 安装包中的 Authenticode 叶证书指纹。客户端换证书后会返回 `unknown`，需要先在真实 Windows 环境核验新证书再更新规则，不会自动信任同名进程。
+macOS 当前可区分 `doubao`、`doubaoWork`、`workbuddy` 和 `codex`。Doubao Work 使用独立智能体来源值 `doubaoWork`，其官方应用身份为 Bundle ID `com.work.pc.doubao`、Team ID `96L78H6LMH`。
+
+当前 Windows 身份登记来自公开发行渠道：Codex 使用 Microsoft Store 的 Package Family Name；Doubao、Doubao Work 与 WorkBuddy 使用各自官方 Windows 发行包中的 Authenticode 叶证书指纹。Doubao 与 Doubao Work 当前共享同一发布者证书，检测时还必须命中各自的可执行文件路径/名称，因此会分别返回 `doubao` 与 `doubaoWork`。客户端换证书后会返回 `unknown`，需要先核验新证书再更新规则，不会自动信任同名进程。
 
 每次业务请求会覆盖以下 Header：
 
 ```text
-X-Qfei-Request-Source-Type
-X-Qfei-Channel-Type
+X-Qfei-Channel-Type: cli
+X-Qfei-Agent-Source-Type: doubao | doubaoWork | workbuddy | codex | unknown
+X-Qfei-Product-Code: contract
 X-Qfei-Evidence-Type
 X-Qfei-Channel-Confidence
 X-Qfei-Detector-Version
@@ -316,6 +321,15 @@ X-Qfei-Rule-Id
 ```
 
 业务 Header 只包含归一化后的来源和证据字段，不包含 PID、完整进程路径或命令行参数。`environment inspect --include-processes` 仅用于用户主动执行的本地诊断。
+
+每个 OpenPlatform 逻辑请求还会生成标准 W3C Trace Context，并覆盖发送：
+
+```text
+traceparent: 00-<32 位 trace_id>-<16 位 span_id>-01
+X-Log-Id: <与 traceparent 相同的 trace_id>
+```
+
+只读网络重试或 Token 刷新后的请求重放继续使用同一个 `trace_id`，每次实际 HTTP attempt 使用新的 `span_id`。成功请求的本地 INFO 日志带 `trace_id`；请求失败时，最终错误信息也带 `trace_id=<值>`。它只用于日志与链路关联，不参与鉴权、幂等或来源可信度判断。网关和下游服务仍需保留 `traceparent` 才能形成完整的跨服务 Trace。
 
 ### Output Formats
 
@@ -375,23 +389,31 @@ contract-cli mdm legal get <legal-entity-id> --profile contract --as app --user-
 
 `mdm vendor create/update` 和 `mdm legal create/update` 会要求 `--user-id`，用于提供当前操作人上下文。
 
-### Update Check
+### Update
 
-手动检查：
+检查或安装 npm `latest` 版本：
 
 ```bash
-contract-cli update check
-contract-cli update check --channel latest
-contract-cli update check --channel beta --json
+contract-cli update --check
+contract-cli update --check --json
+contract-cli update
+contract-cli update --force
 ```
 
 自动提示：
 
 - 普通命令会同步读取本地 `update-check.json`，有可升级缓存时在 JSON object 输出中注入 `_notice.update`。
-- cache fresh 时不访问远端；cache 缺失、channel 不匹配或过期时，CLI 会在当前命令内用短超时刷新远端版本缓存。
+- cache fresh 时不访问远端；cache 缺失或过期时，CLI 在后台刷新远端版本缓存，不阻塞当前业务命令。
 - 有新版本时，仅在 JSON object 输出中注入 `_notice.update`。
 - `--raw`、yaml、table、纯文本命令不注入 `_notice.update`。
-- 设置 `CONTRACT_CLI_NO_UPDATE_CHECK=1` 可以关闭自动检查。
+- 设置 `CONTRACT_CLI_NO_UPDATE_NOTIFIER=1` 可以关闭自动提示。
+
+升级行为：
+
+- 固定跟随 npm `latest`，不对外提供 channel 选择。
+- 自动识别 npm 或 pnpm 全局安装，安装精确版本并执行 `contract-cli --version` 校验。
+- 其他安装方式只返回 GitHub Release 地址，不擅自覆盖文件。
+- Windows 更新使用 `.old` 备份；安装中断或新二进制不可用时由 npm 启动脚本恢复。
 
 ## Build, Test & Release
 

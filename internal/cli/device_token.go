@@ -123,7 +123,7 @@ func (a *App) deviceAuthLogout(ctx context.Context, profile config.Profile) (str
 			return "", errors.New("device revocation endpoint or client id is not configured")
 		}
 		a.logger.Info("device authorization revoke started", "profile", profile.Name)
-		if err := oauth.RevokeDeviceToken(ctx, a.httpClient, oauth.DeviceRevokeRequest{
+		if err := oauth.RevokeDeviceToken(ctx, clientForEnvironment(a.httpClient, profile.Environment), oauth.DeviceRevokeRequest{
 			Endpoint: user.RevocationEndpoint, ClientID: user.DeviceClientID, RefreshToken: stored.Token.RefreshToken,
 		}); err != nil {
 			a.logger.Error("device authorization revoke failed", "profile", profile.Name, "error", err.Error())
@@ -198,7 +198,7 @@ func (a *App) refreshDeviceToken(ctx context.Context, profile config.Profile, ex
 	}
 
 	a.logger.Info("device token refresh started", "profile", profile.Name, "forced", force)
-	refreshed, err := oauth.RefreshDeviceToken(ctx, a.httpClient, oauth.DeviceRefreshRequest{
+	refreshed, err := oauth.RefreshDeviceToken(ctx, clientForEnvironment(a.httpClient, profile.Environment), oauth.DeviceRefreshRequest{
 		Endpoint: user.TokenEndpoint, ClientID: user.DeviceClientID, RefreshToken: current.RefreshToken,
 	})
 	if err != nil {

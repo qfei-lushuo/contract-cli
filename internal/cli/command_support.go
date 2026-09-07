@@ -209,7 +209,7 @@ func (a *App) openPlatformClientAndContext(profileName, identityArg, path string
 	}
 
 	client := openplatform.New(openplatform.Options{
-		HTTPClient: a.httpClient,
+		HTTPClient: clientForEnvironment(a.httpClient, profile.Environment),
 		Logger:     a.logger,
 		BeforeRequestHooks: []openplatform.BeforeRequestHook{
 			a.beforeOpenPlatformRequest,
@@ -229,7 +229,7 @@ func (a *App) openPlatformClientAndContext(profileName, identityArg, path string
 }
 
 func (a *App) renderOpenPlatformResponse(options commandOptions, response openplatform.Response) error {
-	renderer := output.NewRenderer(a.stdout).WithNotice(a.updateNotice)
+	renderer := output.NewRenderer(a.stdout).WithNotice(a.updateNoticeSnapshot())
 	if options.raw {
 		return renderer.RenderRaw(response.Body)
 	}

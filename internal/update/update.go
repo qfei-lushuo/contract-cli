@@ -9,17 +9,19 @@ import (
 	"log/slog"
 	"net/http"
 	"os"
-	"path/filepath"
+	"regexp"
 	"strconv"
 	"strings"
 	"time"
 )
 
 const (
-	DefaultPackageName  = "@qfeius/contract-cli"
-	DefaultRegistryURL  = "https://registry.npmjs.org/@qfeius%2fcontract-cli"
-	DefaultRegistryHost = "https://registry.npmjs.org"
-	CacheTTL            = 24 * time.Hour
+	DefaultPackageName = "@qfeius/contract-cli"
+	DefaultRegistryURL = "https://registry.npmjs.org/@qfeius%2fcontract-cli/latest"
+	CacheTTL           = 24 * time.Hour
+	FetchTimeout       = 15 * time.Second
+	LatestChannel      = "latest"
+	UpdateCommand      = "contract-cli update"
 )
 
 type Options struct {
@@ -28,7 +30,6 @@ type Options struct {
 	RegistryURL    string
 	PackageName    string
 	CurrentVersion string
-	Channel        string
 	Now            func() time.Time
 }
 
@@ -37,7 +38,6 @@ type Result struct {
 	PackageName     string
 	CurrentVersion  string
 	LatestVersion   string
-	Channel         string
 	UpdateAvailable bool
 	InstallCommand  string
 	Skipped         bool
@@ -61,25 +61,28 @@ type Cache struct {
 }
 
 func Check(ctx context.Context, options Options) (Result, error) {
+	if _, hasDeadline := ctx.Deadline(); !hasDeadline {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, FetchTimeout)
+		defer cancel()
+	}
 	now := optionNow(options.Now)
 	packageName := defaultString(options.PackageName, DefaultPackageName)
 	currentVersion := strings.TrimSpace(options.CurrentVersion)
-	channel := defaultString(options.Channel, InferChannel(currentVersion))
 	result := Result{
 		CheckedAt:      now,
 		PackageName:    packageName,
 		CurrentVersion: currentVersion,
-		Channel:        channel,
 	}
 
 	logger := options.Logger
 	if logger != nil {
-		logger.Info("update check started", "package", packageName, "current_version", emptyFallback(currentVersion, "<empty>"), "channel", channel)
+		logger.Info("update check started", "package", packageName, "current_version", emptyFallback(currentVersion, "<empty>"), "channel", LatestChannel)
 	}
 
 	if shouldSkipVersion(currentVersion) {
 		result.Skipped = true
-		result.Reason = "current version is dev/unknown; skip remote update check"
+		result.Reason = "current version is a local/dev build; skip remote update check"
 		if logger != nil {
 			logger.Info("update check skipped", "reason", result.Reason)
 		}
@@ -133,20 +136,27 @@ func Check(ctx context.Context, options Options) (Result, error) {
 		return Result{}, err
 	}
 
-	var packument struct {
+	var metadata struct {
+		Version  string            `json:"version"`
 		DistTags map[string]string `json:"dist-tags"`
 	}
-	if err := json.Unmarshal(body, &packument); err != nil {
+	if err := json.Unmarshal(body, &metadata); err != nil {
 		if logger != nil {
 			logger.Error("decode update check response failed", "error", err.Error())
 		}
 		return Result{}, err
 	}
-	latestVersion := strings.TrimSpace(packument.DistTags[channel])
+	latestVersion := strings.TrimSpace(metadata.Version)
 	if latestVersion == "" {
-		err := fmt.Errorf("npm dist-tag %q not found for %s", channel, packageName)
+		// Accept a full npm packument as a compatibility fallback for private
+		// registries and older test fixtures. Production uses the /latest
+		// endpoint, matching lark-cli's fixed latest-only update model.
+		latestVersion = strings.TrimSpace(metadata.DistTags[LatestChannel])
+	}
+	if latestVersion == "" {
+		err := fmt.Errorf("npm latest version not found for %s", packageName)
 		if logger != nil {
-			logger.Error("update check dist-tag missing", "package", packageName, "channel", channel, "error", err.Error())
+			logger.Error("update check dist-tag missing", "package", packageName, "channel", LatestChannel, "error", err.Error())
 		}
 		return Result{}, err
 	}
@@ -161,19 +171,11 @@ func Check(ctx context.Context, options Options) (Result, error) {
 
 	result.LatestVersion = latestVersion
 	result.UpdateAvailable = compare < 0
-	result.InstallCommand = InstallCommand(packageName, channel)
+	result.InstallCommand = UpdateCommand
 	if logger != nil {
-		logger.Info("update check completed", "package", packageName, "current_version", currentVersion, "latest_version", latestVersion, "channel", channel, "update_available", result.UpdateAvailable)
+		logger.Info("update check completed", "package", packageName, "current_version", currentVersion, "latest_version", latestVersion, "channel", LatestChannel, "update_available", result.UpdateAvailable)
 	}
 	return result, nil
-}
-
-func InferChannel(version string) string {
-	normalized := strings.TrimPrefix(strings.TrimSpace(version), "v")
-	if strings.Contains(normalized, "-") {
-		return "beta"
-	}
-	return "latest"
 }
 
 func CompareSemver(a, b string) (int, error) {
@@ -214,20 +216,17 @@ func LoadCache(path string) (Cache, bool, error) {
 }
 
 func SaveCache(path string, cache Cache) error {
-	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
-		return err
-	}
 	content, err := json.MarshalIndent(cache, "", "  ")
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(path, append(content, '\n'), 0o600)
+	return atomicWriteFile(path, append(content, '\n'), 0o600)
 }
 
 func CacheFromResult(result Result) Cache {
 	return Cache{
 		CheckedAt:       result.CheckedAt,
-		Channel:         result.Channel,
+		Channel:         LatestChannel,
 		CurrentVersion:  result.CurrentVersion,
 		LatestVersion:   result.LatestVersion,
 		UpdateAvailable: result.UpdateAvailable,
@@ -235,8 +234,8 @@ func CacheFromResult(result Result) Cache {
 	}
 }
 
-func CacheFresh(cache Cache, channel string, now time.Time, ttl time.Duration) bool {
-	if strings.TrimSpace(cache.Channel) != strings.TrimSpace(channel) {
+func CacheFresh(cache Cache, now time.Time, ttl time.Duration) bool {
+	if strings.TrimSpace(cache.Channel) != LatestChannel {
 		return false
 	}
 	if cache.CheckedAt.IsZero() {
@@ -255,7 +254,7 @@ func NoticeFromResult(result Result) *Notice {
 	return newNotice(result.CurrentVersion, result.LatestVersion, result.InstallCommand)
 }
 
-func NoticeFromCache(cache Cache, currentVersion string, packageName string) *Notice {
+func NoticeFromCache(cache Cache, currentVersion string) *Notice {
 	currentVersion = strings.TrimSpace(currentVersion)
 	latestVersion := strings.TrimSpace(cache.LatestVersion)
 	if shouldSkipVersion(currentVersion) || latestVersion == "" {
@@ -270,13 +269,9 @@ func NoticeFromCache(cache Cache, currentVersion string, packageName string) *No
 	}
 	command := strings.TrimSpace(cache.InstallCommand)
 	if command == "" {
-		command = InstallCommand(defaultString(packageName, DefaultPackageName), cache.Channel)
+		command = UpdateCommand
 	}
 	return newNotice(currentVersion, latestVersion, command)
-}
-
-func InstallCommand(packageName string, channel string) string {
-	return fmt.Sprintf("npm install -g %s@%s --registry %s", defaultString(packageName, DefaultPackageName), defaultString(channel, "latest"), DefaultRegistryHost)
 }
 
 func (n *Notice) Map() map[string]any {
@@ -402,13 +397,16 @@ func comparePrereleaseIdentifier(a, b string) int {
 }
 
 func shouldSkipVersion(version string) bool {
-	switch strings.ToLower(strings.TrimSpace(version)) {
+	trimmed := strings.TrimSpace(version)
+	switch strings.ToLower(trimmed) {
 	case "", "dev", "unknown":
 		return true
 	default:
-		return false
+		return gitDescribeVersionPattern.MatchString(strings.TrimPrefix(trimmed, "v"))
 	}
 }
+
+var gitDescribeVersionPattern = regexp.MustCompile(`-\d+-g[0-9a-fA-F]{7,}`)
 
 func optionNow(now func() time.Time) time.Time {
 	if now != nil {
