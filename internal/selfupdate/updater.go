@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"time"
 )
@@ -16,6 +17,7 @@ const (
 	NpmPackage        = "@qfeius/contract-cli"
 	installTimeout    = 10 * time.Minute
 	verificationLimit = 10 * time.Second
+	detectionTimeout  = 5 * time.Second
 )
 
 type InstallMethod string
@@ -27,10 +29,11 @@ const (
 )
 
 type DetectResult struct {
-	Method        InstallMethod `json:"method"`
-	ResolvedPath  string        `json:"resolved_path,omitempty"`
-	NpmAvailable  bool          `json:"npm_available,omitempty"`
-	PnpmAvailable bool          `json:"pnpm_available,omitempty"`
+	Method           InstallMethod `json:"method"`
+	ResolvedPath     string        `json:"resolved_path,omitempty"`
+	GlobalBinaryPath string        `json:"global_binary_path,omitempty"`
+	NpmAvailable     bool          `json:"npm_available,omitempty"`
+	PnpmAvailable    bool          `json:"pnpm_available,omitempty"`
 }
 
 func (d DetectResult) CanAutoUpdate() bool {
@@ -51,7 +54,7 @@ func (d DetectResult) ManualReason() string {
 	case d.Method == InstallPnpm && !d.PnpmAvailable:
 		return "installed via pnpm, but pnpm is not available in PATH"
 	default:
-		return "not installed via npm or pnpm"
+		return "current binary is not a verified global npm or pnpm installation; update it through its original installer"
 	}
 }
 
@@ -103,26 +106,50 @@ func detectInstallMethod() DetectResult {
 	if err != nil {
 		return DetectResult{Method: InstallManual, ResolvedPath: executable}
 	}
-	_, npmErr := exec.LookPath("npm")
-	_, pnpmErr := exec.LookPath("pnpm")
-	return DetectFromResolvedPath(resolved, npmErr == nil, pnpmErr == nil)
-}
-
-// DetectFromResolvedPath is exported so path classification can be verified
-// for macOS, Linux and Windows from any development host.
-func DetectFromResolvedPath(resolved string, npmOnPath, pnpmOnPath bool) DetectResult {
-	normalized := strings.ToLower(strings.ReplaceAll(resolved, `\`, "/"))
-	method := InstallManual
-	if strings.Contains(normalized, "/node_modules/") {
-		method = InstallNpm
-		if containsPnpmMarker(normalized) {
-			method = InstallPnpm
+	// Inspect the manager's current global root, not a guessed node_modules path.
+	// Resolve package symlinks so pnpm's store layout is supported too.
+	managers := []InstallMethod{InstallNpm, InstallPnpm}
+	if containsPnpmMarker(resolved) {
+		managers[0], managers[1] = managers[1], managers[0]
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), detectionTimeout)
+	defer cancel()
+	for _, manager := range managers {
+		result := runPackageManagerContext(ctx, string(manager), []string{"root", "-g"})
+		if result.Err != nil {
+			continue
+		}
+		root := strings.TrimSpace(result.Stdout.String())
+		if candidate, ok := globalBinaryFor(resolved, root); ok {
+			return DetectResult{Method: manager, ResolvedPath: resolved, GlobalBinaryPath: candidate,
+				NpmAvailable: manager == InstallNpm, PnpmAvailable: manager == InstallPnpm}
 		}
 	}
-	result := DetectResult{Method: method, ResolvedPath: resolved}
-	result.NpmAvailable = method == InstallNpm && npmOnPath
-	result.PnpmAvailable = method == InstallPnpm && pnpmOnPath
-	return result
+	return DetectResult{Method: InstallManual, ResolvedPath: resolved}
+}
+
+func globalBinaryFor(executable, root string) (string, bool) {
+	if !filepath.IsAbs(root) {
+		return "", false
+	}
+	binary := "contract-cli"
+	if runtime.GOOS == "windows" {
+		binary += ".exe"
+	}
+	candidate := filepath.Join(root, "@qfeius", "contract-cli", "bin", binary)
+	resolved, err := filepath.EvalSymlinks(candidate)
+	if err != nil {
+		return "", false
+	}
+	current, err := filepath.EvalSymlinks(executable)
+	if err != nil {
+		return "", false
+	}
+	equal := filepath.Clean(current) == filepath.Clean(resolved)
+	if runtime.GOOS == "windows" {
+		equal = strings.EqualFold(filepath.Clean(current), filepath.Clean(resolved))
+	}
+	return candidate, equal
 }
 
 func containsPnpmMarker(path string) bool {
@@ -153,20 +180,29 @@ func (u *Updater) RunPnpmInstall(version string) *CommandResult {
 }
 
 func runPackageManager(name string, args []string) *CommandResult {
+	ctx, cancel := context.WithTimeout(context.Background(), installTimeout)
+	defer cancel()
+	return runPackageManagerContext(ctx, name, args)
+}
+
+func runPackageManagerContext(ctx context.Context, name string, args []string) *CommandResult {
 	result := &CommandResult{}
 	path, err := exec.LookPath(name)
 	if err != nil {
 		result.Err = fmt.Errorf("%s not found in PATH: %w", name, err)
 		return result
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), installTimeout)
-	defer cancel()
-	command := exec.CommandContext(ctx, path, args...)
+	command, err := packageManagerCommand(ctx, path, args)
+	if err != nil {
+		result.Err = err
+		return result
+	}
 	command.Stdout = &result.Stdout
 	command.Stderr = &result.Stderr
+	command.WaitDelay = time.Second
 	result.Err = command.Run()
-	if ctx.Err() == context.DeadlineExceeded {
-		result.Err = fmt.Errorf("%s install timed out after %s", name, installTimeout)
+	if ctx.Err() != nil {
+		result.Err = fmt.Errorf("%s command cancelled: %w", name, ctx.Err())
 	}
 	return result
 }
@@ -178,10 +214,13 @@ func (u *Updater) VerifyBinary(expectedVersion string) error {
 		return u.VerifyOverride(expectedVersion)
 	}
 	executable := ""
+	if u.detectCache != nil {
+		executable = u.detectCache.GlobalBinaryPath
+	}
 	// Prefer the native binary path detected before the package manager mutates
 	// the installation. This also avoids a Windows .cmd wrapper deleting the
 	// rollback file before the exact version comparison has succeeded.
-	if u.detectCache != nil && strings.TrimSpace(u.detectCache.ResolvedPath) != "" {
+	if executable == "" && u.detectCache != nil && strings.TrimSpace(u.detectCache.ResolvedPath) != "" {
 		if _, err := os.Stat(u.detectCache.ResolvedPath); err == nil {
 			executable = u.detectCache.ResolvedPath
 		}

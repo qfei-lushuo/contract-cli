@@ -16,6 +16,7 @@ import (
 const (
 	contractCLIRepository = "https://github.com/qfeius/contract-cli"
 	maxUpdateOutput       = 2000
+	automaticUpdateBudget = 1500 * time.Millisecond
 )
 
 func (a *App) runUpdate(ctx context.Context, args []string) error {
@@ -133,7 +134,9 @@ func (a *App) reportManualUpdate(result updatecheck.Result, detection selfupdate
 	}
 	_, _ = fmt.Fprintln(a.stderr, ".")
 	_, _ = fmt.Fprintf(a.stderr, "Release: %s\n", updateReleaseURL(result.LatestVersion))
-	if detection.Method == selfupdate.InstallPnpm {
+	if detection.Method == selfupdate.InstallManual {
+		_, _ = fmt.Fprintln(a.stderr, "Update this copy through its original installer or project dependency.")
+	} else if detection.Method == selfupdate.InstallPnpm {
 		_, _ = fmt.Fprintf(a.stderr, "Or run: pnpm add -g %s@%s\n", selfupdate.NpmPackage, result.LatestVersion)
 	} else {
 		_, _ = fmt.Fprintf(a.stderr, "Or run: npm install -g %s@%s\n", selfupdate.NpmPackage, result.LatestVersion)
@@ -224,9 +227,10 @@ func updateReleaseURL(version string) string {
 
 func updateChangelogURL() string { return contractCLIRepository + "/blob/master/CHANGELOG.md" }
 
-func (a *App) maybePrepareUpdateNotice(_ context.Context, args []string) {
+func (a *App) maybePrepareUpdateNotice(ctx context.Context, args []string) func() {
+	noop := func() {}
 	if !a.shouldAutoCheckUpdate(args) {
-		return
+		return noop
 	}
 	runID := a.currentUpdateRunID()
 	currentVersion := a.currentUpdateVersion()
@@ -240,28 +244,44 @@ func (a *App) maybePrepareUpdateNotice(_ context.Context, args []string) {
 			a.setUpdateNotice(runID, map[string]any{"update": notice.Map()})
 		}
 		if updatecheck.CacheFresh(cache, now, updatecheck.CacheTTL) {
-			return
+			return noop
 		}
 	}
 
-	// Match lark-cli: the command path never waits for registry I/O. A stale or
-	// missing cache is refreshed in the background for subsequent invocations.
+	// Business execution proceeds immediately. Join the optional check before
+	// process exit, within one budget measured from the start of the check.
+	checkCtx, cancel := context.WithTimeout(ctx, automaticUpdateBudget)
+	type checked struct {
+		result updatecheck.Result
+		err    error
+	}
+	done := make(chan checked, 1)
 	go func() {
-		checkCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-		defer cancel()
 		result, err := a.checkUpdateVersionWithLogger(checkCtx, currentVersion, nil)
-		if err != nil {
-			a.logger.Debug("automatic update cache refresh failed", "error", err.Error())
-			return
-		}
-		if result.Skipped {
-			return
-		}
-		a.saveUpdateCache(result)
-		if notice := updatecheck.NoticeFromResult(result); notice != nil {
-			a.setUpdateNotice(runID, map[string]any{"update": notice.Map()})
-		}
+		done <- checked{result: result, err: err}
 	}()
+	return func() {
+		defer cancel()
+		var check checked
+		// A long business command can finish after the budget. Prefer a result
+		// already obtained within that budget over the now-expired context.
+		select {
+		case check = <-done:
+		default:
+			select {
+			case check = <-done:
+			case <-checkCtx.Done():
+				return
+			}
+		}
+		if check.err != nil {
+			a.logger.Debug("automatic update cache refresh failed", "error", check.err.Error())
+			return
+		}
+		if !check.result.Skipped {
+			a.saveUpdateCache(check.result)
+		}
+	}
 }
 
 func (a *App) shouldAutoCheckUpdate(args []string) bool {

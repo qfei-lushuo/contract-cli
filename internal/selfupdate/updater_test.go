@@ -2,34 +2,60 @@ package selfupdate
 
 import (
 	"errors"
+	"os"
+	"path/filepath"
+	"runtime"
 	"testing"
 )
 
-func TestDetectFromResolvedPath(t *testing.T) {
-	t.Parallel()
-	tests := []struct {
-		name    string
-		path    string
-		npm     bool
-		pnpm    bool
-		method  InstallMethod
-		canAuto bool
-	}{
-		{name: "npm macOS", path: "/usr/local/lib/node_modules/@qfeius/contract-cli/bin/contract-cli", npm: true, method: InstallNpm, canAuto: true},
-		{name: "pnpm Linux", path: "/home/user/.local/share/pnpm/store/v10/links/pkg/node_modules/@qfeius/contract-cli/bin/contract-cli", pnpm: true, method: InstallPnpm, canAuto: true},
-		{name: "pnpm Windows", path: `C:\Users\Lucas\AppData\Local\pnpm\store\v10\links\pkg\node_modules\@qfeius\contract-cli\bin\contract-cli.exe`, pnpm: true, method: InstallPnpm, canAuto: true},
-		{name: "npm Windows", path: `C:\Users\Lucas\AppData\Roaming\npm\node_modules\@qfeius\contract-cli\bin\contract-cli.exe`, npm: true, method: InstallNpm, canAuto: true},
-		{name: "manual", path: "/usr/local/bin/contract-cli", npm: true, pnpm: true, method: InstallManual, canAuto: false},
+func TestGlobalBinaryFor(t *testing.T) {
+	root := filepath.Join(t.TempDir(), "global", "node_modules")
+	name := "contract-cli"
+	if runtime.GOOS == "windows" {
+		name += ".exe"
 	}
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			t.Parallel()
-			result := DetectFromResolvedPath(test.path, test.npm, test.pnpm)
-			if result.Method != test.method || result.CanAutoUpdate() != test.canAuto {
-				t.Fatalf("DetectFromResolvedPath() = %+v", result)
-			}
-		})
+	global := filepath.Join(root, "@qfeius", "contract-cli", "bin", name)
+	makeBinary := func(path string) {
+		t.Helper()
+		if err := os.MkdirAll(filepath.Dir(path), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(path, []byte("binary"), 0600); err != nil {
+			t.Fatal(err)
+		}
 	}
+	makeBinary(global)
+	if path, ok := globalBinaryFor(global, root); !ok || path != global {
+		t.Fatalf("global match: %q %t", path, ok)
+	}
+	for _, dir := range []string{"project", "_npx/cache", "other-global", ".pnpm/local"} {
+		local := filepath.Join(t.TempDir(), dir, "node_modules", "@qfeius", "contract-cli", "bin", name)
+		makeBinary(local)
+		if _, ok := globalBinaryFor(local, root); ok {
+			t.Fatalf("accepted non-global binary %s", local)
+		}
+	}
+	for _, invalid := range []string{"", "relative/node_modules", root + "\nwarning", filepath.Join(root, "missing")} {
+		if _, ok := globalBinaryFor(global, invalid); ok {
+			t.Fatalf("accepted root %q", invalid)
+		}
+	}
+	t.Run("pnpm global symlink", func(t *testing.T) {
+		store := filepath.Join(t.TempDir(), "pnpm", "store", "pkg")
+		binary := filepath.Join(store, "bin", name)
+		makeBinary(binary)
+		linkedRoot := filepath.Join(t.TempDir(), "global", "node_modules")
+		if err := os.MkdirAll(filepath.Join(linkedRoot, "@qfeius"), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.Symlink(store, filepath.Join(linkedRoot, "@qfeius", "contract-cli")); err != nil {
+			t.Skipf("symlink unavailable: %v", err)
+		}
+		stable, ok := globalBinaryFor(binary, linkedRoot)
+		if !ok || stable != filepath.Join(linkedRoot, "@qfeius", "contract-cli", "bin", name) {
+			t.Fatalf("symlink match: %s %t", stable, ok)
+		}
+	})
 }
 
 func TestDetectOverrideRunsForEachExplicitDetection(t *testing.T) {

@@ -249,7 +249,7 @@ contract-cli contract get <contract-id> --profile "$PROFILE" --output json
 
 - 普通命令先同步读取 `update-check.json`，缓存中有可升级版本时，JSON object 输出包含 `_notice.update`，stderr 不输出旧版升级文本。
 - fresh cache 无可升级版本时，当前命令不注入 `_notice.update`，也不请求远端。
-- cache 缺失或超过 24 小时时，CLI 在后台刷新并写入 `update-check.json`，不等待网络；新结果最迟在后续命令中提示。
+- cache 缺失或超过 24 小时时，CLI 与业务命令并行刷新，并在退出前按 1.5 秒总预算收尾；成功写入 `update-check.json` 后，下次命令使用新缓存。超时保留旧缓存并在下次重试。
 - 网络失败时原命令仍然继续执行，不应因为版本刷新失败而退出；失败结果不写入缓存。
 
 关闭自动检查：
@@ -1387,7 +1387,7 @@ contract-cli contract search --profile "$PROFILE" --data '{}'
 预期结果：
 
 - 业务命令先同步读取本地 cache；fresh cache 24 小时内不再请求 npm registry，因此刚发布的新包可能要等缓存过期后才提示。
-- cache 缺失或过期时，当前命令后台刷新 cache，不增加业务命令的网络等待时间。
+- cache 缺失或过期时，与业务并行刷新 cache；退出前按 1.5 秒总预算收尾，慢请求不无限拖延命令，取消会结束刷新。
 - 发现缓存或远端结果中有新版本时，JSON object 输出注入 `_notice.update`；stderr 不输出旧版升级文本。
 - `--raw`、yaml、table、纯文本命令不注入 `_notice.update`。
 - 刷新失败不阻断原命令；失败结果不写入缓存。

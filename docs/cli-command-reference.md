@@ -198,7 +198,7 @@ contract-cli update --force
 
 - 普通命令会先同步读取当前配置目录的 `update-check.json`；缓存里有可升级版本时，仅在 JSON object 输出中注入 `_notice.update`，其中命令固定为 `contract-cli update`
 - 命中 fresh cache 时不访问 npm registry，因此不会立即发现刚发布的新包
-- cache 缺失或过期时，CLI 在后台刷新 npm `latest`；当前业务命令不等待网络结果，刷新结果供后续调用使用
+- cache 缺失或过期时，并行刷新 npm `latest`；退出前按从刷新开始计时的 1.5 秒总预算收尾，成功后供下次调用使用，超时保留旧缓存
 - 网络失败、registry 失败或当前是 dev 构建时不会阻断原命令；刷新失败不会写入失败缓存
 - `--raw`、yaml、table、纯文本命令不注入 `_notice.update`
 - CI 环境会跳过自动远端检查

@@ -429,6 +429,7 @@ func TestAutomaticUpdateNoticeUsesStaleCacheAndRefreshesInBackground(t *testing.
 					return jsonResponse(`{"version":"0.1.0-beta.3"}`), nil
 				}
 				apiRequests++
+				defer close(refreshRelease)
 				if req.URL.Path != "/open-apis/contract/v1/contracts/contract-1" {
 					t.Fatalf("unexpected API path: %s", req.URL.Path)
 				}
@@ -452,7 +453,6 @@ func TestAutomaticUpdateNoticeUsesStaleCacheAndRefreshesInBackground(t *testing.
 		t.Fatalf("api requests = %d, want 1", apiRequests)
 	}
 	waitForSignal(t, refreshStarted)
-	close(refreshRelease)
 	waitForUpdateCache(t, cachePath, "0.1.0-beta.3")
 	cache, ok, err := updatecheck.LoadCache(cachePath)
 	if err != nil {
@@ -608,6 +608,7 @@ func TestAutomaticUpdateNoticeWritesMissingCacheInBackground(t *testing.T) {
 					return jsonResponse(`{"version":"0.1.0-beta.2"}`), nil
 				}
 				apiRequests++
+				defer close(refreshRelease)
 				return jsonResponse(`{"code":0,"data":{"contract":{"contract_id":"contract-1"}}}`), nil
 			}),
 		},
@@ -624,7 +625,6 @@ func TestAutomaticUpdateNoticeWritesMissingCacheInBackground(t *testing.T) {
 		t.Fatalf("first run with no cache should not wait for registry: %+v", output)
 	}
 	waitForSignal(t, refreshStarted)
-	close(refreshRelease)
 	waitForUpdateCache(t, cachePath, "0.1.0-beta.2")
 	cache, ok, err := updatecheck.LoadCache(cachePath)
 	if err != nil {

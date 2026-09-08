@@ -463,7 +463,7 @@ func addUpdateHelp(registry map[string]helpTopic) {
 		},
 		Notes: []string{
 			"升级命令会识别 npm 或 pnpm 安装来源，安装精确的 latest 版本并校验新二进制。",
-			"普通命令先读取本地缓存，再在后台按 24 小时周期刷新版本信息。",
+			"普通命令先读取本地缓存，再并行刷新；退出前收尾，刷新总预算 1.5 秒，成功后下次命令使用新缓存。",
 			"可设置 CONTRACT_CLI_NO_UPDATE_NOTIFIER=1 关闭自动更新提示。",
 		},
 	}

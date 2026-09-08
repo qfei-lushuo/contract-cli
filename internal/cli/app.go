@@ -213,7 +213,8 @@ func (a *App) Run(ctx context.Context, args []string) error {
 	}
 
 	a.logger.Info("run command", "args", redactCommandArgs(args))
-	a.maybePrepareUpdateNotice(ctx, args)
+	finishUpdateCheck := a.maybePrepareUpdateNotice(ctx, args)
+	defer finishUpdateCheck()
 
 	switch args[0] {
 	case "config":

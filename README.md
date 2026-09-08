@@ -403,12 +403,14 @@ contract-cli update --force
 自动提示：
 
 - 普通命令会同步读取本地 `update-check.json`，有可升级缓存时在 JSON object 输出中注入 `_notice.update`。
-- cache fresh 时不访问远端；cache 缺失或过期时，CLI 在后台刷新远端版本缓存，不阻塞当前业务命令。
+- cache fresh 时不访问远端；cache 缺失或过期时，CLI 与业务命令并行刷新缓存；命令退出前收尾，总预算为 1.5 秒（从刷新开始计时）。超时保留旧缓存，下次重试，不改变业务结果。
 - 有新版本时，仅在 JSON object 输出中注入 `_notice.update`。
 - `--raw`、yaml、table、纯文本命令不注入 `_notice.update`。
 - 设置 `CONTRACT_CLI_NO_UPDATE_NOTIFIER=1` 可以关闭自动提示。
 
 升级行为：
+
+自更新仅适用于当前包管理器 `root -g` 确认的全局安装。npx 缓存、项目内依赖或其他 Node 环境的副本返回 `manual_required`，应通过原安装方式更新。Windows `.cmd`/`.bat` 入口经命令解释器执行；包含 `%` 或双引号等无法安全传递的包装入口不启用自动更新。
 
 - 固定跟随 npm `latest`，不对外提供 channel 选择。
 - 自动识别 npm 或 pnpm 全局安装，安装精确版本并执行 `contract-cli --version` 校验。
