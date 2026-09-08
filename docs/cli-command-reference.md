@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-- 默认使用 `prod`：`contract-cli config add --env prod --name contract`。当前分支临时支持 `dev`，仅允许 `contract-cli config add --env dev --name contract-dev`；所有 dev 授权及业务调用必须显式带 `--profile contract-dev`，不改变默认 profile，不复用生产凭证。上线前移除，详见 [dev 联调说明](dev-integration.md)。
+- 当前仅内置 `prod` 环境预设；正式包默认使用 `prod`：`contract-cli config add --env prod --name contract`
 - `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 是当前仅有的十五个同时支持 `user` 与 `app` 的结构化业务命令
 - `contract search-v2`、`contract field update`、`contract sign switch-to-paper`、`contract sign-url get`、`contract form attribute list`、`contract authorization grant`、`contract esign *`、`contract submit/resubmit/patch/download-file/delete/print-file`、`contract share get/batch-create`、`contract cooperation link/record/search/file`、`contract approval start/get`、`payment *`、`mdm vendor create/update/list-all/query-by-cert`、`mdm legal get --code/create/update`、`mdm fixed-exchange-rate get/update`、`mdm file download`、`event outbound-ip list` 和 `rule table *` 当前仅支持 `--as app`
 - 除上述双身份和 app-only 能力外，当前其他结构化业务命令仍只支持 `--as user`

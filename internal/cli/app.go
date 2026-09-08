@@ -330,10 +330,6 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 		a.logger.Error("resolve environment failed", "environment", env, "error", err.Error())
 		return err
 	}
-	if (env == developmentEnvironment && profileName != developmentProfileName) ||
-		(env != developmentEnvironment && profileName == developmentProfileName) {
-		return developmentProfileError()
-	}
 
 	existing, found, err := a.store.LookupProfile(profileName)
 	if err != nil {
@@ -341,9 +337,6 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	}
 	resetAuthentication := false
 	if found {
-		if env == developmentEnvironment && existing.Environment != developmentEnvironment {
-			return developmentProfileError()
-		}
 		resetAuthentication, err = a.productionProfileRequiresReset(existing)
 		if err != nil {
 			return err
@@ -353,11 +346,8 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	if protectedResourceURL == "" {
 		protectedResourceURL = preset.ProtectedResourceMetadataURL
 	}
-	if protectedResourceURL != "" && !isProductionOriginURL(protectedResourceURL, preset.OpenPlatformBaseURL, true) {
+	if protectedResourceURL != "" && !isProductionOriginURL(protectedResourceURL, productionOpenPlatformOrigin, true) {
 		err := productionProfileError(profileName)
-		if env == developmentEnvironment {
-			err = developmentProfileError()
-		}
 		a.logger.Error("config add rejected non-production metadata url", "profile", profileName, "error", err.Error())
 		return err
 	}
@@ -370,16 +360,15 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	}
 
 	var discovery *oauth.DiscoveryResult
-	httpClient := clientForEnvironment(a.httpClient, env)
 	switch {
 	case protectedResourceURL != "":
-		discovery, err = oauth.Discover(ctx, httpClient, a.logger, protectedResourceURL)
+		discovery, err = oauth.Discover(ctx, a.httpClient, a.logger, protectedResourceURL)
 		if err != nil {
 			a.logger.Error("config add discover failed", "profile", profileName, "protected_resource_url", protectedResourceURL, "error", err.Error())
 			return err
 		}
 	case preset.AuthorizationServerMetadataURL != "":
-		discovery, err = oauth.DiscoverFromAuthorizationServer(ctx, httpClient, a.logger, preset.AuthorizationServerMetadataURL, preset.Resource)
+		discovery, err = oauth.DiscoverFromAuthorizationServer(ctx, a.httpClient, a.logger, preset.AuthorizationServerMetadataURL, preset.Resource)
 		if err != nil {
 			a.logger.Error("config add discover from authorization server failed", "profile", profileName, "authorization_server_metadata_url", preset.AuthorizationServerMetadataURL, "error", err.Error())
 			return err
@@ -425,7 +414,7 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	}
 
 	a.logger.Info("save profile", "profile", profileName, "environment", env)
-	if err := a.saveEnvironmentProfile(profile); err != nil {
+	if err := a.store.UpsertProfile(profile, true); err != nil {
 		a.logger.Error("save profile failed", "profile", profileName, "error", err.Error())
 		return err
 	}
@@ -649,8 +638,6 @@ func (a *App) providerFor(identity config.IdentityKind) authProvider {
 
 func resolveEnvironment(name string) (environmentPreset, error) {
 	switch name {
-	case developmentEnvironment:
-		return developmentPreset(), nil
 	case "prod":
 		return environmentPreset{
 			OpenPlatformBaseURL:            "https://open.qfei.cn",
@@ -666,7 +653,7 @@ func resolveEnvironment(name string) (environmentPreset, error) {
 			DeviceScope:                    "contract:full contract-review:full",
 		}, nil
 	default:
-		return environmentPreset{}, fmt.Errorf("unsupported environment %q; supported environments: prod, dev", name)
+		return environmentPreset{}, fmt.Errorf("unsupported environment %q; supported environments: prod", name)
 	}
 }
 

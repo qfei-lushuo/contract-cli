@@ -209,7 +209,7 @@ func (a *App) openPlatformClientAndContext(profileName, identityArg, path string
 	}
 
 	client := openplatform.New(openplatform.Options{
-		HTTPClient: clientForEnvironment(a.httpClient, profile.Environment),
+		HTTPClient: a.httpClient,
 		Logger:     a.logger,
 		BeforeRequestHooks: []openplatform.BeforeRequestHook{
 			a.beforeOpenPlatformRequest,

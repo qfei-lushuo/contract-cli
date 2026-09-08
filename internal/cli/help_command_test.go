@@ -240,13 +240,13 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 			args: []string{"config", "add", "--help"},
 			contains: []string{
 				"config add",
-				"--env <prod|dev>",
+				"--env <prod>",
 				"默认 prod",
 				"--name <profile>",
 				"默认 contract",
 				"contract-cli config add --env prod --name contract",
 			},
-			notContains: []string{"--env <dev|prod>"},
+			notContains: []string{"--env <dev|prod>", "--env <prod|dev>", "contract-dev"},
 		},
 		{
 			name: "latest-only self update",

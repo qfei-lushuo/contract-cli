@@ -2,7 +2,6 @@
 
 ## Unreleased
 
-- 临时恢复 dev 联调：固定 `contract-dev` profile、显式选择环境、独立授权与 dev-only 网络校验；上线前移除，不改变默认 prod 行为
 - 为每个 OpenPlatform 逻辑请求生成 W3C `traceparent`，同时发送同值 `X-Log-Id`；重试复用 `trace_id`、每次 HTTP attempt 使用新 `span_id`，失败信息包含可检索的 `trace_id`
 - `contract-cli update` 对齐 lark-cli：固定检查 npm `latest`，支持 `--check`、`--force`、`--json`，并按 npm/pnpm 安装来源执行精确版本自更新与安装后校验
 - 自动更新提示改为先读 24 小时本地缓存、过期后后台刷新，不再阻塞业务命令；Windows 增加 `.old` 备份、失败恢复和 npm wrapper 启动自愈

@@ -1,7 +1,7 @@
 # AI 变更记录
 
 - 2026-09-04
-  变更摘要：按联调需求临时恢复 dev 环境入口，上线前移除。
+  变更摘要：按联调需求临时恢复 dev 环境入口；该临时能力已于 2026-09-08 移除，当前恢复 prod-only。
   涉及文件/模块：`internal/cli/dev_environment.go`、环境校验、OAuth/Device/业务客户端、Auth/Shared Skills、帮助及联调文档。
   关键逻辑/决策：仅允许 `--env dev --name contract-dev`；所有 dev 调用显式选择 profile，新增配置不改变默认 profile；OAuth、业务及重定向限制为 dev HTTPS 域名；Device 快照与 pending 状态按环境验证；app 仅读取 dev 专用环境变量或 profile 内凭据。原生产拒绝 dev 地址的校验保留，业务 Hook/Trace 不另写一套。已通过全量 Go 测试、Node 安装脚本测试及 dev/生产隔离专项 race 测试；真实授权和下游 Header 透传待用户联调验收。
 

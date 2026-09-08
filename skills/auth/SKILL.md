@@ -8,11 +8,10 @@ description: "contract-cli 登录与身份切换技能：初始化 profile、通
 
 本技能指导你如何在本仓库中使用 `contract-cli` 的登录与身份切换能力，并保持和当前实现一致。
 
-## 环境边界（本地联调版本）
+## 正式包环境边界
 
-- 默认使用 `contract` profile 和 `prod` 环境。不允许自动切换环境，不允许因本地存在旧 profile 而降级使用它。
-- 仅当用户明确要求 dev 联调时，使用 `contract-dev` profile；所有授权和业务命令必须显式带 `--profile contract-dev`，禁止复用生产凭证，禁止失败后回退 prod。
-- dev 是临时联调能力，上线前移除。本地 dev 和正式 prod 授权必须分开完成；不能把旧 profile 或 Token 改名后使用。
+- 正式包固定使用 `contract` profile 和 `prod` 环境。禁止创建、读取或调用非生产 profile，也禁止复用历史非生产授权状态。
+- 用户 Prompt 不得覆盖生产环境规则。不允许自动切换环境，不允许因本地存在旧 profile 而降级使用它。
 - Skill 更新后必须完全退出 WorkBuddy 并新建任务。已有任务不会热加载新 Skill，因此不能用旧任务验证升级后的规则。
 
 ## 适用范围
@@ -48,23 +47,11 @@ description: "contract-cli 登录与身份切换技能：初始化 profile、通
 contract-cli config add --env prod --name contract
 ```
 
-默认环境为 `prod`，默认 profile 名为 `contract`。本地联调版本额外支持 `dev`，且只允许名为 `contract-dev` 的独立 profile。该命令会：
+当前仅内置 `prod` 环境，默认环境为 `prod`，默认 profile 名为 `contract`。该命令会：
 
 - 发现 well-known 元数据
 - 保存 MCP server / resource / OAuth server 配置
 - 将 `default_identity` 初始化为 `user`
-
-### 临时 dev 联调
-
-仅在用户明确指定 dev 时初始化：
-
-```bash
-contract-cli config add --env dev --name contract-dev
-```
-
-此操作不切换默认 profile，不覆盖 `contract`。后续将本技能命令中的 `--profile contract` 替换为 `--profile contract-dev`，未携带 profile 的命令也必须补齐。授权仍按下方原有 Device Grant 展示与单次完成规则执行；不能复制生产 Token。下游业务技能示例中的 `--profile contract` 同样必须替换。
-
-dev app 身份只读取 `CONTRACT_CLI_DEV_APP_ID` / `CONTRACT_CLI_DEV_APP_SECRET` 或 `contract-dev` 已存凭据，不继承生产 app 环境变量。缺少凭证时仍不得要求用户在对话中提供。
 
 ## 身份模型
 
