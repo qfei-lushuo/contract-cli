@@ -249,16 +249,17 @@ func TestHelpRequestsRenderExpectedTopics(t *testing.T) {
 			notContains: []string{"--env <dev|prod>"},
 		},
 		{
-			name: "latest-only self update",
-			args: []string{"update", "--help"},
+			name: "update check production example",
+			args: []string{"update", "check", "--help"},
 			contains: []string{
-				"contract-cli update [flags]",
-				"--check",
-				"--force",
+				"update check",
+				"--channel <latest|beta>",
 				"--json",
-				"npm latest",
+				"contract-cli update check --channel latest --json",
 			},
-			notContains: []string{"--channel", "update check --channel"},
+			notContains: []string{
+				"contract-cli update check --channel beta",
+			},
 		},
 		{
 			name: "environment inspect explains per request detection",
@@ -367,6 +368,7 @@ func TestAllCurrentHelpTopicsRender(t *testing.T) {
 		"skills list",
 		"skills install",
 		"update",
+		"update check",
 		"environment",
 		"environment inspect",
 		"contract",

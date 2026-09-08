@@ -37,7 +37,7 @@ func TestCommandReferenceDocumentCoversCurrentSupportedCommands(t *testing.T) {
 		"contract-cli skills install",
 		"npx skills add qfeius/contract-cli -y -g",
 		"api call 暂未开放使用",
-		"contract-cli update --check",
+		"contract-cli update check",
 		"contract-cli environment inspect",
 		"每一次实际业务 HTTP 请求发送前都会重新探测",
 		"不写入 profile、OAuth Token",

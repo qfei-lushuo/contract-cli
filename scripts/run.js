@@ -5,14 +5,8 @@ const { execFileSync } = require("child_process");
 const fs = require("fs");
 const path = require("path");
 
-const { recoverWindowsBinary } = require("./windows-recovery.js");
-
 const binaryName = process.platform === "win32" ? "contract-cli.exe" : "contract-cli";
 const binaryPath = path.join(__dirname, "..", "bin", binaryName);
-
-if (process.platform === "win32") {
-  recoverWindowsBinary(binaryPath);
-}
 
 if (!fs.existsSync(binaryPath)) {
   console.error(

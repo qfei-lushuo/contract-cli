@@ -320,9 +320,6 @@ func (p appAuthProvider) resolveCredentials(profile config.Profile, options auth
 		source:    combineCredentialSources(appIDSource, appSecretSource),
 	}
 	if requireComplete && (credentials.appID == "" || credentials.appSecret == "") {
-		if _, nonprod := nonProductionEnvironments[profile.Environment]; nonprod {
-			return appCredentials{}, fmt.Errorf("%s app credentials are incomplete; configure CONTRACT_CLI_%s_APP_ID/CONTRACT_CLI_%s_APP_SECRET locally for %s", profile.Environment, strings.ToUpper(profile.Environment), strings.ToUpper(profile.Environment), profile.Name)
-		}
 		return appCredentials{}, fmt.Errorf("app credentials are incomplete; provide --app-id/--app-secret or set %s/%s", envAppID, envAppSecret)
 	}
 	return credentials, nil
@@ -333,11 +330,7 @@ func (p appAuthProvider) resolveAppID(profile config.Profile, options authComman
 	case options.AppID != "":
 		return options.AppID, "flag"
 	default:
-		names := []string{envAppID, legacyEnvAppID, legacyEnvBotAppID}
-		if _, nonprod := nonProductionEnvironments[profile.Environment]; nonprod {
-			names = []string{"CONTRACT_CLI_" + strings.ToUpper(profile.Environment) + "_APP_ID"}
-		}
-		if value, ok := lookupEnvAny(p.lookupEnv, names...); ok {
+		if value, ok := lookupEnvAny(p.lookupEnv, envAppID, legacyEnvAppID, legacyEnvBotAppID); ok {
 			return value, "env"
 		}
 		if profile.Identities.App.AppID != "" {
@@ -352,11 +345,7 @@ func (p appAuthProvider) resolveAppSecret(profile config.Profile, options authCo
 	case options.AppSecret != "":
 		return options.AppSecret, "flag", nil
 	default:
-		names := []string{envAppSecret, legacyEnvAppSecret, legacyEnvBotAppSecret}
-		if _, nonprod := nonProductionEnvironments[profile.Environment]; nonprod {
-			names = []string{"CONTRACT_CLI_" + strings.ToUpper(profile.Environment) + "_APP_SECRET"}
-		}
-		if value, ok := lookupEnvAny(p.lookupEnv, names...); ok {
+		if value, ok := lookupEnvAny(p.lookupEnv, envAppSecret, legacyEnvAppSecret, legacyEnvBotAppSecret); ok {
 			return value, "env", nil
 		}
 		if profile.Identities.App.SecretRef != "" {

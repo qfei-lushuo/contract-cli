@@ -218,7 +218,7 @@ npm view @qfeius/contract-cli@latest version --registry https://registry.npmjs.o
 
 - `make release-assets` 生成的附件可以被 npm 安装脚本消费
 - npm 包元信息、GitHub Release 产物、二进制命名规则已经对齐
-- 正式包安装文案和 `contract-cli update` 均固定使用 npm `latest`
+- 正式包安装文案和 `update check --channel latest` 语义已收敛到生产渠道
 
 ## 6. 当前已知边界和讨论点
 

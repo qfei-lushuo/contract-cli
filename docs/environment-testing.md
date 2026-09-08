@@ -11,3 +11,5 @@ BUILD_ENVIRONMENT=test bash scripts/build-release-assets.sh
 Contract test 默认 profile 为 contract-test，执行 `contract-cli config add` 即可初始化。配置仍保存在原有目录，其他 profile 内容不被迁移或改写。dev/test/blue 的 Device client 沿用 prod 的 `zscli_892efdadc11a3f53`；浏览器 OAuth 保留原有动态注册流程，与 Device client 分开保存。
 
 验证命令：`contract-cli version` 显示 environment test；`contract-cli auth status` 应读取 contract-test；`contract-cli config add --env prod` 应拒绝。真实授权由使用者按现有 Skill 执行。
+
+app 身份沿用原有 `CONTRACT_CLI_APP_ID` / `CONTRACT_CLI_APP_SECRET`、兼容别名和参数；请在测试进程中配置目标环境自己的凭据。版本检查保留 release 的 `contract-cli update check [--channel latest|beta]`，不由 CLI 自动安装新版本。

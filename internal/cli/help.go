@@ -203,7 +203,7 @@ func helpRegistry() map[string]helpTopic {
 		{"contract-cli version", "查看版本信息"},
 		{"contract-cli skills list", "列出内置 Agent skills"},
 		{"contract-cli skills install [flags]", "安装内置 Agent skills"},
-		{"contract-cli update [flags]", "检查并更新到 npm latest 版本"},
+		{"contract-cli update check [flags]", "检查 npm 远端版本"},
 		{"contract-cli environment inspect [flags]", "探测当前 CLI 的宿主客户端环境"},
 		{"contract-cli contract <subcommand> [flags]", "合同结构化命令"},
 		{"contract-cli payment <subcommand> [flags]", "付款结构化命令"},
@@ -452,24 +452,27 @@ func addSkillsHelp(registry map[string]helpTopic) {
 
 func addUpdateHelp(registry map[string]helpTopic) {
 	registry["update"] = helpTopic{
-		Name:    "update",
-		Summary: "检查并更新 contract-cli 到 npm latest 版本。",
-		Usage:   []string{"contract-cli update [flags]"},
+		Name:  "update",
+		Usage: []string{"contract-cli update <subcommand> [flags]"},
+		Commands: []helpCommand{
+			{"contract-cli update check [flags]", "检查 npm 远端版本"},
+		},
+	}
+	registry["update check"] = helpTopic{
+		Name:    "update check",
+		Summary: "检查 npm 远端是否存在可升级版本。",
+		Usage:   []string{"contract-cli update check [flags]"},
 		Flags: []helpFlag{
-			{"--check", "仅检查更新，不安装"},
-			{"--force", "即使已经是最新版本也重新安装"},
-			{"--json", "输出结构化 JSON"},
+			{"--channel <latest|beta>", "npm dist-tag；正式版通常使用 latest，不传时根据当前版本推断"},
+			{"--json", "输出飞书式结构化 JSON；默认输出文本提示"},
 		},
 		Examples: []string{
-			"contract-cli update",
-			"contract-cli update --check",
-			"contract-cli update --check --json",
-			"contract-cli update --force",
+			"contract-cli update check",
+			"contract-cli update check --channel latest --json",
 		},
 		Notes: []string{
-			"升级命令会识别 npm 或 pnpm 安装来源，安装精确的 latest 版本并校验新二进制。",
-			"普通命令先读取本地缓存，再并行刷新；退出前收尾，刷新总预算 1.5 秒，成功后下次命令使用新缓存。",
-			"可设置 CONTRACT_CLI_NO_UPDATE_NOTIFIER=1 关闭自动更新提示。",
+			"普通命令按 24 小时缓存检查远端版本，并在 JSON object 输出中注入 _notice.update。",
+			"可设置 CONTRACT_CLI_NO_UPDATE_CHECK=1 关闭自动检查。",
 		},
 	}
 }

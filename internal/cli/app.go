@@ -12,7 +12,6 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
 	"time"
 
 	"cn.qfei/contract-cli/internal/build"
@@ -20,7 +19,6 @@ import (
 	"cn.qfei/contract-cli/internal/credential"
 	"cn.qfei/contract-cli/internal/invocation"
 	"cn.qfei/contract-cli/internal/oauth"
-	"cn.qfei/contract-cli/internal/selfupdate"
 	contractskills "cn.qfei/contract-cli/skills"
 )
 
@@ -42,7 +40,6 @@ type Options struct {
 	SkillsFS           fs.FS
 	CredentialStore    credential.Store
 	InspectEnvironment func(context.Context, int) invocation.Result
-	NewSelfUpdater     func() *selfupdate.Updater
 
 	UpdateRegistryURL    string
 	UpdateCurrentVersion string
@@ -66,9 +63,6 @@ type App struct {
 	updateURL          string
 	updateVersion      string
 	updateNotice       map[string]any
-	updateNoticeMu     sync.RWMutex
-	updateRunID        uint64
-	newSelfUpdater     func() *selfupdate.Updater
 	now                func() time.Time
 	userProvider       authProvider
 	appProvider        authProvider
@@ -148,10 +142,6 @@ func New(options Options) *App {
 	if inspectEnvironment == nil {
 		inspectEnvironment = invocation.Inspect
 	}
-	newSelfUpdater := options.NewSelfUpdater
-	if newSelfUpdater == nil {
-		newSelfUpdater = selfupdate.New
-	}
 
 	app := &App{
 		buildEnvironment:   options.BuildEnvironment,
@@ -167,7 +157,6 @@ func New(options Options) *App {
 		skillsFS:           skillsFS,
 		credentialStore:    options.CredentialStore,
 		inspectEnvironment: inspectEnvironment,
-		newSelfUpdater:     newSelfUpdater,
 		updateURL:          options.UpdateRegistryURL,
 		updateVersion:      options.UpdateCurrentVersion,
 		now:                now,
@@ -196,7 +185,7 @@ func (a *App) Run(ctx context.Context, args []string) error {
 			return err
 		}
 	}
-	a.resetUpdateNotice()
+	a.updateNotice = nil
 	if len(args) == 0 {
 		a.printUsage()
 		return nil
@@ -221,8 +210,7 @@ func (a *App) Run(ctx context.Context, args []string) error {
 	}
 
 	a.logger.Info("run command", "args", redactCommandArgs(args))
-	finishUpdateCheck := a.maybePrepareUpdateNotice(ctx, args)
-	defer finishUpdateCheck()
+	a.maybePrepareUpdateNotice(ctx, args)
 
 	switch args[0] {
 	case "config":
@@ -262,40 +250,6 @@ func (a *App) printVersion() {
 
 func (a *App) updateCachePath() string {
 	return filepath.Join(filepath.Dir(a.store.Path()), "update-check.json")
-}
-
-func (a *App) resetUpdateNotice() {
-	a.updateNoticeMu.Lock()
-	defer a.updateNoticeMu.Unlock()
-	a.updateRunID++
-	a.updateNotice = nil
-}
-
-func (a *App) currentUpdateRunID() uint64 {
-	a.updateNoticeMu.RLock()
-	defer a.updateNoticeMu.RUnlock()
-	return a.updateRunID
-}
-
-func (a *App) setUpdateNotice(runID uint64, notice map[string]any) {
-	a.updateNoticeMu.Lock()
-	defer a.updateNoticeMu.Unlock()
-	if a.updateRunID == runID {
-		a.updateNotice = notice
-	}
-}
-
-func (a *App) updateNoticeSnapshot() map[string]any {
-	a.updateNoticeMu.RLock()
-	defer a.updateNoticeMu.RUnlock()
-	if len(a.updateNotice) == 0 {
-		return nil
-	}
-	result := make(map[string]any, len(a.updateNotice))
-	for key, value := range a.updateNotice {
-		result[key] = value
-	}
-	return result
 }
 
 func (a *App) runConfig(ctx context.Context, args []string) error {

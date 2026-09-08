@@ -2,22 +2,17 @@
 
 - 2026-09-08
   变更摘要：按提测需求恢复 dev 并增加 test/blue，默认仍为 prod。
-  关键逻辑/决策：强制独立且显式的 contract-dev/test/blue profile；保留 URL、Device 快照及 pending 校验；各环境 app 环境变量隔离；blue 地址取自部署仓库 open-b/myaccount-b。浏览器 OAuth 保持动态注册；test Device client ID 待服务端配置核实，可通过非生产专用参数配置。是否对外保留多环境能力需在发版前确定，详见 environment-testing.md。
+  关键逻辑/决策：强制独立且显式的 contract-dev/test/blue profile；保留 URL、Device 快照及 pending 校验；app 凭据沿用通用环境变量和原有读取顺序；blue 地址取自部署仓库 open-b/myaccount-b。浏览器 OAuth 保持动态注册；test Device client ID 待服务端配置核实，可通过非生产专用参数配置。是否对外保留多环境能力需在发版前确定，详见 environment-testing.md。
 
 - 2026-09-04
   变更摘要：按联调需求临时恢复 dev 环境入口，上线前移除。
   涉及文件/模块：`internal/cli/dev_environment.go`、环境校验、OAuth/Device/业务客户端、Auth/Shared Skills、帮助及联调文档。
-  关键逻辑/决策：仅允许 `--env dev --name contract-dev`；所有 dev 调用显式选择 profile，新增配置不改变默认 profile；OAuth、业务及重定向限制为 dev HTTPS 域名；Device 快照与 pending 状态按环境验证；app 仅读取 dev 专用环境变量或 profile 内凭据。原生产拒绝 dev 地址的校验保留，业务 Hook/Trace 不另写一套。已通过全量 Go 测试、Node 安装脚本测试及 dev/生产隔离专项 race 测试；真实授权和下游 Header 透传待用户联调验收。
+  关键逻辑/决策：仅允许 `--env dev --name contract-dev`；所有 dev 调用显式选择 profile，新增配置不改变默认 profile；OAuth、业务及重定向限制为 dev HTTPS 域名；Device 快照与 pending 状态按环境验证；app 凭据沿用原有参数、通用环境变量和 profile 内凭据。原生产拒绝 dev 地址的校验保留，业务 Hook/Trace 不另写一套。已通过全量 Go 测试、Node 安装脚本测试及 dev/生产隔离专项 race 测试；真实授权和下游 Header 透传待用户联调验收。
 
 - 2026-09-02
   变更摘要：为 CLI 的所有 OpenPlatform 业务请求增加请求级 Trace 关联。
   涉及文件/模块：`internal/tracecontext`、`internal/openplatform` 统一客户端、README、命令参考与测试计划。
   关键逻辑/决策：每个逻辑请求使用加密安全随机数生成 W3C `trace_id`，每个实际 HTTP attempt 生成独立 `span_id`；统一覆盖发送 `traceparent` 和与其同值的 `X-Log-Id`，网络重试与 Token 刷新重放保持同一 Trace；响应对象和最终错误保留 `trace_id`，且不改变已有错误类型的 `errors.As` 判断。Trace ID 仅用于可观测性，不用于鉴权、幂等或客户端来源证明。
-
-- 2026-09-02
-  变更摘要：将 contract-cli 更新机制收敛为与 lark-cli 一致的 latest-only 检查和可验证自更新。
-  涉及文件/模块：`internal/update`、`internal/selfupdate`、`internal/cli` 更新命令与帮助、npm wrapper、发布检查、README 与命令/测试文档。
-  关键逻辑/决策：`contract-cli update` 支持 `--check`、`--force`、`--json`，固定读取 npm `latest`；普通命令同步读取 24 小时缓存并后台刷新；升级前识别 npm/pnpm 安装来源，安装精确版本后执行版本校验；Windows 通过 `.old` 备份、回滚和 wrapper 启动恢复处理运行中 exe 无法覆盖及中断场景。旧 `update check` 和 `CONTRACT_CLI_NO_UPDATE_CHECK` 仅保留隐藏兼容。
 
 - 2026-09-01
   变更摘要：将 Doubao Work 纳入运行环境识别并作为独立渠道透传。

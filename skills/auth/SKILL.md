@@ -66,7 +66,7 @@ contract-cli config add --env blue --name contract-blue
 
 对应环境包会把本环境 profile 设为默认，不覆盖其他 profile 的内容。后续将本技能命令中的 `--profile contract` 替换为所选的 `--profile contract-dev`、`--profile contract-test` 或 `--profile contract-blue`，未携带 profile 的命令也必须补齐。授权仍按下方原有 Device Grant 展示与单次完成规则执行；不能复制生产 Token。下游业务技能示例中的 `--profile contract` 同样必须替换。
 
-app 身份只读取目标环境的 `CONTRACT_CLI_DEV_APP_ID` / `CONTRACT_CLI_DEV_APP_SECRET`、`CONTRACT_CLI_TEST_APP_ID` / `CONTRACT_CLI_TEST_APP_SECRET` 或 `CONTRACT_CLI_BLUE_APP_ID` / `CONTRACT_CLI_BLUE_APP_SECRET`，以及该 profile 已存凭据，不继承其他环境变量。缺少凭证时仍不得要求用户在对话中提供。
+app 身份沿用原有 `--app-id` / `--app-secret`、`CONTRACT_CLI_APP_ID` / `CONTRACT_CLI_APP_SECRET`、兼容别名及所选 profile 已存凭据的读取顺序；在当前进程中配置目标环境自己的凭据，不复用其他环境凭据。缺少凭证时仍不得要求用户在对话中提供。
 
 浏览器 OAuth 的 client ID 由注册接口动态生成，与预注册的 Device client ID 分开保存。dev/test/blue 沿用 Contract prod 的预注册 Device client ID `zscli_892efdadc11a3f53`。浏览器 OAuth 继续动态注册自己的 client，不用 Device ID 替换。
 

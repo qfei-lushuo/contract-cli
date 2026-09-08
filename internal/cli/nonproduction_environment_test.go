@@ -160,17 +160,8 @@ func TestNonProductionIsolationAcrossEveryEnvironment(t *testing.T) {
 				t.Fatal("implicitly selected nonproduction profile")
 			}
 			provider := appAuthProvider{secrets: config.NewSecretsStore(t.TempDir()), lookupEnv: func(key string) (string, bool) {
-				if key == "CONTRACT_CLI_"+strings.ToUpper(name)+"_APP_ID" || key == "CONTRACT_CLI_"+strings.ToUpper(name)+"_APP_SECRET" {
-					return "", false
-				}
-				return "foreign-fixture", true
+				return "selected-environment-fixture", key == envAppID || key == envAppSecret
 			}}
-			if _, err := provider.resolveCredentials(environmentProfile(env), authCommandOptions{}, true); err == nil {
-				t.Fatal("inherited foreign credentials")
-			}
-			provider.lookupEnv = func(key string) (string, bool) {
-				return "selected-fixture", key == "CONTRACT_CLI_"+strings.ToUpper(name)+"_APP_ID" || key == "CONTRACT_CLI_"+strings.ToUpper(name)+"_APP_SECRET"
-			}
 			if _, err := provider.resolveCredentials(environmentProfile(env), authCommandOptions{}, true); err != nil {
 				t.Fatal(err)
 			}

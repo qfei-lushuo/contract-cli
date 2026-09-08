@@ -241,24 +241,45 @@ func TestDevelopmentTransportBlocksForeignDestinationsAndRedirects(t *testing.T)
 	}
 }
 
-func TestDevelopmentAppDoesNotInheritProductionEnvironmentSecrets(t *testing.T) {
-	provider := appAuthProvider{secrets: config.NewSecretsStore(t.TempDir()), lookupEnv: func(name string) (string, bool) {
-		if name == envAppID || name == envAppSecret {
-			return "prod-fixture", true
-		}
-		return "", false
-	}}
-	if _, err := provider.resolveCredentials(validDevelopmentProfile(), authCommandOptions{}, true); err == nil {
-		t.Fatal("inherited production credentials")
-	}
-	provider.lookupEnv = func(name string) (string, bool) {
-		if name == "CONTRACT_CLI_DEV_APP_ID" || name == "CONTRACT_CLI_DEV_APP_SECRET" {
-			return "dev-fixture", true
-		}
-		return "", false
-	}
-	if _, err := provider.resolveCredentials(validDevelopmentProfile(), authCommandOptions{}, true); err != nil {
-		t.Fatal(err)
+// All environment packages use the same existing credential inputs and priority.
+func TestEnvironmentAppCredentialsPreserveExistingInputs(t *testing.T) {
+	for _, environment := range []string{"prod", "dev", "test", "blue"} {
+		t.Run(environment, func(t *testing.T) {
+			profile := validProductionProfile()
+			if environment != "prod" {
+				profile = environmentProfile(nonProductionEnvironments[environment])
+			}
+			secrets := config.NewSecretsStore(t.TempDir())
+			profile.Identities.App.AppID = "saved-id"
+			profile.Identities.App.SecretRef = config.AppSecretKey(profile.Name)
+			if err := secrets.Set(profile.Identities.App.SecretRef, "saved-secret"); err != nil {
+				t.Fatal(err)
+			}
+			for _, test := range []struct {
+				name               string
+				values             map[string]string
+				options            authCommandOptions
+				wantID, wantSecret string
+			}{
+				{"saved", nil, authCommandOptions{}, "saved-id", "saved-secret"},
+				{"standard env", map[string]string{envAppID: "environment-id", envAppSecret: "environment-secret"}, authCommandOptions{}, "environment-id", "environment-secret"},
+				{"legacy env", map[string]string{legacyEnvAppID: "legacy-id", legacyEnvAppSecret: "legacy-secret"}, authCommandOptions{}, "legacy-id", "legacy-secret"},
+				{"legacy bot env", map[string]string{legacyEnvBotAppID: "bot-id", legacyEnvBotAppSecret: "bot-secret"}, authCommandOptions{}, "bot-id", "bot-secret"},
+				{"standard before legacy", map[string]string{envAppID: "environment-id", envAppSecret: "environment-secret", legacyEnvAppID: "legacy-id", legacyEnvAppSecret: "legacy-secret"}, authCommandOptions{}, "environment-id", "environment-secret"},
+				{"flags before env", map[string]string{envAppID: "environment-id", envAppSecret: "environment-secret"}, authCommandOptions{AppID: "flag-id", AppSecret: "flag-secret"}, "flag-id", "flag-secret"},
+			} {
+				t.Run(test.name, func(t *testing.T) {
+					provider := appAuthProvider{secrets: secrets, lookupEnv: func(key string) (string, bool) { value, ok := test.values[key]; return value, ok }}
+					got, err := provider.resolveCredentials(profile, test.options, true)
+					if err != nil {
+						t.Fatal(err)
+					}
+					if got.appID != test.wantID || got.appSecret != test.wantSecret {
+						t.Fatal("credential input priority changed")
+					}
+				})
+			}
+		})
 	}
 }
 

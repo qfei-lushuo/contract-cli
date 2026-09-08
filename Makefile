@@ -9,7 +9,7 @@ LDFLAGS := -s -w -X cn.qfei/contract-cli/internal/build.Version=$(VERSION) -X cn
 
 test:
 	go test ./...
-	node --test scripts/*.test.js
+	node --test scripts/install.test.js
 
 build:
 	./build.sh

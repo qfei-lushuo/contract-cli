@@ -21,7 +21,7 @@
 
 | Category | Capabilities |
 | --- | --- |
-| 配置与版本 | 初始化 profile、查看版本、检查/安装 npm latest、自动注入 `_notice.update` |
+| 配置与版本 | 初始化 profile、查看版本、检查 npm 远端版本、自动注入 `_notice.update` |
 | 调用环境识别 | 每次实际业务 HTTP 请求发送前重新识别 Doubao、Doubao Work、WorkBuddy、Codex 或 `unknown`，并通过请求 Header 透传 |
 | 鉴权 | `user` OAuth 登录、`appId/appSecret` 应用登录、状态查看、登出、默认身份切换 |
 | 合同 | 搜索、详情、创建、提交、重提、更新、删除、文本读取、用户组同步 |
@@ -228,7 +228,7 @@ contract-cli auth logout --profile contract --as app
 
 身份规则：
 
-- `config`、`version`、`update`、`skills list/install` 不需要登录态。
+- `config`、`version`、`update check`、`skills list/install` 不需要登录态。
 - `contract ...`、`mdm ...` 结构化命令会根据 `--as user|app` 选择对应底层路径。
 - 当前大部分 MCP 路径仍是 user-only；显式用 app 调用 user-only 路径会直接报错。
 - `contract search-v2`、`contract field update`、`contract sign switch-to-paper`、`contract sign-url get`、`contract form attribute list`、`contract authorization grant`、`contract esign *`、`contract submit/resubmit/patch/download-file/delete/print-file`、`contract share get/batch-create`、`contract cooperation link/record/search/file`、`contract approval start/get`、`payment *`、`mdm vendor create/update/list-all/query-by-cert`、`mdm legal get --code/create/update`、`mdm fixed-exchange-rate get/update`、`mdm file download`、`event outbound-ip list` 和 `rule table *` 当前仅支持 app 身份。
@@ -249,7 +249,7 @@ contract-cli help
 contract-cli help contract upload-file
 contract-cli contract search --help
 contract-cli version
-contract-cli update --check --json
+contract-cli update check --channel latest --json
 ```
 
 ### 2. 合同结构化命令
@@ -389,33 +389,23 @@ contract-cli mdm legal get <legal-entity-id> --profile contract --as app --user-
 
 `mdm vendor create/update` 和 `mdm legal create/update` 会要求 `--user-id`，用于提供当前操作人上下文。
 
-### Update
+### Update Check
 
-检查或安装 npm `latest` 版本：
+手动检查：
 
 ```bash
-contract-cli update --check
-contract-cli update --check --json
-contract-cli update
-contract-cli update --force
+contract-cli update check
+contract-cli update check --channel latest
+contract-cli update check --channel beta --json
 ```
 
 自动提示：
 
 - 普通命令会同步读取本地 `update-check.json`，有可升级缓存时在 JSON object 输出中注入 `_notice.update`。
-- cache fresh 时不访问远端；cache 缺失或过期时，CLI 与业务命令并行刷新缓存；命令退出前收尾，总预算为 1.5 秒（从刷新开始计时）。超时保留旧缓存，下次重试，不改变业务结果。
+- cache fresh 时不访问远端；cache 缺失、channel 不匹配或过期时，CLI 会在当前命令内用短超时刷新远端版本缓存。
 - 有新版本时，仅在 JSON object 输出中注入 `_notice.update`。
 - `--raw`、yaml、table、纯文本命令不注入 `_notice.update`。
-- 设置 `CONTRACT_CLI_NO_UPDATE_NOTIFIER=1` 可以关闭自动提示。
-
-升级行为：
-
-自更新仅适用于当前包管理器 `root -g` 确认的全局安装。npx 缓存、项目内依赖或其他 Node 环境的副本返回 `manual_required`，应通过原安装方式更新。Windows `.cmd`/`.bat` 入口经命令解释器执行；包含 `%` 或双引号等无法安全传递的包装入口不启用自动更新。
-
-- 固定跟随 npm `latest`，不对外提供 channel 选择。
-- 自动识别 npm 或 pnpm 全局安装，安装精确版本并执行 `contract-cli --version` 校验。
-- 其他安装方式只返回 GitHub Release 地址，不擅自覆盖文件。
-- Windows 更新使用 `.old` 备份；安装中断或新二进制不可用时由 npm 启动脚本恢复。
+- 设置 `CONTRACT_CLI_NO_UPDATE_CHECK=1` 可以关闭自动检查。
 
 ## Build, Test & Release
 

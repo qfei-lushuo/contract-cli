@@ -29,7 +29,7 @@ assert_contains "$version_output" "contract-cli version"
 usage_output="$("$TMP_DIR/contract-cli")"
 assert_contains "$usage_output" "contract-cli config add"
 assert_contains "$usage_output" "contract-cli skills install"
-assert_contains "$usage_output" "contract-cli update [flags]"
+assert_contains "$usage_output" "contract-cli update check [flags]"
 assert_contains "$usage_output" "contract-cli environment inspect"
 
 environment_output="$("$TMP_DIR/contract-cli" environment inspect --output json)"

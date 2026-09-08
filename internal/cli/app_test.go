@@ -20,7 +20,6 @@ import (
 	"cn.qfei/contract-cli/internal/cli"
 	"cn.qfei/contract-cli/internal/config"
 	"cn.qfei/contract-cli/internal/credential"
-	"cn.qfei/contract-cli/internal/selfupdate"
 	updatecheck "cn.qfei/contract-cli/internal/update"
 )
 
@@ -46,7 +45,7 @@ func TestRunWithoutArgsPrintsTopLevelHelp(t *testing.T) {
 		!strings.Contains(stdout.String(), "contract-cli version") ||
 		!strings.Contains(stdout.String(), "contract-cli skills list") ||
 		!strings.Contains(stdout.String(), "contract-cli skills install [flags]") ||
-		!strings.Contains(stdout.String(), "contract-cli update [flags]") ||
+		!strings.Contains(stdout.String(), "contract-cli update check [flags]") ||
 		!strings.Contains(stdout.String(), "contract-cli environment inspect [flags]") ||
 		!strings.Contains(stdout.String(), "contract-cli mdm vendor <subcommand> [flags]") ||
 		!strings.Contains(stdout.String(), "contract-cli mdm legal <subcommand> [flags]") ||
@@ -210,61 +209,7 @@ func TestVersionFlagPrintsBuildInfo(t *testing.T) {
 	}
 }
 
-func TestUpdateCheckDefaultReportsLatestVersionAsText(t *testing.T) {
-	stdout := &bytes.Buffer{}
-	stderr := &bytes.Buffer{}
-	store := config.NewStore(t.TempDir())
-
-	app := cli.New(cli.Options{
-		Stdout:               stdout,
-		Stderr:               stderr,
-		Store:                store,
-		UpdateRegistryURL:    "https://registry.test/@qfeius%2fcontract-cli/latest",
-		UpdateCurrentVersion: "1.8.3",
-		NewSelfUpdater: func() *selfupdate.Updater {
-			return &selfupdate.Updater{DetectOverride: func() selfupdate.DetectResult {
-				return selfupdate.DetectResult{Method: selfupdate.InstallNpm, NpmAvailable: true}
-			}}
-		},
-		HTTPClient: &http.Client{
-			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-				if req.Method != http.MethodGet {
-					t.Fatalf("method = %s, want GET", req.Method)
-				}
-				if req.URL.String() != "https://registry.test/@qfeius%2fcontract-cli/latest" {
-					t.Fatalf("unexpected update registry URL: %s", req.URL.String())
-				}
-				return jsonResponse(`{"version":"1.8.4"}`), nil
-			}),
-		},
-	})
-
-	if err := app.Run(context.Background(), []string{"update", "--check"}); err != nil {
-		t.Fatalf("update check error = %v", err)
-	}
-
-	output := stderr.String()
-	for _, want := range []string{
-		"Update available: 1.8.3 -> 1.8.4",
-		"Run `contract-cli update` to install.",
-	} {
-		if !strings.Contains(output, want) {
-			t.Fatalf("stdout missing %q: %s", want, output)
-		}
-	}
-	if stdout.Len() != 0 {
-		t.Fatalf("human update check should not write stdout: %s", stdout.String())
-	}
-	cacheContent, err := os.ReadFile(filepath.Join(filepath.Dir(store.Path()), "update-check.json"))
-	if err != nil {
-		t.Fatalf("ReadFile(update cache) error = %v", err)
-	}
-	if !strings.Contains(string(cacheContent), `"latest_version": "1.8.4"`) {
-		t.Fatalf("unexpected update cache: %s", string(cacheContent))
-	}
-}
-
-func TestUpdateCheckJSONReportsLatestVersion(t *testing.T) {
+func TestUpdateCheckDefaultReportsAvailableBetaVersionAsText(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	store := config.NewStore(t.TempDir())
@@ -274,12 +219,7 @@ func TestUpdateCheckJSONReportsLatestVersion(t *testing.T) {
 		Stderr:               stderr,
 		Store:                store,
 		UpdateRegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
-		UpdateCurrentVersion: "1.8.3",
-		NewSelfUpdater: func() *selfupdate.Updater {
-			return &selfupdate.Updater{DetectOverride: func() selfupdate.DetectResult {
-				return selfupdate.DetectResult{Method: selfupdate.InstallNpm, NpmAvailable: true}
-			}}
-		},
+		UpdateCurrentVersion: "0.1.0-beta.1",
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if req.Method != http.MethodGet {
@@ -288,12 +228,61 @@ func TestUpdateCheckJSONReportsLatestVersion(t *testing.T) {
 				if req.URL.String() != "https://registry.test/@qfeius%2fcontract-cli" {
 					t.Fatalf("unexpected update registry URL: %s", req.URL.String())
 				}
-				return jsonResponse(`{"version":"1.8.4"}`), nil
+				return jsonResponse(`{"dist-tags":{"latest":"0.1.0","beta":"0.1.0-beta.2"}}`), nil
 			}),
 		},
 	})
 
-	if err := app.Run(context.Background(), []string{"update", "--check", "--json"}); err != nil {
+	if err := app.Run(context.Background(), []string{"update", "check", "--channel", "beta"}); err != nil {
+		t.Fatalf("update check error = %v", err)
+	}
+
+	output := stdout.String()
+	for _, want := range []string{
+		"Update available: contract-cli 0.1.0-beta.1 -> 0.1.0-beta.2",
+		"Run: npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org",
+	} {
+		if !strings.Contains(output, want) {
+			t.Fatalf("stdout missing %q: %s", want, output)
+		}
+		if strings.Contains(stderr.String(), want) {
+			t.Fatalf("default update check should write normal result to stdout, not stderr: %s", stderr.String())
+		}
+	}
+	cacheContent, err := os.ReadFile(filepath.Join(filepath.Dir(store.Path()), "update-check.json"))
+	if err != nil {
+		t.Fatalf("ReadFile(update cache) error = %v", err)
+	}
+	if !strings.Contains(string(cacheContent), `"latest_version": "0.1.0-beta.2"`) {
+		t.Fatalf("unexpected update cache: %s", string(cacheContent))
+	}
+}
+
+func TestUpdateCheckJSONReportsAvailableBetaVersion(t *testing.T) {
+	stdout := &bytes.Buffer{}
+	stderr := &bytes.Buffer{}
+	store := config.NewStore(t.TempDir())
+
+	app := cli.New(cli.Options{
+		Stdout:               stdout,
+		Stderr:               stderr,
+		Store:                store,
+		UpdateRegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
+		UpdateCurrentVersion: "0.1.0-beta.1",
+		HTTPClient: &http.Client{
+			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+				if req.Method != http.MethodGet {
+					t.Fatalf("method = %s, want GET", req.Method)
+				}
+				if req.URL.String() != "https://registry.test/@qfeius%2fcontract-cli" {
+					t.Fatalf("unexpected update registry URL: %s", req.URL.String())
+				}
+				return jsonResponse(`{"dist-tags":{"latest":"0.1.0","beta":"0.1.0-beta.2"}}`), nil
+			}),
+		},
+	})
+
+	if err := app.Run(context.Background(), []string{"update", "check", "--channel", "beta", "--json"}); err != nil {
 		t.Fatalf("update check error = %v", err)
 	}
 
@@ -304,11 +293,11 @@ func TestUpdateCheckJSONReportsLatestVersion(t *testing.T) {
 	if output["action"] != "update_available" {
 		t.Fatalf("action = %v, want update_available: %+v", output["action"], output)
 	}
-	if output["current_version"] != "1.8.3" || output["latest_version"] != "1.8.4" {
+	if output["current_version"] != "0.1.0-beta.1" || output["latest_version"] != "0.1.0-beta.2" {
 		t.Fatalf("unexpected update output: %+v", output)
 	}
-	if output["auto_update"] != true {
-		t.Fatalf("auto_update = %v, want true: %+v", output["auto_update"], output)
+	if output["command"] != "npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org" {
+		t.Fatalf("missing install command: %+v", output)
 	}
 	if _, ok := output["_notice"]; ok {
 		t.Fatalf("manual update check JSON should not include _notice: %+v", output)
@@ -317,86 +306,16 @@ func TestUpdateCheckJSONReportsLatestVersion(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ReadFile(update cache) error = %v", err)
 	}
-	if !strings.Contains(string(cacheContent), `"latest_version": "1.8.4"`) {
+	if !strings.Contains(string(cacheContent), `"latest_version": "0.1.0-beta.2"`) {
 		t.Fatalf("unexpected update cache: %s", string(cacheContent))
 	}
 }
 
-func TestUpdateInstallsExactLatestVersionAndVerifies(t *testing.T) {
-	stdout := &bytes.Buffer{}
-	installedVersion := ""
-	verifiedVersion := ""
-	app := cli.New(cli.Options{
-		Stdout:               stdout,
-		Stderr:               &bytes.Buffer{},
-		Store:                config.NewStore(t.TempDir()),
-		UpdateRegistryURL:    "https://registry.test/@qfeius%2fcontract-cli/latest",
-		UpdateCurrentVersion: "1.8.3",
-		HTTPClient: &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-			return jsonResponse(`{"version":"1.8.4"}`), nil
-		})},
-		NewSelfUpdater: func() *selfupdate.Updater {
-			return &selfupdate.Updater{
-				DetectOverride: func() selfupdate.DetectResult {
-					return selfupdate.DetectResult{Method: selfupdate.InstallNpm, NpmAvailable: true}
-				},
-				NpmInstallOverride: func(version string) *selfupdate.CommandResult {
-					installedVersion = version
-					return &selfupdate.CommandResult{}
-				},
-				VerifyOverride: func(version string) error {
-					verifiedVersion = version
-					return nil
-				},
-			}
-		},
-	})
-
-	if err := app.Run(context.Background(), []string{"update", "--json"}); err != nil {
-		t.Fatalf("update error = %v", err)
-	}
-	if installedVersion != "1.8.4" || verifiedVersion != "1.8.4" {
-		t.Fatalf("installed=%q verified=%q", installedVersion, verifiedVersion)
-	}
-	result := decodeJSONObject(t, stdout.Bytes())
-	if result["action"] != "updated" || result["previous_version"] != "1.8.3" || result["current_version"] != "1.8.4" {
-		t.Fatalf("unexpected update result: %+v", result)
-	}
-}
-
-func TestUpdateReportsManualInstallWhenPackageManagerCannotOwnInstall(t *testing.T) {
-	stdout := &bytes.Buffer{}
-	app := cli.New(cli.Options{
-		Stdout:               stdout,
-		Stderr:               &bytes.Buffer{},
-		Store:                config.NewStore(t.TempDir()),
-		UpdateRegistryURL:    "https://registry.test/@qfeius%2fcontract-cli/latest",
-		UpdateCurrentVersion: "1.8.3",
-		HTTPClient: &http.Client{Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-			return jsonResponse(`{"version":"1.8.4"}`), nil
-		})},
-		NewSelfUpdater: func() *selfupdate.Updater {
-			return &selfupdate.Updater{DetectOverride: func() selfupdate.DetectResult {
-				return selfupdate.DetectResult{Method: selfupdate.InstallManual, ResolvedPath: "/opt/contract-cli"}
-			}}
-		},
-	})
-
-	if err := app.Run(context.Background(), []string{"update", "--json"}); err != nil {
-		t.Fatalf("update error = %v", err)
-	}
-	result := decodeJSONObject(t, stdout.Bytes())
-	if result["action"] != "manual_required" || result["auto_update"] != false {
-		t.Fatalf("unexpected manual update result: %+v", result)
-	}
-}
-
-func TestAutomaticUpdateNoticeUsesStaleCacheAndRefreshesInBackground(t *testing.T) {
+func TestAutomaticUpdateNoticeRefreshesStaleCacheSynchronously(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	apiRequests := 0
-	refreshStarted := make(chan struct{}, 1)
-	refreshRelease := make(chan struct{})
+	registryRequests := 0
 	store := config.NewStore(t.TempDir())
 	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
@@ -404,11 +323,11 @@ func TestAutomaticUpdateNoticeUsesStaleCacheAndRefreshesInBackground(t *testing.
 	cachePath := filepath.Join(filepath.Dir(store.Path()), "update-check.json")
 	if err := updatecheck.SaveCache(cachePath, updatecheck.Cache{
 		CheckedAt:       fixedCLINow().Add(-25 * time.Hour),
-		Channel:         updatecheck.LatestChannel,
+		Channel:         "beta",
 		CurrentVersion:  "0.1.0-beta.1",
 		LatestVersion:   "0.1.0-beta.2",
 		UpdateAvailable: true,
-		InstallCommand:  updatecheck.UpdateCommand,
+		InstallCommand:  "npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org",
 	}); err != nil {
 		t.Fatalf("SaveCache() error = %v", err)
 	}
@@ -424,12 +343,10 @@ func TestAutomaticUpdateNoticeUsesStaleCacheAndRefreshesInBackground(t *testing.
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if req.URL.Host == "registry.test" {
-					refreshStarted <- struct{}{}
-					<-refreshRelease
-					return jsonResponse(`{"version":"0.1.0-beta.3"}`), nil
+					registryRequests++
+					return jsonResponse(`{"dist-tags":{"beta":"0.1.0-beta.3"}}`), nil
 				}
 				apiRequests++
-				defer close(refreshRelease)
 				if req.URL.Path != "/open-apis/contract/v1/contracts/contract-1" {
 					t.Fatalf("unexpected API path: %s", req.URL.Path)
 				}
@@ -446,28 +363,29 @@ func TestAutomaticUpdateNoticeUsesStaleCacheAndRefreshesInBackground(t *testing.
 	}
 	output := decodeJSONObject(t, stdout.Bytes())
 	updateNotice := output["_notice"].(map[string]any)["update"].(map[string]any)
-	if updateNotice["current"] != "0.1.0-beta.1" || updateNotice["latest"] != "0.1.0-beta.2" {
+	if updateNotice["current"] != "0.1.0-beta.1" || updateNotice["latest"] != "0.1.0-beta.3" {
 		t.Fatalf("unexpected update notice: %+v", updateNotice)
 	}
 	if apiRequests != 1 {
 		t.Fatalf("api requests = %d, want 1", apiRequests)
 	}
-	waitForSignal(t, refreshStarted)
-	waitForUpdateCache(t, cachePath, "0.1.0-beta.3")
+	if registryRequests != 1 {
+		t.Fatalf("registry requests = %d, want 1", registryRequests)
+	}
 	cache, ok, err := updatecheck.LoadCache(cachePath)
 	if err != nil {
 		t.Fatalf("LoadCache() error = %v", err)
 	}
 	if !ok || cache.LatestVersion != "0.1.0-beta.3" || !cache.UpdateAvailable {
-		t.Fatalf("cache after background refresh = %+v, ok=%v", cache, ok)
+		t.Fatalf("cache after synchronous refresh = %+v, ok=%v", cache, ok)
 	}
 }
 
-func TestAutomaticUpdateNoticeKeepsStaleCacheWhenRefreshFails(t *testing.T) {
+func TestAutomaticUpdateNoticeDoesNotUseStaleCacheWhenRefreshFails(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	apiRequests := 0
-	refreshDone := make(chan struct{}, 1)
+	registryRequests := 0
 	store := config.NewStore(t.TempDir())
 	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
@@ -475,11 +393,11 @@ func TestAutomaticUpdateNoticeKeepsStaleCacheWhenRefreshFails(t *testing.T) {
 	cachePath := filepath.Join(filepath.Dir(store.Path()), "update-check.json")
 	if err := updatecheck.SaveCache(cachePath, updatecheck.Cache{
 		CheckedAt:       fixedCLINow().Add(-25 * time.Hour),
-		Channel:         updatecheck.LatestChannel,
+		Channel:         "beta",
 		CurrentVersion:  "0.1.0-beta.1",
 		LatestVersion:   "0.1.0-beta.2",
 		UpdateAvailable: true,
-		InstallCommand:  updatecheck.UpdateCommand,
+		InstallCommand:  "npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org",
 	}); err != nil {
 		t.Fatalf("SaveCache() error = %v", err)
 	}
@@ -495,7 +413,7 @@ func TestAutomaticUpdateNoticeKeepsStaleCacheWhenRefreshFails(t *testing.T) {
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if req.URL.Host == "registry.test" {
-					refreshDone <- struct{}{}
+					registryRequests++
 					return nil, errors.New("registry unavailable")
 				}
 				apiRequests++
@@ -511,10 +429,12 @@ func TestAutomaticUpdateNoticeKeepsStaleCacheWhenRefreshFails(t *testing.T) {
 		t.Fatalf("api requests = %d, want 1", apiRequests)
 	}
 	output := decodeJSONObject(t, stdout.Bytes())
-	if _, ok := output["_notice"]; !ok {
-		t.Fatalf("cached notice should be injected before background refresh: %+v", output)
+	if _, ok := output["_notice"]; ok {
+		t.Fatalf("stale cache should not be injected when refresh fails: %+v", output)
 	}
-	waitForSignal(t, refreshDone)
+	if registryRequests != 1 {
+		t.Fatalf("registry requests = %d, want 1", registryRequests)
+	}
 	cache, ok, err := updatecheck.LoadCache(cachePath)
 	if err != nil {
 		t.Fatalf("LoadCache() error = %v", err)
@@ -536,11 +456,11 @@ func TestAutomaticUpdateNoticeKeepsFreshNoUpdateCache(t *testing.T) {
 	cachePath := filepath.Join(filepath.Dir(store.Path()), "update-check.json")
 	if err := updatecheck.SaveCache(cachePath, updatecheck.Cache{
 		CheckedAt:       fixedCLINow(),
-		Channel:         updatecheck.LatestChannel,
+		Channel:         "beta",
 		CurrentVersion:  "0.3.3-beta.3",
 		LatestVersion:   "0.3.3-beta.3",
 		UpdateAvailable: false,
-		InstallCommand:  updatecheck.UpdateCommand,
+		InstallCommand:  "npm install -g @qfeius/contract-cli@beta --registry https://registry.npmjs.org",
 	}); err != nil {
 		t.Fatalf("SaveCache() error = %v", err)
 	}
@@ -557,7 +477,7 @@ func TestAutomaticUpdateNoticeKeepsFreshNoUpdateCache(t *testing.T) {
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if req.URL.Host == "registry.test" {
 					registryRequests++
-					return jsonResponse(`{"version":"0.3.3-beta.6"}`), nil
+					return jsonResponse(`{"dist-tags":{"beta":"0.3.3-beta.6"}}`), nil
 				}
 				apiRequests++
 				return jsonResponse(`{"code":0,"data":{"contract":{"contract_id":"contract-1"}}}`), nil
@@ -580,12 +500,11 @@ func TestAutomaticUpdateNoticeKeepsFreshNoUpdateCache(t *testing.T) {
 	}
 }
 
-func TestAutomaticUpdateNoticeWritesMissingCacheInBackground(t *testing.T) {
+func TestAutomaticUpdateNoticeWritesMissingCacheSynchronously(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
 	apiRequests := 0
-	refreshStarted := make(chan struct{}, 1)
-	refreshRelease := make(chan struct{})
+	registryRequests := 0
 	store := config.NewStore(t.TempDir())
 	if err := store.UpsertProfile(uploadProfile(config.IdentityApp), true); err != nil {
 		t.Fatalf("UpsertProfile() error = %v", err)
@@ -603,12 +522,10 @@ func TestAutomaticUpdateNoticeWritesMissingCacheInBackground(t *testing.T) {
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if req.URL.Host == "registry.test" {
-					refreshStarted <- struct{}{}
-					<-refreshRelease
-					return jsonResponse(`{"version":"0.1.0-beta.2"}`), nil
+					registryRequests++
+					return jsonResponse(`{"dist-tags":{"beta":"0.1.0-beta.2"}}`), nil
 				}
 				apiRequests++
-				defer close(refreshRelease)
 				return jsonResponse(`{"code":0,"data":{"contract":{"contract_id":"contract-1"}}}`), nil
 			}),
 		},
@@ -620,12 +537,14 @@ func TestAutomaticUpdateNoticeWritesMissingCacheInBackground(t *testing.T) {
 	if apiRequests != 1 {
 		t.Fatalf("api requests = %d, want 1", apiRequests)
 	}
-	output := decodeJSONObject(t, stdout.Bytes())
-	if _, ok := output["_notice"]; ok {
-		t.Fatalf("first run with no cache should not wait for registry: %+v", output)
+	if registryRequests != 1 {
+		t.Fatalf("registry requests = %d, want 1", registryRequests)
 	}
-	waitForSignal(t, refreshStarted)
-	waitForUpdateCache(t, cachePath, "0.1.0-beta.2")
+	output := decodeJSONObject(t, stdout.Bytes())
+	updateNotice := output["_notice"].(map[string]any)["update"].(map[string]any)
+	if updateNotice["latest"] != "0.1.0-beta.2" {
+		t.Fatalf("unexpected update notice: %+v", updateNotice)
+	}
 	cache, ok, err := updatecheck.LoadCache(cachePath)
 	if err != nil {
 		t.Fatalf("LoadCache() error = %v", err)
@@ -650,7 +569,7 @@ func TestAutomaticUpdateNoticeCanBeDisabledByEnv(t *testing.T) {
 		UpdateRegistryURL:    "https://registry.test/@qfeius%2fcontract-cli",
 		UpdateCurrentVersion: "0.1.0-beta.1",
 		LookupEnv: func(key string) (string, bool) {
-			if key == "CONTRACT_CLI_NO_UPDATE_NOTIFIER" {
+			if key == "CONTRACT_CLI_NO_UPDATE_CHECK" {
 				return "1", true
 			}
 			return "", false
@@ -659,7 +578,7 @@ func TestAutomaticUpdateNoticeCanBeDisabledByEnv(t *testing.T) {
 			Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
 				if req.URL.Host == "registry.test" {
 					requests++
-					return jsonResponse(`{"version":"0.1.0-beta.2"}`), nil
+					return jsonResponse(`{"dist-tags":{"beta":"0.1.0-beta.2"}}`), nil
 				}
 				return jsonResponse(`{"code":0,"data":{"contract":{"contract_id":"contract-1"}}}`), nil
 			}),
@@ -680,7 +599,7 @@ func TestAutomaticUpdateNoticeCanBeDisabledByEnv(t *testing.T) {
 func TestAutomaticUpdateNoticeRetriesFailureEveryRun(t *testing.T) {
 	stdout := &bytes.Buffer{}
 	stderr := &bytes.Buffer{}
-	refreshDone := make(chan struct{}, 2)
+	registryRequests := 0
 
 	app := cli.New(cli.Options{
 		Stdout:               stdout,
@@ -691,7 +610,7 @@ func TestAutomaticUpdateNoticeRetriesFailureEveryRun(t *testing.T) {
 		UpdateCurrentVersion: "0.1.0-beta.1",
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-				refreshDone <- struct{}{}
+				registryRequests++
 				return nil, errors.New("registry unavailable")
 			}),
 		},
@@ -700,11 +619,12 @@ func TestAutomaticUpdateNoticeRetriesFailureEveryRun(t *testing.T) {
 	if err := app.Run(context.Background(), []string{"skills", "list"}); err != nil {
 		t.Fatalf("skills list error = %v", err)
 	}
-	waitForSignal(t, refreshDone)
 	if err := app.Run(context.Background(), []string{"skills", "list"}); err != nil {
 		t.Fatalf("second skills list error = %v", err)
 	}
-	waitForSignal(t, refreshDone)
+	if registryRequests != 2 {
+		t.Fatalf("failed update check requests = %d, want 2", registryRequests)
+	}
 	if strings.Contains(stderr.String(), "A new contract-cli version is available") {
 		t.Fatalf("failed update check should not print notice: %s", stderr.String())
 	}
@@ -723,40 +643,18 @@ func TestUpdateCheckUsesBuildVersionWhenNotOverridden(t *testing.T) {
 		UpdateRegistryURL: "https://registry.test/@qfeius%2fcontract-cli",
 		HTTPClient: &http.Client{
 			Transport: roundTripFunc(func(*http.Request) (*http.Response, error) {
-				return jsonResponse(`{"version":"0.1.0-beta.1"}`), nil
+				return jsonResponse(`{"dist-tags":{"beta":"0.1.0-beta.1"}}`), nil
 			}),
 		},
 	})
 
-	if err := app.Run(context.Background(), []string{"update", "--check", "--json"}); err != nil {
+	if err := app.Run(context.Background(), []string{"update", "check", "--channel", "beta", "--json"}); err != nil {
 		t.Fatalf("update check error = %v", err)
 	}
 	output := decodeJSONObject(t, stdout.Bytes())
 	if output["action"] != "already_up_to_date" || output["current_version"] != "0.1.0-beta.1" {
 		t.Fatalf("unexpected update output: %+v", output)
 	}
-}
-
-func waitForSignal(t *testing.T, signal <-chan struct{}) {
-	t.Helper()
-	select {
-	case <-signal:
-	case <-time.After(time.Second):
-		t.Fatal("timed out waiting for background update check")
-	}
-}
-
-func waitForUpdateCache(t *testing.T, path, latest string) {
-	t.Helper()
-	deadline := time.Now().Add(time.Second)
-	for time.Now().Before(deadline) {
-		cache, ok, err := updatecheck.LoadCache(path)
-		if err == nil && ok && cache.LatestVersion == latest {
-			return
-		}
-		time.Sleep(5 * time.Millisecond)
-	}
-	t.Fatalf("timed out waiting for update cache latest_version=%s", latest)
 }
 
 const testAuthSkill = `---
