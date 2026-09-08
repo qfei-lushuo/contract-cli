@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 
+	"cn.qfei/contract-cli/internal/build"
 	"cn.qfei/contract-cli/internal/cli"
 	"cn.qfei/contract-cli/internal/invocation"
 )
@@ -23,9 +24,10 @@ func main() {
 	defer stop()
 	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{}))
 	app := cli.New(cli.Options{
-		Stdout: os.Stdout,
-		Stderr: os.Stderr,
-		Logger: logger,
+		BuildEnvironment: build.Environment,
+		Stdout:           os.Stdout,
+		Stderr:           os.Stderr,
+		Logger:           logger,
 	})
 
 	if err := app.Run(ctx, os.Args[1:]); err != nil {

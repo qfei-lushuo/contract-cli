@@ -23,6 +23,10 @@ func TestCommandReferenceDocumentCoversCurrentSupportedCommands(t *testing.T) {
 		"contract-cli help contract upload-file",
 		"contract-cli contract search --help",
 		"contract-cli config add --env prod --name contract",
+		"contract-cli config add --env dev --name contract-dev",
+		"contract-cli config add --env test --name contract-test",
+		"contract-cli config add --env blue --name contract-blue",
+		"必须显式带 `--profile contract-dev`",
 		"contract-cli config add",
 		"contract-cli auth login",
 		"contract-cli auth status",
@@ -133,7 +137,6 @@ func TestCommandReferenceDocumentCoversCurrentSupportedCommands(t *testing.T) {
 		"当前只预置 `dev`",
 		"`--env`：当前仅支持 `dev`",
 		"支持 `prod` 和 `dev`",
-		"contract-cli config add --env dev",
 		"`contract text --as app` 走 `POST /open-apis/contract/v1/contracts/{contract_id}/text?...`",
 		"除上述 app 能力外，当前其他结构化业务命令仍只支持 `--as user`",
 	} {

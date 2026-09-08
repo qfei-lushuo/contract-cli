@@ -10,11 +10,20 @@ import (
 )
 
 func (a *App) loadDeviceAwareProfile(profileName string) (config.Profile, error) {
+	if profileName == "" && a.buildEnvironment != "" && a.buildEnvironment != "prod" {
+		profileName = a.environmentProfileName()
+	}
 	profile, found, err := a.store.LookupProfile(profileName)
 	if err != nil {
 		return config.Profile{}, err
 	}
 	if found {
+		if err := a.validateBuildProfile(profile); err != nil {
+			return config.Profile{}, err
+		}
+		if _, nonprod := nonProductionProfile(profile.Name); nonprod && profileName != profile.Name {
+			return config.Profile{}, fmt.Errorf("non-production integration requires explicit --profile %s", profile.Name)
+		}
 		if err := validateProductionProfile(profile); err != nil {
 			a.logger.Error("reject non-production profile", "profile", profile.Name, "error", err.Error())
 			return config.Profile{}, err
@@ -69,6 +78,9 @@ func (a *App) loadDeviceAwareProfile(profileName string) (config.Profile, error)
 	}
 	if err := validateProductionPendingTransaction(normalizedProfileName, stored.Pending); err != nil {
 		a.logger.Error("reject non-production Device pending state during profile restore", "profile", normalizedProfileName, "error", err.Error())
+		return config.Profile{}, err
+	}
+	if err := a.validateBuildProfile(profile); err != nil {
 		return config.Profile{}, err
 	}
 	if err := a.store.SaveProfile(profile); err != nil {
@@ -150,10 +162,15 @@ func profileNotFoundError(profileName string) error {
 }
 
 func deviceProfileRecoveryError(profileName, reason string) error {
+	environment := productionEnvironment
+	if env, ok := nonProductionProfile(profileName); ok {
+		environment = env.name
+	}
 	return fmt.Errorf(
-		"cannot restore Device profile %q after sandbox rebuild: %s; run `contract-cli config add --env prod --name %s` and `contract-cli auth init --profile %s --output json` again",
+		"cannot restore Device profile %q after sandbox rebuild: %s; run `contract-cli config add --env %s --name %s` and `contract-cli auth init --profile %s --output json` again",
 		profileName,
 		reason,
+		environment,
 		profileName,
 		profileName,
 	)

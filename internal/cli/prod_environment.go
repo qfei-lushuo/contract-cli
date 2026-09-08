@@ -20,24 +20,35 @@ const (
 )
 
 var blockedProductionBuildHosts = map[string]struct{}{
-	"dev-open.qtech.cn":      {},
-	"dev-myaccount.qtech.cn": {},
+	"dev-open.qtech.cn":       {},
+	"dev-myaccount.qtech.cn":  {},
+	"test-open.qtech.cn":      {},
+	"test-myaccount.qtech.cn": {},
+	"open-b.qfei.cn":          {},
+	"myaccount-b.qfei.cn":     {},
 }
 
 func validateProductionProfile(profile config.Profile) error {
+	if _, ok := nonProductionProfile(profile.Name); ok {
+		return validateNonProductionProfile(profile)
+	}
 	if strings.TrimSpace(profile.Environment) != productionEnvironment {
 		return productionProfileError(profile.Name)
 	}
-	if !isExactProductionResource(profile.OpenPlatformBaseURL) || !isExactProductionResource(profile.Resource) {
-		return productionProfileError(profile.Name)
+	return validateProfileOrigins(profile, productionOpenPlatformOrigin, productionAccountOrigin, productionProfileError(profile.Name))
+}
+
+func validateProfileOrigins(profile config.Profile, openPlatformOrigin, accountOrigin string, invalid error) error {
+	if !isExactResource(profile.OpenPlatformBaseURL, openPlatformOrigin) || !isExactResource(profile.Resource, openPlatformOrigin) {
+		return invalid
 	}
 	openPlatformURLs := []string{
 		profile.AppTokenEndpoint,
 		profile.ProtectedResourceMetadataURL,
 	}
 	for _, rawURL := range openPlatformURLs {
-		if !isProductionOriginURL(rawURL, productionOpenPlatformOrigin, false) {
-			return productionProfileError(profile.Name)
+		if !isProductionOriginURL(rawURL, openPlatformOrigin, false) {
+			return invalid
 		}
 	}
 	accountURLs := []string{
@@ -49,17 +60,23 @@ func validateProductionProfile(profile config.Profile) error {
 		profile.Identities.User.RegistrationEndpoint,
 	}
 	for _, rawURL := range accountURLs {
-		if !isProductionOriginURL(rawURL, productionAccountOrigin, false) {
-			return productionProfileError(profile.Name)
+		if !isProductionOriginURL(rawURL, accountOrigin, false) {
+			return invalid
 		}
 	}
 	return nil
 }
 
 func validateProductionDeviceCredential(profileName string, stored credential.DeviceCredential) error {
+	if _, ok := nonProductionProfile(profileName); ok && stored.DeviceProfile == nil {
+		return environmentProfileError(profileName)
+	}
 	if stored.DeviceProfile != nil {
 		profile, err := restoreDeviceProfile(profileName, stored.DeviceProfile)
 		if err != nil || validateProductionProfile(profile) != nil {
+			if _, ok := nonProductionProfile(profileName); ok {
+				return environmentProfileError(profileName)
+			}
 			return productionProfileError(profileName)
 		}
 	}
@@ -67,20 +84,24 @@ func validateProductionDeviceCredential(profileName string, stored credential.De
 }
 
 func validateProductionPendingTransaction(profileName string, pending *credential.PendingTransaction) error {
+	accountOrigin := profileAccountOrigin(profileName)
 	if pending != nil &&
-		(!isProductionOriginURL(pending.TokenEndpoint, productionAccountOrigin, true) ||
-			!isProductionOriginURL(pending.VerificationURIComplete, productionAccountOrigin, false)) {
+		(!isProductionOriginURL(pending.TokenEndpoint, accountOrigin, true) ||
+			!isProductionOriginURL(pending.VerificationURIComplete, accountOrigin, false)) {
+		if _, ok := nonProductionProfile(profileName); ok {
+			return environmentProfileError(profileName)
+		}
 		return productionProfileError(profileName)
 	}
 	return nil
 }
 
-func isExactProductionResource(rawURL string) bool {
+func isExactResource(rawURL, origin string) bool {
 	parsed, err := parseProductionURL(rawURL)
 	if err != nil {
 		return false
 	}
-	return parsed.Scheme+"://"+parsed.Host == productionOpenPlatformURL &&
+	return parsed.Scheme+"://"+parsed.Host == origin &&
 		(parsed.EscapedPath() == "" || parsed.EscapedPath() == "/") && parsed.RawQuery == ""
 }
 
@@ -133,6 +154,11 @@ func (transport productionGuardTransport) RoundTrip(request *http.Request) (*htt
 	host := strings.ToLower(strings.TrimSuffix(request.URL.Hostname(), "."))
 	transport.logger.Debug("production network request", "method", request.Method, "host", host)
 	if _, blocked := blockedProductionBuildHosts[host]; blocked {
+		if name, _ := request.Context().Value(nonProductionNetworkKey{}).(string); name != "" {
+			if env, ok := nonProductionEnvironments[name]; ok && (isProductionOriginURL(request.URL.String(), env.openOrigin, true) || isProductionOriginURL(request.URL.String(), env.accountOrigin, true)) {
+				return transport.next.RoundTrip(request)
+			}
+		}
 		transport.logger.Error("production build blocked non-production network request", "method", request.Method, "host", host)
 		return nil, fmt.Errorf("production build blocks non-production host %q", host)
 	}

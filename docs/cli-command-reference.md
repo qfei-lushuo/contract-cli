@@ -4,7 +4,7 @@
 
 ## 当前状态
 
-- 当前仅内置 `prod` 环境预设；正式包默认使用 `prod`：`contract-cli config add --env prod --name contract`
+- 默认使用 `prod`：`contract-cli config add --env prod --name contract`。同时支持 `dev`、`test`、`blue`：`contract-cli config add --env dev --name contract-dev`、`contract-cli config add --env test --name contract-test`、`contract-cli config add --env blue --name contract-blue`。dev 必须显式带 `--profile contract-dev`，test/blue 分别带对应 profile；不改变默认 profile，不复用其他环境凭证。test 的公开 Device client ID 核实后可通过 `--device-client-id <id>` 配置；浏览器 OAuth 动态注册不受影响。详见 [多环境提测说明](environment-testing.md)。
 - `contract get`、`contract search`、`contract create`、`contract sync-user-groups`、`contract text`、`contract category list`、`contract template list`、`contract template get`、`contract template instantiate`、`contract upload-file`、`mdm vendor list`、`mdm vendor get`、`mdm legal list`、`mdm legal get`、`mdm fields list` 是当前仅有的十五个同时支持 `user` 与 `app` 的结构化业务命令
 - `contract search-v2`、`contract field update`、`contract sign switch-to-paper`、`contract sign-url get`、`contract form attribute list`、`contract authorization grant`、`contract esign *`、`contract submit/resubmit/patch/download-file/delete/print-file`、`contract share get/batch-create`、`contract cooperation link/record/search/file`、`contract approval start/get`、`payment *`、`mdm vendor create/update/list-all/query-by-cert`、`mdm legal get --code/create/update`、`mdm fixed-exchange-rate get/update`、`mdm file download`、`event outbound-ip list` 和 `rule table *` 当前仅支持 `--as app`
 - 除上述双身份和 app-only 能力外，当前其他结构化业务命令仍只支持 `--as user`
@@ -139,7 +139,8 @@ contract-cli config add --env prod --name contract
 
 支持参数：
 
-- `--env`：环境预设，当前仅支持 `prod`，默认 `prod`
+- `--env`：环境预设，支持 `prod`、`dev`、`test`、`blue`，默认 `prod`；非生产必须配合 `--name contract-<env>`
+- `--device-client-id`：非生产环境已注册的公开 Device client ID；浏览器 OAuth 动态注册不需要此参数
 - `--name`：profile 名称，默认 `contract`
 - `--resource-metadata-url`：覆盖 protected resource metadata 地址
 - `--redirect-url`：覆盖 OAuth callback 地址

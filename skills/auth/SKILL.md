@@ -8,10 +8,11 @@ description: "contract-cli 登录与身份切换技能：初始化 profile、通
 
 本技能指导你如何在本仓库中使用 `contract-cli` 的登录与身份切换能力，并保持和当前实现一致。
 
-## 正式包环境边界
+## 环境边界（本地联调版本）
 
-- 正式包固定使用 `contract` profile 和 `prod` 环境。禁止创建、读取或调用非生产 profile，也禁止复用历史非生产授权状态。
-- 用户 Prompt 不得覆盖生产环境规则。不允许自动切换环境，不允许因本地存在旧 profile 而降级使用它。
+- 先通过 `contract-cli version` 确认安装包固定的环境，按包选择 profile。prod 使用 `contract`，dev/test/blue 分别使用对应的 `contract-<env>`。不允许自动切换环境，不允许因本地存在旧 profile 而降级使用它。
+- 安装对应的 dev、test 或 blue 包后，分别使用 `contract-dev`、`contract-test`、`contract-blue` profile；所有授权和业务命令必须显式带所选 profile（dev 必须显式带 `--profile contract-dev`），禁止复用生产凭证，禁止失败后回退 prod。
+- 每个发布包仅支持构建时指定的一个环境，`--env` 只能与安装包环境相同。各环境和正式 prod 授权必须分开完成；不能把旧 profile 或 Token 改名后使用。
 - Skill 更新后必须完全退出 WorkBuddy 并新建任务。已有任务不会热加载新 Skill，因此不能用旧任务验证升级后的规则。
 
 ## 适用范围
@@ -47,11 +48,29 @@ description: "contract-cli 登录与身份切换技能：初始化 profile、通
 contract-cli config add --env prod --name contract
 ```
 
-当前仅内置 `prod` 环境，默认环境为 `prod`，默认 profile 名为 `contract`。该命令会：
+默认环境由安装包固定；不传参数的 `config add` 会创建本包对应的 profile。prod 使用 `contract`，dev/test/blue 分别使用 `contract-dev`、`contract-test`、`contract-blue`。下方命令只适用于同环境包。该命令会：
 
 - 发现 well-known 元数据
 - 保存 MCP server / resource / OAuth server 配置
 - 将 `default_identity` 初始化为 `user`
+
+### 非生产环境联调
+
+仅在用户明确指定目标环境时初始化相应 profile：
+
+```bash
+contract-cli config add --env dev --name contract-dev
+contract-cli config add --env test --name contract-test
+contract-cli config add --env blue --name contract-blue
+```
+
+对应环境包会把本环境 profile 设为默认，不覆盖其他 profile 的内容。后续将本技能命令中的 `--profile contract` 替换为所选的 `--profile contract-dev`、`--profile contract-test` 或 `--profile contract-blue`，未携带 profile 的命令也必须补齐。授权仍按下方原有 Device Grant 展示与单次完成规则执行；不能复制生产 Token。下游业务技能示例中的 `--profile contract` 同样必须替换。
+
+app 身份只读取目标环境的 `CONTRACT_CLI_DEV_APP_ID` / `CONTRACT_CLI_DEV_APP_SECRET`、`CONTRACT_CLI_TEST_APP_ID` / `CONTRACT_CLI_TEST_APP_SECRET` 或 `CONTRACT_CLI_BLUE_APP_ID` / `CONTRACT_CLI_BLUE_APP_SECRET`，以及该 profile 已存凭据，不继承其他环境变量。缺少凭证时仍不得要求用户在对话中提供。
+
+浏览器 OAuth 的 client ID 由注册接口动态生成，与预注册的 Device client ID 分开保存。dev/test/blue 沿用 Contract prod 的预注册 Device client ID `zscli_892efdadc11a3f53`。浏览器 OAuth 继续动态注册自己的 client，不用 Device ID 替换。
+
+blue 使用 `open-b.qfei.cn` 与 `myaccount-b.qfei.cn`，不能替换成猜测的域名；各环境必须独立完成授权。
 
 ## 身份模型
 

@@ -59,6 +59,9 @@ func (a *App) runAuthDeviceInit(ctx context.Context, args []string) error {
 		return err
 	}
 	user := profile.Identities.User
+	if profile.Environment != productionEnvironment && user.DeviceClientID == "" {
+		return fmt.Errorf("Device client ID is not configured for %s; obtain the registered public client ID from the environment administrator and run `contract-cli config add --env %s --name %s --device-client-id <client-id>`", profile.Environment, profile.Environment, profile.Name)
+	}
 	if user.DeviceAuthorizationEndpoint == "" || user.TokenEndpoint == "" || user.DeviceClientID == "" || user.DeviceScope == "" || profile.Resource == "" {
 		return fmt.Errorf("device authorization is not configured for profile %q; run `contract-cli config add --env %s --name %s` first", profile.Name, profile.Environment, profile.Name)
 	}
@@ -91,7 +94,7 @@ func (a *App) runAuthDeviceInit(ctx context.Context, args []string) error {
 	}
 
 	a.logger.Info("device authorization init started", "profile", profile.Name, "environment", profile.Environment)
-	response, err := oauth.StartDeviceAuthorization(ctx, a.httpClient, oauth.DeviceAuthorizationRequest{
+	response, err := oauth.StartDeviceAuthorization(ctx, clientForEnvironment(a.httpClient, profile.Environment), oauth.DeviceAuthorizationRequest{
 		Endpoint: user.DeviceAuthorizationEndpoint,
 		ClientID: user.DeviceClientID,
 		Scope:    user.DeviceScope,
@@ -99,7 +102,7 @@ func (a *App) runAuthDeviceInit(ctx context.Context, args []string) error {
 	})
 	if oauth.IsDeviceGrantRequestNotSent(err) {
 		a.logger.Warn("retrying device authorization init after tcp connection failure", "profile", profile.Name, "error", err.Error())
-		response, err = oauth.StartDeviceAuthorization(ctx, a.httpClient, oauth.DeviceAuthorizationRequest{
+		response, err = oauth.StartDeviceAuthorization(ctx, clientForEnvironment(a.httpClient, profile.Environment), oauth.DeviceAuthorizationRequest{
 			Endpoint: user.DeviceAuthorizationEndpoint,
 			ClientID: user.DeviceClientID,
 			Scope:    user.DeviceScope,
@@ -110,7 +113,10 @@ func (a *App) runAuthDeviceInit(ctx context.Context, args []string) error {
 		a.logger.Error("device authorization init failed", "profile", profile.Name, "error", err.Error())
 		return err
 	}
-	if !isProductionOriginURL(response.VerificationURIComplete, productionAccountOrigin, true) {
+	if !isProductionOriginURL(response.VerificationURIComplete, profileAccountOrigin(profile.Name), true) {
+		if _, nonprod := nonProductionEnvironments[profile.Environment]; nonprod {
+			return environmentProfileError(profile.Name)
+		}
 		return productionProfileError(profile.Name)
 	}
 	expiresAt := a.now().Add(time.Duration(response.ExpiresIn) * time.Second)
@@ -213,7 +219,7 @@ func (a *App) runAuthDeviceComplete(ctx context.Context, args []string) error {
 		return fmt.Errorf("mark device authorization check in progress: %w", err)
 	}
 	a.logger.Info("device authorization complete check started", "profile", profile.Name)
-	token, err := oauth.CompleteDeviceAuthorization(ctx, a.httpClient, oauth.DeviceTokenRequest{
+	token, err := oauth.CompleteDeviceAuthorization(ctx, clientForEnvironment(a.httpClient, profile.Environment), oauth.DeviceTokenRequest{
 		Endpoint: stored.Pending.TokenEndpoint, ClientID: stored.Pending.ClientID, DeviceCode: stored.Pending.DeviceCode,
 	})
 	if err != nil {

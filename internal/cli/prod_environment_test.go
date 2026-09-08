@@ -20,12 +20,6 @@ func TestLoadDeviceAwareProfileRejectsNonProductionProfileAndEndpoints(t *testin
 		mutate func(*config.Profile)
 	}{
 		{name: "dev environment", mutate: func(profile *config.Profile) { profile.Environment = "dev" }},
-		{name: "legacy contract-dev profile", mutate: func(profile *config.Profile) {
-			profile.Name = "contract-dev"
-			profile.Environment = "dev"
-			profile.OpenPlatformBaseURL = "https://dev-open.qtech.cn"
-			profile.Resource = "https://dev-open.qtech.cn"
-		}},
 		{name: "dev open platform", mutate: func(profile *config.Profile) { profile.OpenPlatformBaseURL = "https://dev-open.qtech.cn" }},
 		{name: "dev resource", mutate: func(profile *config.Profile) { profile.Resource = "https://dev-open.qtech.cn" }},
 		{name: "dev app token", mutate: func(profile *config.Profile) {
@@ -64,8 +58,8 @@ func TestLoadDeviceAwareProfileRejectsNonProductionProfileAndEndpoints(t *testin
 			}
 			app := New(Options{Store: store})
 
-			_, err := app.loadDeviceAwareProfile(profile.Name)
-			if err == nil || err.Error() != productionProfileErrorMessage(profile.Name) {
+			_, err := app.loadDeviceAwareProfile("contract")
+			if err == nil || err.Error() != productionProfileErrorMessage("contract") {
 				t.Fatalf("load profile error = %v", err)
 			}
 		})

@@ -1094,31 +1094,27 @@ func TestConfigAddUsesProdPresetByDefault(t *testing.T) {
 	}
 }
 
-func TestConfigAddRejectsDevBeforeNetworkRequest(t *testing.T) {
+func TestConfigAddRejectsDevUsingProductionProfileNameBeforeNetworkRequest(t *testing.T) {
 	t.Parallel()
-	for _, profileName := range []string{"contract", "contract-dev"} {
-		t.Run(profileName, func(t *testing.T) {
-			requestCount := 0
-			store := config.NewStore(t.TempDir())
-			app := cli.New(cli.Options{
-				Stdout: &bytes.Buffer{}, Stderr: &bytes.Buffer{}, Store: store,
-				HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
-					requestCount++
-					t.Fatalf("dev preset must be rejected before network request: %s", req.URL.String())
-					return nil, nil
-				})},
-			})
-			err := app.Run(context.Background(), []string{"config", "add", "--name", profileName, "--env", "dev"})
-			if err == nil || !strings.Contains(err.Error(), `unsupported environment "dev"; supported environments: prod`) {
-				t.Fatalf("config add dev error = %v", err)
-			}
-			if requestCount != 0 {
-				t.Fatalf("network request count = %d, want 0", requestCount)
-			}
-			if _, err := os.Stat(store.Path()); !os.IsNotExist(err) {
-				t.Fatalf("rejected config created a file: %v", err)
-			}
-		})
+
+	requestCount := 0
+	app := cli.New(cli.Options{
+		Stdout: &bytes.Buffer{},
+		Stderr: &bytes.Buffer{},
+		Store:  config.NewStore(t.TempDir()),
+		HTTPClient: &http.Client{Transport: roundTripFunc(func(req *http.Request) (*http.Response, error) {
+			requestCount++
+			t.Fatalf("dev preset must be rejected before network request: %s", req.URL.String())
+			return nil, nil
+		})},
+	})
+
+	err := app.Run(context.Background(), []string{"config", "add", "--name", "contract", "--env", "dev"})
+	if err == nil || !strings.Contains(err.Error(), "dev integration requires an isolated") {
+		t.Fatalf("config add dev error = %v", err)
+	}
+	if requestCount != 0 {
+		t.Fatalf("network request count = %d, want 0", requestCount)
 	}
 }
 

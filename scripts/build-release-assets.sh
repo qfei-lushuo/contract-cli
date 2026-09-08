@@ -9,7 +9,9 @@ OUT_DIR="${OUT_DIR:-$ROOT_DIR/dist/release-assets}"
 GO_CACHE="${GOCACHE:-/tmp/contract-cli-go-build-cache}"
 COMMIT="${COMMIT:-$(git -C "$ROOT_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
 DATE="${DATE:-$(date -u +%Y-%m-%dT%H:%M:%SZ)}"
-LDFLAGS="-s -w -X cn.qfei/contract-cli/internal/build.Version=${VERSION} -X cn.qfei/contract-cli/internal/build.Commit=${COMMIT} -X cn.qfei/contract-cli/internal/build.Date=${DATE}"
+BUILD_ENVIRONMENT="${BUILD_ENVIRONMENT:-prod}"
+case "$BUILD_ENVIRONMENT" in prod|dev|test|blue) ;; *) echo "invalid BUILD_ENVIRONMENT" >&2; exit 1 ;; esac
+LDFLAGS="-X cn.qfei/contract-cli/internal/build.Environment=${BUILD_ENVIRONMENT} -s -w -X cn.qfei/contract-cli/internal/build.Version=${VERSION} -X cn.qfei/contract-cli/internal/build.Commit=${COMMIT} -X cn.qfei/contract-cli/internal/build.Date=${DATE}"
 
 TARGETS=(
   "darwin/amd64"

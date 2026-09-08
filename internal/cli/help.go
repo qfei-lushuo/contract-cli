@@ -1,6 +1,7 @@
 package cli
 
 import (
+	"cn.qfei/contract-cli/internal/build"
 	"fmt"
 	"io"
 	"strings"
@@ -109,6 +110,9 @@ func unknownHelpTopicError(topic string) error {
 }
 
 func renderHelp(writer io.Writer, topic helpTopic) error {
+	if _, err := fmt.Fprintf(writer, "Package environment: %s (fixed)\n", build.Environment); err != nil {
+		return err
+	}
 	if _, err := fmt.Fprintf(writer, "Name:\n  %s\n", topic.Name); err != nil {
 		return err
 	}
@@ -294,8 +298,9 @@ func addConfigHelp(registry map[string]helpTopic) {
 		Summary: "初始化或更新 profile，并写入开放平台、user OAuth 和 app token endpoint 配置。",
 		Usage:   []string{"contract-cli config add [flags]"},
 		Flags: []helpFlag{
-			{"--env <prod>", "环境预设；当前仅支持 prod，默认 prod"},
-			{"--name <profile>", "profile 名称，默认 contract"},
+			{"--env <prod|dev|test|blue>", "必须与安装包固定环境相同；省略时使用包内环境"},
+			{"--device-client-id <id>", "非生产环境已注册的公开 Device client ID；浏览器 OAuth 无需此参数"},
+			{"--name <profile>", "profile 名称，默认使用安装包对应名称"},
 			{"--resource-metadata-url <url>", "覆盖 protected resource metadata 地址"},
 			{"--redirect-url <url>", "覆盖 OAuth callback 地址"},
 			{"--scope <scopes>", "覆盖默认 OAuth scopes，多个 scope 用空格分隔"},

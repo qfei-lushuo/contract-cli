@@ -29,6 +29,7 @@ const defaultProfileName = "contract"
 var errAPICommandUnavailable = errors.New("api call 暂未开放使用，请使用已开放的结构化命令")
 
 type Options struct {
+	BuildEnvironment   string
 	Stdout             io.Writer
 	Stderr             io.Writer
 	Logger             *slog.Logger
@@ -49,6 +50,7 @@ type Options struct {
 }
 
 type App struct {
+	buildEnvironment   string
 	stdout             io.Writer
 	stderr             io.Writer
 	logger             *slog.Logger
@@ -152,6 +154,7 @@ func New(options Options) *App {
 	}
 
 	app := &App{
+		buildEnvironment:   options.BuildEnvironment,
 		stdout:             stdout,
 		stderr:             stderr,
 		logger:             logger,
@@ -188,6 +191,11 @@ func New(options Options) *App {
 }
 
 func (a *App) Run(ctx context.Context, args []string) error {
+	if a.buildEnvironment != "" {
+		if _, err := resolveEnvironment(a.buildEnvironment); err != nil {
+			return err
+		}
+	}
 	a.resetUpdateNotice()
 	if len(args) == 0 {
 		a.printUsage()
@@ -314,21 +322,41 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	var protectedResourceURL string
 	var redirectURL string
 	var scopes string
+	var deviceClientID string
 
-	flags.StringVar(&env, "env", "prod", "environment preset")
-	flags.StringVar(&profileName, "name", defaultProfileName, "profile name")
+	flags.StringVar(&env, "env", emptyFallback(a.buildEnvironment, "prod"), "must match the installed package environment")
+	flags.StringVar(&profileName, "name", a.environmentProfileName(), "profile name")
 	flags.StringVar(&protectedResourceURL, "resource-metadata-url", "", "override protected resource metadata URL")
 	flags.StringVar(&redirectURL, "redirect-url", "", "OAuth redirect URL")
 	flags.StringVar(&scopes, "scope", "", "space-separated OAuth scopes")
+	flags.StringVar(&deviceClientID, "device-client-id", "", "public Device client ID for a non-production environment")
 
 	if err := flags.Parse(args); err != nil {
 		return err
 	}
 
+	if a.buildEnvironment != "" && env != a.buildEnvironment {
+		return a.environmentMismatch()
+	}
 	preset, err := resolveEnvironment(env)
 	if err != nil {
 		a.logger.Error("resolve environment failed", "environment", env, "error", err.Error())
 		return err
+	}
+	if _, nonprod := nonProductionEnvironments[env]; nonprod && profileName != "contract-"+env {
+		return environmentProfileError("contract-" + env)
+	}
+	if reserved, ok := nonProductionProfile(profileName); ok && reserved.name != env {
+		return environmentProfileError(profileName)
+	}
+	if a.buildEnvironment != "" && deviceClientID != "" && deviceClientID != preset.DeviceClientID {
+		return errors.New("Device client ID is preset by this package")
+	}
+	if deviceClientID != "" {
+		if env == productionEnvironment {
+			return errors.New("--device-client-id is only available for dev, test and blue")
+		}
+		preset.DeviceClientID = deviceClientID
 	}
 
 	existing, found, err := a.store.LookupProfile(profileName)
@@ -337,17 +365,31 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	}
 	resetAuthentication := false
 	if found {
+		if _, nonprod := nonProductionEnvironments[env]; nonprod && existing.Environment != env {
+			return environmentProfileError(profileName)
+		}
 		resetAuthentication, err = a.productionProfileRequiresReset(existing)
 		if err != nil {
 			return err
 		}
 	}
 
+	if found && a.buildEnvironment == "" && env != productionEnvironment && deviceClientID == "" && existing.Identities.User.DeviceClientID != "" {
+		preset.DeviceClientID = existing.Identities.User.DeviceClientID
+	}
+
+	if found && deviceClientID != "" && deviceClientID != existing.Identities.User.DeviceClientID {
+		resetAuthentication = true
+	}
+
 	if protectedResourceURL == "" {
 		protectedResourceURL = preset.ProtectedResourceMetadataURL
 	}
-	if protectedResourceURL != "" && !isProductionOriginURL(protectedResourceURL, productionOpenPlatformOrigin, true) {
+	if protectedResourceURL != "" && !isProductionOriginURL(protectedResourceURL, preset.OpenPlatformBaseURL, true) {
 		err := productionProfileError(profileName)
+		if _, nonprod := nonProductionEnvironments[env]; nonprod {
+			err = environmentProfileError(profileName)
+		}
 		a.logger.Error("config add rejected non-production metadata url", "profile", profileName, "error", err.Error())
 		return err
 	}
@@ -360,15 +402,16 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	}
 
 	var discovery *oauth.DiscoveryResult
+	httpClient := clientForEnvironment(a.httpClient, env)
 	switch {
 	case protectedResourceURL != "":
-		discovery, err = oauth.Discover(ctx, a.httpClient, a.logger, protectedResourceURL)
+		discovery, err = oauth.Discover(ctx, httpClient, a.logger, protectedResourceURL)
 		if err != nil {
 			a.logger.Error("config add discover failed", "profile", profileName, "protected_resource_url", protectedResourceURL, "error", err.Error())
 			return err
 		}
 	case preset.AuthorizationServerMetadataURL != "":
-		discovery, err = oauth.DiscoverFromAuthorizationServer(ctx, a.httpClient, a.logger, preset.AuthorizationServerMetadataURL, preset.Resource)
+		discovery, err = oauth.DiscoverFromAuthorizationServer(ctx, httpClient, a.logger, preset.AuthorizationServerMetadataURL, preset.Resource)
 		if err != nil {
 			a.logger.Error("config add discover from authorization server failed", "profile", profileName, "authorization_server_metadata_url", preset.AuthorizationServerMetadataURL, "error", err.Error())
 			return err
@@ -400,7 +443,9 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	profile.Identities.User.TokenEndpoint = discovery.AuthorizationServer.TokenEndpoint
 	profile.Identities.User.RevocationEndpoint = discovery.AuthorizationServer.RevocationEndpoint
 	profile.Identities.User.RegistrationEndpoint = discovery.AuthorizationServer.RegistrationEndpoint
-	profile.Identities.User.DeviceClientID = preset.DeviceClientID
+	if preset.DeviceClientID != "" || !found || resetAuthentication {
+		profile.Identities.User.DeviceClientID = preset.DeviceClientID
+	}
 	profile.Identities.User.DeviceScope = preset.DeviceScope
 	profile.Identities.User.RedirectURL = redirectURL
 	if err := validateProductionProfile(profile); err != nil {
@@ -414,7 +459,7 @@ func (a *App) runConfigAdd(ctx context.Context, args []string) error {
 	}
 
 	a.logger.Info("save profile", "profile", profileName, "environment", env)
-	if err := a.store.UpsertProfile(profile, true); err != nil {
+	if err := a.saveEnvironmentProfile(profile); err != nil {
 		a.logger.Error("save profile failed", "profile", profileName, "error", err.Error())
 		return err
 	}
@@ -637,6 +682,9 @@ func (a *App) providerFor(identity config.IdentityKind) authProvider {
 }
 
 func resolveEnvironment(name string) (environmentPreset, error) {
+	if env, ok := nonProductionEnvironments[name]; ok {
+		return env.preset(), nil
+	}
 	switch name {
 	case "prod":
 		return environmentPreset{
@@ -653,7 +701,7 @@ func resolveEnvironment(name string) (environmentPreset, error) {
 			DeviceScope:                    "contract:full contract-review:full",
 		}, nil
 	default:
-		return environmentPreset{}, fmt.Errorf("unsupported environment %q; supported environments: prod", name)
+		return environmentPreset{}, fmt.Errorf("unsupported environment %q; supported environments: prod, dev, test, blue", name)
 	}
 }
 
