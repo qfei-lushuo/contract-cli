@@ -299,12 +299,14 @@ CLI 会在每一次实际业务 HTTP 请求发送前重新回溯当前父进程�
 
 当前证据等级：
 
-- macOS：校验应用代码签名，并同时匹配 Bundle ID 与 Team ID，命中时为 `high`。
+- macOS：使用 `codesign --verify --strict --ignore-resources` 校验应用代码签名，并同时匹配 Bundle ID 与 Team ID，命中时为 `high`。与 EveryLine 使用相同方案，不校验资源内容，避免 WorkBuddy 运行时生成 Python 缓存等资源变化导致 `unknown`；此结果用于来源归因，不代表整个应用包完整性验证通过。Intel 与 ARM 使用相同规则。
 - Windows：优先读取 Package Family Name；普通桌面程序使用系统 `WinVerifyTrust` 校验 Authenticode，再同时匹配已登记的签名证书 SHA-256 与安装路径，命中时为 `high`。
 - Linux：按祖先进程可执行文件路径或进程名降级识别，分别为 `medium` / `low`。
 - 无规则命中或签名与已登记身份不一致时返回 `unknown`，不会仅凭疑似路径冒充高可信结果。
 
 macOS 当前可区分 `doubao`、`doubaoWork`、`workbuddy` 和 `codex`。Doubao Work 使用独立智能体来源值 `doubaoWork`，其官方应用身份为 Bundle ID `com.work.pc.doubao`、Team ID `96L78H6LMH`。
+
+`process-ancestry-v4` 补齐飞书内豆包工作 Mac/Windows 本地、豆包工作与工作伙伴 Linux 云端、WorkBuddy 国内/国际 Web 及 Mac 执行工具受限时的 low 置信度组合兜底；WorkBuddyAI.exe 的 Windows 国际版使用独立证书规则。原有命中和签名不匹配结果不被覆盖。新增证据类型为 `macos_signed_host_runtime`、`windows_signed_host_runtime`、`macos_runtime_environment`、`linux_runtime_environment`。样本回放结论见[识别覆盖](docs/runtime-host-coverage.md)。
 
 当前 Windows 身份登记来自公开发行渠道：Codex 使用 Microsoft Store 的 Package Family Name；Doubao、Doubao Work 与 WorkBuddy 使用各自官方 Windows 发行包中的 Authenticode 叶证书指纹。Doubao 与 Doubao Work 当前共享同一发布者证书，检测时还必须命中各自的可执行文件路径/名称，因此会分别返回 `doubao` 与 `doubaoWork`。客户端换证书后会返回 `unknown`，需要先核验新证书再更新规则，不会自动信任同名进程。
 
@@ -312,7 +314,7 @@ macOS 当前可区分 `doubao`、`doubaoWork`、`workbuddy` 和 `codex`。Doubao
 
 ```text
 X-Qfei-Channel-Type: cli
-X-Qfei-Agent-Source-Type: doubao | doubaoWork | workbuddy | codex | unknown
+X-Qfei-Agent-Source-Type: doubao | doubaoWork | doubaoWorkmates | workbuddy | codex | unknown
 X-Qfei-Product-Code: contract
 X-Qfei-Evidence-Type
 X-Qfei-Channel-Confidence

@@ -223,7 +223,7 @@ contract-cli environment inspect --output json --include-processes
 
 - 每一次实际业务 HTTP 请求发送前都会重新探测，包括 OpenPlatform Client 的请求重试和 Token 刷新后的业务请求重放
 - 识别结果只作用于本次请求，不写入 profile、OAuth Token 或其他持久化配置
-- macOS 校验代码签名并匹配 Bundle ID + Team ID
+- macOS 校验代码签名并匹配 Bundle ID + Team ID；通过 `--ignore-resources` 跳过资源内容校验，应用内生成缓存不会单独导致识别失败，与 EveryLine 的识别方案一致
 - Windows 优先匹配 Package Family Name；非商店桌面程序通过系统 WinVerifyTrust 校验 Authenticode，并匹配证书 SHA-256 + 可执行文件路径
 - Linux 当前按可执行文件路径或进程名降级识别
 - 已发现 macOS/Windows 平台身份但身份不匹配时返回 `unknown`，不再降级为路径或进程名命中

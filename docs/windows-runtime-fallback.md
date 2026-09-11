@@ -1,6 +1,6 @@
 # Windows runtime environment fallback
 
-Detector version: `process-ancestry-v3`.
+Windows fallback introduced in `process-ancestry-v3`; its rules are preserved in `process-ancestry-v4`.
 
 The existing process ancestry and identity checks remain primary. Only an
 `unknown / none` result uses the Windows-only fallback, inside the existing
@@ -44,4 +44,3 @@ fallback when ancestry is broken; existing signed Doubao matches remain high.
 Using depth 1 deliberately truncates ancestry and tests fallback in isolation;
 it is a diagnostic simulation, not proof of the client's normal process chain.
 No login, business requests, global CLI replacement, or uploads are required.
-
